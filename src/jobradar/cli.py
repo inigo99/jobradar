@@ -50,6 +50,7 @@ from .storage import Database
 try:
     from rich.console import Console
     from rich.table import Table
+    from rich.text import Text
 
     console = Console()
 
@@ -61,7 +62,9 @@ try:
         for column in columns:
             grid.add_column(column, overflow="fold")
         for row in rows:
-            grid.add_row(*[str(cell) for cell in row])
+            # Cells are data, not markup: rendering them as Text stops rich
+            # from eating things like "jobradar[pdf]" as a style tag.
+            grid.add_row(*[Text(str(cell)) for cell in row])
         console.print(grid)
 
 except ImportError:  # pragma: no cover - cosmetic fallback
