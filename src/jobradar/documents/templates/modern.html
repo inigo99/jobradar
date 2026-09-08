@@ -1,0 +1,91 @@
+{# ---------------------------------------------------------------------------
+   Modern template — one restrained accent colour, generous spacing.
+
+   Still a single column of real text: the accent is a rule and a heading
+   colour, never a sidebar, because sidebars are what break ATS parsing.
+--------------------------------------------------------------------------- #}
+<!doctype html>
+<html lang="{{ language }}">
+<head>
+<meta charset="utf-8">
+<title>{{ name }} — {{ headline }}</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; }
+  :root { --accent: #14625a; }
+  body {
+    font-family: "Georgia", "Iowan Old Style", serif;
+    font-size: {{ (10.2 * scale) | round(2) }}pt;
+    line-height: 1.34;
+    color: #1a1d1f;
+    margin: 0;
+  }
+  .page { padding: 11mm 13mm; }
+  h1 {
+    font-size: {{ (18 * scale) | round(2) }}pt;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: -.01em;
+  }
+  .role { font-size: {{ (10.8 * scale) | round(2) }}pt; color: var(--accent); margin: 2px 0 3px; }
+  .contact { font-size: {{ (8.6 * scale) | round(2) }}pt; color: #55605e; margin: 0 0 9px; }
+  h2 {
+    font-size: {{ (9 * scale) | round(2) }}pt;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--accent);
+    margin: 10px 0 4px;
+    border-top: 1.5px solid var(--accent);
+    padding-top: 4px;
+  }
+  p { margin: 0 0 4px; }
+  .job-title { font-weight: 700; font-size: {{ (10.2 * scale) | round(2) }}pt; margin: 5px 0 0; }
+  .job-meta { font-size: {{ (8.8 * scale) | round(2) }}pt; color: #6b7573; margin: 0 0 3px; }
+  ul { margin: 0 0 4px; padding-left: 14px; }
+  li { margin: 0 0 2px; }
+  .skill { margin: 0 0 2px; }
+  .small { font-size: {{ (8.8 * scale) | round(2) }}pt; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>{{ name }}</h1>
+  {% if headline %}<p class="role">{{ headline }}</p>{% endif %}
+  <p class="contact">{{ contact_line }}</p>
+
+  {% if summary %}<h2>{{ label('summary') }}</h2><p>{{ summary }}</p>{% endif %}
+
+  {% if experiences %}
+  <h2>{{ label('experience') }}</h2>
+  {% for item in experiences %}
+    <p class="job-title">{{ item.title }}{% if item.organization %} — {{ item.organization }}{% endif %}</p>
+    <p class="job-meta">{% if item.location %}{{ item.location }} · {% endif %}{{ item.period }}</p>
+    {% if item.bullets %}<ul>{% for bullet in item.bullets %}<li>{{ bullet }}</li>{% endfor %}</ul>{% endif %}
+  {% endfor %}
+  {% endif %}
+
+  {% if education %}
+  <h2>{{ label('education') }}</h2>
+  {% for item in education %}
+    <p class="job-title">{{ item.degree }}</p>
+    <p class="job-meta">{{ item.institution }}{% if item.period %} · {{ item.period }}{% endif %}</p>
+    {% if item.note %}<p class="small">{{ item.note }}</p>{% endif %}
+  {% endfor %}
+  {% endif %}
+
+  {% if skill_groups %}
+  <h2>{{ label('skills') }}</h2>
+  {% for group in skill_groups %}<div class="skill"><b>{{ group.label }}:</b> {{ group.items }}</div>{% endfor %}
+  {% endif %}
+
+  {% if certifications %}
+  <h2>{{ label('certifications') }}</h2>
+  <ul class="small">{% for item in certifications %}<li>{{ item }}</li>{% endfor %}</ul>
+  {% endif %}
+
+  {% for title, body in extras.items() %}<h2>{{ title }}</h2><p>{{ body }}</p>{% endfor %}
+
+  {% if languages %}<h2>{{ label('languages') }}</h2><p>{{ languages | join(' · ') }}</p>{% endif %}
+</div>
+</body>
+</html>

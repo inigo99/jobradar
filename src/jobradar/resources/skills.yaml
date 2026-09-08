@@ -1,0 +1,133 @@
+# ---------------------------------------------------------------------------
+# Generic skill taxonomy.
+#
+# Used for two things:
+#   1. Turning a job ad into weighted requirements without a language model.
+#   2. Giving each requirement a stable key so it can be compared against the
+#      candidate's profile evidence.
+#
+# `aliases` are matched case-insensitively as whole words against the ad text,
+# so short or ambiguous aliases ("r", "go") are written with enough context to
+# avoid false positives.
+#
+# The taxonomy is intentionally cross-industry: JobRadar is not an
+# engineering-only tool. Add whatever your field needs — a key that is missing
+# simply means that requirement is matched by its literal wording instead.
+# ---------------------------------------------------------------------------
+
+# --- Software engineering ---------------------------------------------------
+python: {label: Python, group: languages, aliases: [python, python3]}
+java: {label: Java, group: languages, aliases: [java, "java 8", "java 11", "java 17"]}
+javascript: {label: JavaScript, group: languages, aliases: [javascript, js, es6]}
+typescript: {label: TypeScript, group: languages, aliases: [typescript, ts]}
+csharp: {label: C#, group: languages, aliases: ["c#", "c sharp", dotnet, ".net"]}
+cpp: {label: C / C++, group: languages, aliases: ["c++", "cpp", "lenguaje c"]}
+golang: {label: Go, group: languages, aliases: [golang, "go lang", "go developer"]}
+rust: {label: Rust, group: languages, aliases: [rust]}
+php: {label: PHP, group: languages, aliases: [php, laravel, symfony]}
+ruby: {label: Ruby, group: languages, aliases: [ruby, "ruby on rails", rails]}
+kotlin: {label: Kotlin, group: languages, aliases: [kotlin]}
+swift: {label: Swift, group: languages, aliases: [swift, swiftui]}
+scala: {label: Scala, group: languages, aliases: [scala]}
+r_lang: {label: R, group: languages, aliases: ["r language", "lenguaje r", "rstudio"]}
+sql: {label: SQL, group: data, aliases: [sql, "t-sql", "pl/sql", plsql]}
+bash: {label: Shell scripting, group: devops, aliases: [bash, "shell scripting", "scripting"]}
+
+react: {label: React, group: frontend, aliases: [react, "react.js", reactjs]}
+angular: {label: Angular, group: frontend, aliases: [angular, angularjs]}
+vue: {label: Vue, group: frontend, aliases: [vue, "vue.js", vuejs, nuxt]}
+nextjs: {label: Next.js, group: frontend, aliases: ["next.js", nextjs]}
+html_css: {label: HTML / CSS, group: frontend, aliases: [html, css, sass, tailwind]}
+node: {label: Node.js, group: backend, aliases: ["node.js", nodejs, express]}
+django: {label: Django, group: backend, aliases: [django]}
+flask: {label: Flask, group: backend, aliases: [flask]}
+fastapi: {label: FastAPI, group: backend, aliases: [fastapi]}
+spring: {label: Spring, group: backend, aliases: [spring, "spring boot", springboot]}
+rest_apis: {label: REST APIs, group: backend, aliases: ["rest api", "restful", "api rest", "apis rest", "web services"]}
+graphql: {label: GraphQL, group: backend, aliases: [graphql]}
+microservices: {label: Microservices, group: architecture, aliases: [microservices, microservicios, "micro services"]}
+distributed_systems: {label: Distributed systems, group: architecture, aliases: ["distributed systems", "sistemas distribuidos", "event driven"]}
+fullstack: {label: Full-stack development, group: engineering, aliases: ["full stack", "full-stack", fullstack]}
+
+# --- Data, ML and AI --------------------------------------------------------
+machine_learning: {label: Machine learning, group: ai, aliases: ["machine learning", "aprendizaje automatico", "aprendizaje automático", "ml models", "modelos de ml"]}
+deep_learning: {label: Deep learning, group: ai, aliases: ["deep learning", "redes neuronales", "neural networks"]}
+nlp: {label: NLP, group: ai, aliases: [nlp, "natural language processing", "procesamiento del lenguaje"]}
+computer_vision: {label: Computer vision, group: ai, aliases: ["computer vision", "vision artificial", "visión artificial", "image processing", "opencv"]}
+llm: {label: LLMs, group: ai, aliases: [llm, llms, "large language model", "gpt", "openai", "claude", "anthropic"]}
+genai: {label: Generative AI, group: ai, aliases: ["generative ai", "ia generativa", "genai", "gen ai"]}
+rag: {label: RAG / vector search, group: ai, aliases: [rag, "retrieval augmented", "vector database", embeddings, pinecone, "vector db"]}
+langchain: {label: LangChain / agent frameworks, group: ai, aliases: [langchain, langgraph, llamaindex, "agent framework"]}
+mlops: {label: MLOps, group: ai, aliases: [mlops, "model deployment", "productionise models", "puesta en produccion de modelos", mlflow]}
+pytorch_tf: {label: PyTorch / TensorFlow, group: ai, aliases: [pytorch, tensorflow, keras]}
+huggingface: {label: Hugging Face, group: ai, aliases: ["hugging face", huggingface, transformers]}
+sklearn: {label: Scikit-learn, group: ai, aliases: ["scikit-learn", "scikit learn", sklearn, xgboost, lightgbm]}
+pandas: {label: Pandas / NumPy, group: data, aliases: [pandas, numpy]}
+spark: {label: Spark, group: data, aliases: [spark, pyspark, databricks]}
+etl: {label: ETL / data pipelines, group: data, aliases: [etl, elt, "data pipeline", "pipelines de datos", airflow, dbt]}
+data_analysis: {label: Data analysis, group: data, aliases: ["data analysis", "analisis de datos", "análisis de datos", "data mining", analytics]}
+data_viz: {label: Data visualisation, group: data, aliases: [tableau, "power bi", powerbi, looker, "data visualization", "visualizacion de datos"]}
+statistics: {label: Statistics, group: data, aliases: [statistics, estadistica, estadística, "a/b testing", econometrics]}
+warehouse: {label: Data warehousing, group: data, aliases: [snowflake, redshift, bigquery, "data warehouse", "data lake"]}
+
+# --- Databases and infrastructure ------------------------------------------
+postgres: {label: PostgreSQL, group: databases, aliases: [postgresql, postgres]}
+mysql: {label: MySQL, group: databases, aliases: [mysql, mariadb]}
+mongodb: {label: MongoDB, group: databases, aliases: [mongodb, mongo]}
+oracle_db: {label: Oracle, group: databases, aliases: ["oracle database", "oracle db", "pl/sql"]}
+redis: {label: Redis, group: databases, aliases: [redis]}
+aws: {label: AWS, group: cloud, aliases: [aws, "amazon web services", ec2, s3, lambda, bedrock]}
+azure: {label: Azure, group: cloud, aliases: [azure, "microsoft azure"]}
+gcp: {label: Google Cloud, group: cloud, aliases: ["google cloud", gcp]}
+docker: {label: Docker, group: devops, aliases: [docker, containers, contenedores]}
+kubernetes: {label: Kubernetes, group: devops, aliases: [kubernetes, k8s, openshift]}
+terraform: {label: Terraform / IaC, group: devops, aliases: [terraform, "infrastructure as code", pulumi, ansible]}
+cicd: {label: CI/CD, group: devops, aliases: ["ci/cd", "continuous integration", jenkins, "github actions", gitlab ci]}
+git: {label: Git, group: devops, aliases: [git, github, gitlab, bitbucket]}
+linux: {label: Linux, group: devops, aliases: [linux, unix, ubuntu]}
+monitoring: {label: Monitoring / observability, group: devops, aliases: [prometheus, grafana, datadog, observability, "monitorizacion"]}
+security: {label: Security, group: devops, aliases: [cybersecurity, ciberseguridad, "security best practices", owasp, iam]}
+
+# --- Engineering practice ---------------------------------------------------
+testing: {label: Testing, group: engineering, aliases: [testing, "unit tests", "pruebas unitarias", pytest, junit, tdd, "integration tests"]}
+agile: {label: Agile / Scrum, group: process, aliases: [agile, scrum, kanban, "metodologias agiles", "metodologías ágiles", safe]}
+code_review: {label: Code review, group: engineering, aliases: ["code review", "revision de codigo", "pair programming"]}
+documentation: {label: Technical documentation, group: engineering, aliases: [documentation, documentacion, documentación, "technical writing"]}
+debugging: {label: Debugging / troubleshooting, group: engineering, aliases: [debugging, troubleshooting, "resolucion de incidencias"]}
+architecture: {label: Software architecture, group: architecture, aliases: ["software architecture", "arquitectura de software", "system design", "diseño de sistemas"]}
+performance: {label: Performance optimisation, group: engineering, aliases: ["performance optimization", "optimizacion", "scalability", escalabilidad]}
+
+# --- Product, design, marketing, sales, operations --------------------------
+product_management: {label: Product management, group: product, aliases: ["product management", "product owner", "gestion de producto", roadmap]}
+ux_research: {label: UX research, group: design, aliases: ["user research", "ux research", usability, "investigacion de usuarios"]}
+ui_design: {label: UI design, group: design, aliases: ["ui design", "interface design", figma, sketch, "diseño de interfaces"]}
+design_systems: {label: Design systems, group: design, aliases: ["design system", "sistema de diseño", "component library"]}
+adobe_suite: {label: Adobe suite, group: design, aliases: [photoshop, illustrator, "adobe creative", indesign]}
+seo: {label: SEO / SEM, group: marketing, aliases: [seo, sem, "search engine optimization", "posicionamiento"]}
+content_marketing: {label: Content marketing, group: marketing, aliases: ["content marketing", copywriting, "marketing de contenidos"]}
+paid_media: {label: Paid media, group: marketing, aliases: ["google ads", "meta ads", "paid media", ppc, "performance marketing"]}
+crm: {label: CRM, group: sales, aliases: [salesforce, hubspot, crm, "pipedrive"]}
+b2b_sales: {label: B2B sales, group: sales, aliases: ["b2b sales", "ventas b2b", "account executive", "business development"]}
+customer_success: {label: Customer success, group: sales, aliases: ["customer success", "atencion al cliente", "customer support", "soporte"]}
+project_management: {label: Project management, group: process, aliases: ["project management", "gestion de proyectos", pmp, "jira", "planificacion"]}
+finance: {label: Finance / accounting, group: business, aliases: [accounting, contabilidad, "financial analysis", "analisis financiero", erp, sap]}
+hr: {label: HR / recruiting, group: business, aliases: ["human resources", "recursos humanos", recruiting, "talent acquisition"]}
+legal: {label: Legal / compliance, group: business, aliases: [compliance, gdpr, rgpd, "legal", "normativa"]}
+supply_chain: {label: Supply chain / logistics, group: operations, aliases: ["supply chain", logistics, logistica, "cadena de suministro"]}
+teaching: {label: Teaching / training, group: business, aliases: [teaching, formacion, "training delivery", mentoring]}
+healthcare: {label: Healthcare domain, group: domain, aliases: [clinical, sanitario, healthcare, "historia clinica"]}
+
+# --- Transferable skills ----------------------------------------------------
+leadership: {label: Leadership, group: soft, aliases: [leadership, liderazgo, "team lead", "managing a team", "gestion de equipos"]}
+communication: {label: Communication, group: soft, aliases: [communication, comunicacion, comunicación, "stakeholder management", "presentation skills"]}
+teamwork: {label: Teamwork, group: soft, aliases: [teamwork, "trabajo en equipo", collaboration, colaboracion]}
+problem_solving: {label: Problem solving, group: soft, aliases: ["problem solving", "resolucion de problemas", "analytical thinking", "pensamiento analitico"]}
+autonomy: {label: Autonomy, group: soft, aliases: [autonomy, autonomia, "self-starter", "trabajo autonomo"]}
+customer_focus: {label: Customer focus, group: soft, aliases: ["customer focused", "orientacion al cliente", "client facing"]}
+
+# --- Languages --------------------------------------------------------------
+english: {label: English, group: language, aliases: [english, ingles, inglés, "b2 english", "c1 english"]}
+spanish: {label: Spanish, group: language, aliases: [spanish, espanol, español, castellano]}
+french: {label: French, group: language, aliases: [french, frances, francés]}
+german: {label: German, group: language, aliases: [german, aleman, alemán, deutsch]}
+portuguese: {label: Portuguese, group: language, aliases: [portuguese, portugues, português]}

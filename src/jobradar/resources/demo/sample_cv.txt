@@ -1,0 +1,39 @@
+ALEX MORGAN
+Valencia, Spain · +34 600 000 000 · alex.morgan@example.com · linkedin.com/in/alexmorgan-demo
+
+PROFESSIONAL SUMMARY
+Software engineer with an MSc in Data Science, working across product backends and applied
+machine learning. Comfortable taking a model from a notebook to something on call at 3am.
+
+PROFESSIONAL EXPERIENCE
+Backend Engineer — Northwind Retail
+Valencia, Spain · 2022-03 - present
+• Cut checkout errors reported in production by 47% by introducing a unit and integration test suite across the payments module.
+• Enabled 1,200 stores to sync stock in near real time by designing the REST APIs between the ERP and the e-commerce platform.
+• Reduced recurring support tickets by 30% by writing the functional and technical documentation for the order pipeline.
+• Validated a proof of concept reaching 82% accuracy on automated order triage using an LLM-based classifier.
+
+Data Analyst — Cortado Analytics
+Valencia, Spain · 2020-06 - 2022-02
+• Cut weekly reporting effort by 12 hours by automating the ETL that fed the sales dashboards.
+• Improved forecast accuracy by 9% by rebuilding the demand model with gradient boosting and proper backtesting.
+
+EDUCATION
+MSc in Data Science — Polytechnic University of Valencia
+2019-09 - 2020-07
+Master's thesis: demand forecasting for perishable inventory.
+
+BSc in Computer Engineering — University of Valencia
+2015-09 - 2019-06
+
+ADDITIONAL TRAINING
+• Certificate in Machine Learning Engineering — Coursera (2021)
+• Certificate in Cloud Architecture Fundamentals — AWS (2023)
+
+TECHNICAL SKILLS
+Languages: Python, SQL, JavaScript, Java
+Data and ML: Pandas, Scikit-learn, PyTorch, ETL pipelines, statistics, data visualisation
+Infrastructure: Docker, AWS, CI/CD, PostgreSQL, REST APIs, FastAPI, testing
+
+LANGUAGES
+Spanish (Native) · English (C1) · French (B1)

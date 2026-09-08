@@ -1,0 +1,97 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jobradar"
+version = "1.0.0"
+description = "Self-hosted job radar: searches job boards, scores openings against your CV, and tailors an honest one-page CV for each one."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "JobRadar contributors" }]
+keywords = ["job-search", "cv", "resume", "ats", "job-board", "scraper", "llm"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Environment :: Web Environment",
+  "Intended Audience :: End Users/Desktop",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Office/Business",
+]
+
+dependencies = [
+  "httpx>=0.27",
+  "pydantic>=2.6",
+  "PyYAML>=6.0",
+  "Jinja2>=3.1",
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.29",
+  "python-multipart>=0.0.9",
+  "rich>=13.7",
+]
+
+[project.optional-dependencies]
+# PDF rendering of the tailored CV (headless Chromium via Playwright).
+pdf = ["playwright>=1.44"]
+# Reading an existing CV from PDF / DOCX during onboarding.
+parse = ["pypdf>=4.2", "python-docx>=1.1"]
+# Spreadsheet export.
+excel = ["openpyxl>=3.1"]
+# Hosted LLM providers (any OpenAI-compatible endpoint works with no extra package).
+llm = ["anthropic>=0.34", "openai>=1.30"]
+# Everything an end user is likely to want.
+all = [
+  "playwright>=1.44", "pypdf>=4.2", "python-docx>=1.1",
+  "openpyxl>=3.1", "anthropic>=0.34", "openai>=1.30",
+]
+dev = [
+  "pytest>=8.1", "respx>=0.21",
+  "ruff>=0.4", "mypy>=1.10",
+]
+
+[project.urls]
+Homepage = "https://github.com/your-username/jobradar"
+Documentation = "https://github.com/your-username/jobradar/tree/main/docs"
+Issues = "https://github.com/your-username/jobradar/issues"
+
+[project.scripts]
+jobradar = "jobradar.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+jobradar = [
+  "resources/*.yaml",
+  "resources/demo/*.json",
+  "resources/demo/*.txt",
+  "documents/templates/*.html",
+  "web/templates/*.html",
+  "web/static/*",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+# E501: line length is handled by `line-length` above, not by the linter.
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# B008 flags function calls in argument defaults; `Form(...)` / `File(...)` in a
+# signature is FastAPI's documented dependency-injection idiom, not a bug.
+"src/jobradar/web/app.py" = ["B008"]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true

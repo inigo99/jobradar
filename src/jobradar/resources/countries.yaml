@@ -1,0 +1,180 @@
+# ---------------------------------------------------------------------------
+# Country registry.
+#
+# `jobradar init` asks which country you work from and uses this file to pick
+# sensible defaults: the currency the salary filter is expressed in, the
+# language job ads are usually written in, and which national job boards are
+# worth enabling.
+#
+# Adding a country is a pull request against this file plus (optionally) a
+# source adapter under `jobradar/sources/`. Nothing else needs to change.
+# ---------------------------------------------------------------------------
+
+ES:
+  name: Spain
+  currency: EUR
+  languages: [es, en]
+  adzuna: es
+  national_sources: [infojobs, tecnoempleo]     # opt-in, see docs/SOURCES.md
+  notes: "InfoJobs and Tecnoempleo publish salary bands more often than LinkedIn."
+
+FR:
+  name: France
+  currency: EUR
+  languages: [fr, en]
+  adzuna: fr
+  national_sources: []
+
+DE:
+  name: Germany
+  currency: EUR
+  languages: [de, en]
+  adzuna: de
+  national_sources: [arbeitnow]
+
+AT:
+  name: Austria
+  currency: EUR
+  languages: [de, en]
+  adzuna: at
+  national_sources: [arbeitnow]
+
+NL:
+  name: Netherlands
+  currency: EUR
+  languages: [nl, en]
+  adzuna: nl
+  national_sources: []
+
+IT:
+  name: Italy
+  currency: EUR
+  languages: [it, en]
+  adzuna: it
+  national_sources: []
+
+PT:
+  name: Portugal
+  currency: EUR
+  languages: [pt, en]
+  adzuna: pt
+  national_sources: []
+
+BE:
+  name: Belgium
+  currency: EUR
+  languages: [nl, fr, en]
+  adzuna: be
+  national_sources: []
+
+IE:
+  name: Ireland
+  currency: EUR
+  languages: [en]
+  adzuna: ie
+  national_sources: []
+
+PL:
+  name: Poland
+  currency: PLN
+  languages: [pl, en]
+  adzuna: pl
+  national_sources: []
+
+GB:
+  name: United Kingdom
+  currency: GBP
+  languages: [en]
+  adzuna: gb
+  national_sources: []
+
+CH:
+  name: Switzerland
+  currency: CHF
+  languages: [de, fr, en]
+  adzuna: ch
+  national_sources: []
+
+US:
+  name: United States
+  currency: USD
+  languages: [en]
+  adzuna: us
+  national_sources: []
+
+CA:
+  name: Canada
+  currency: CAD
+  languages: [en, fr]
+  adzuna: ca
+  national_sources: []
+
+MX:
+  name: Mexico
+  currency: MXN
+  languages: [es, en]
+  adzuna: mx
+  national_sources: []
+
+BR:
+  name: Brazil
+  currency: BRL
+  languages: [pt, en]
+  adzuna: br
+  national_sources: []
+
+AR:
+  name: Argentina
+  currency: ARS
+  languages: [es, en]
+  adzuna: null
+  national_sources: []
+
+CO:
+  name: Colombia
+  currency: COP
+  languages: [es, en]
+  adzuna: null
+  national_sources: []
+
+CL:
+  name: Chile
+  currency: CLP
+  languages: [es, en]
+  adzuna: null
+  national_sources: []
+
+IN:
+  name: India
+  currency: INR
+  languages: [en]
+  adzuna: in
+  national_sources: []
+
+AU:
+  name: Australia
+  currency: AUD
+  languages: [en]
+  adzuna: au
+  national_sources: []
+
+NZ:
+  name: New Zealand
+  currency: NZD
+  languages: [en]
+  adzuna: nz
+  national_sources: []
+
+ZA:
+  name: South Africa
+  currency: ZAR
+  languages: [en]
+  adzuna: za
+  national_sources: []
+
+SG:
+  name: Singapore
+  currency: SGD
+  languages: [en]
+  adzuna: sg
+  national_sources: []

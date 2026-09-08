@@ -1,0 +1,934 @@
+{# ---------------------------------------------------------------------------
+   The dashboard: one page, no build step, no CDN.
+
+   Everything is served from localhost, including the styling and the script,
+   so the dashboard keeps working offline and nothing about the user's job
+   search leaks to a third party through an asset request.
+--------------------------------------------------------------------------- #}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JobRadar</title>
+<style>
+  :root {
+    --bg: #f4f6f6; --surface: #fff; --surface-2: #fafbfb; --line: #dde3e1;
+    --ink: #14181a; --ink-2: #4a5553; --ink-3: #7b8783;
+    --accent: #14625a; --accent-soft: #dceae7; --accent-ink: #0d453f;
+    --warn: #8a5a12; --warn-soft: #fbf0dc; --danger: #9a2f2f; --ok: #1d6b3f;
+    --radius: 10px; --shadow: 0 1px 2px rgba(16,24,32,.06), 0 6px 20px rgba(16,24,32,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14181a; --surface: #1c2224; --surface-2: #222a2c; --line: #303a3c;
+      --ink: #e8eeec; --ink-2: #b3c0bd; --ink-3: #8593906; --ink-3: #859390;
+      --accent: #6fc0b3; --accent-soft: #1e3b38; --accent-ink: #a8ded5;
+      --warn: #e0b467; --warn-soft: #3a3020; --danger: #e08a8a; --ok: #7ac79b;
+      --shadow: 0 1px 2px rgba(0,0,0,.4);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  a { color: var(--accent); }
+  button {
+    font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--surface); color: var(--ink); padding: 7px 13px;
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover { background: var(--accent-ink); }
+  button.ghost { background: transparent; border-color: transparent; color: var(--ink-2); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  input, select, textarea {
+    font: inherit; width: 100%; padding: 8px 10px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  }
+  textarea { min-height: 90px; resize: vertical; }
+  label { display: block; font-size: 13px; color: var(--ink-2); margin: 12px 0 4px; font-weight: 600; }
+  .hint { font-size: 12.5px; color: var(--ink-3); margin: 4px 0 0; font-weight: 400; }
+
+  header {
+    position: sticky; top: 0; z-index: 20; background: var(--surface);
+    border-bottom: 1px solid var(--line); padding: 10px 20px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 17px; margin: 0; letter-spacing: -.01em; }
+  header .spacer { flex: 1; }
+  .badge {
+    font-size: 12px; padding: 2px 8px; border-radius: 999px;
+    background: var(--accent-soft); color: var(--accent-ink); font-weight: 600;
+  }
+  main { max-width: 1180px; margin: 0 auto; padding: 18px 20px 80px; }
+
+  .tabs { display: flex; gap: 4px; margin: 6px 0 16px; flex-wrap: wrap; }
+  .tabs button { border-radius: 999px; }
+  .tabs button[aria-selected="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+  .toolbar input[type="search"] { max-width: 280px; }
+
+  .job {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 16px; margin-bottom: 10px; box-shadow: var(--shadow);
+  }
+  .job.closed { opacity: .55; }
+  .job-head { display: flex; gap: 12px; align-items: flex-start; }
+  .job-head h3 { margin: 0 0 2px; font-size: 15.5px; }
+  .job-head .meta { font-size: 13px; color: var(--ink-2); }
+  .score {
+    text-align: right; min-width: 108px; font-variant-numeric: tabular-nums;
+  }
+  .score .big { font-size: 21px; font-weight: 700; color: var(--accent); }
+  .score .delta { font-size: 12px; color: var(--ink-3); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+  .chip {
+    font-size: 12px; padding: 2px 9px; border-radius: 999px;
+    background: var(--surface-2); border: 1px solid var(--line); color: var(--ink-2);
+  }
+  .chip.good { background: var(--accent-soft); color: var(--accent-ink); border-color: transparent; }
+  .chip.gap { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+  .alert {
+    margin-top: 9px; font-size: 13px; padding: 7px 10px; border-radius: 8px;
+    background: var(--warn-soft); color: var(--warn);
+  }
+  .job-actions { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 11px; }
+  details.detail { margin-top: 10px; }
+  details.detail summary { cursor: pointer; font-size: 13px; color: var(--ink-2); }
+  .detail-body { padding-top: 9px; font-size: 13.5px; }
+  .doc-text {
+    white-space: pre-wrap; background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: 8px; padding: 11px; font-size: 13px; margin-top: 8px; max-height: 380px; overflow: auto;
+  }
+  .track { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
+
+  dialog {
+    border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--ink);
+    padding: 0; max-width: 720px; width: calc(100% - 32px); box-shadow: var(--shadow);
+  }
+  dialog::backdrop { background: rgba(10,16,18,.5); }
+  .dialog-head { padding: 16px 20px 0; }
+  .dialog-body { padding: 4px 20px 16px; max-height: 66vh; overflow: auto; }
+  .dialog-foot {
+    padding: 12px 20px; border-top: 1px solid var(--line);
+    display: flex; gap: 8px; justify-content: flex-end; align-items: center;
+  }
+  .dialog-foot .spacer { flex: 1; }
+  .steps { display: flex; gap: 6px; font-size: 12px; color: var(--ink-3); margin: 6px 0 0; }
+  .steps span[aria-current="true"] { color: var(--accent); font-weight: 700; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 620px) { .two { grid-template-columns: 1fr; } }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .row input[type="checkbox"] { width: auto; }
+  fieldset { border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: 14px 0 0; }
+  legend { font-size: 12.5px; color: var(--ink-2); font-weight: 700; padding: 0 6px; }
+  .source { display: flex; gap: 9px; align-items: flex-start; padding: 7px 0; border-bottom: 1px solid var(--line); }
+  .source:last-child { border-bottom: 0; }
+  .source input { width: auto; margin-top: 4px; }
+  .tier { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); }
+  .tier.restricted { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+  .empty { text-align: center; padding: 60px 20px; color: var(--ink-3); }
+  .toast {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: var(--bg); padding: 9px 16px; border-radius: 999px;
+    font-size: 13.5px; z-index: 60; box-shadow: var(--shadow);
+  }
+  .lint-finding { padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+  .lint-finding:last-child { border-bottom: 0; }
+  .sev { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+  .sev.error { color: var(--danger); } .sev.warning { color: var(--warn); } .sev.info { color: var(--ink-3); }
+  .skill-row { display: grid; grid-template-columns: 1fr 90px 90px; gap: 8px; align-items: center; padding: 4px 0; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>JobRadar</h1>
+  <span class="badge" id="job-count">—</span>
+  <div class="spacer"></div>
+  <button id="btn-search" class="primary">Search now</button>
+  <button id="btn-sweep">Check closed ads</button>
+  <button id="btn-settings">Settings</button>
+</header>
+
+<main>
+  <div class="tabs" id="tabs" role="tablist"></div>
+  <div class="toolbar">
+    <input type="search" id="filter" placeholder="Filter by company, title or skill…">
+    <select id="sort" style="max-width:200px">
+      <option value="score">Best match first</option>
+      <option value="date">Newest first</option>
+      <option value="salary">Highest salary first</option>
+    </select>
+    <span id="run-note" class="hint"></span>
+  </div>
+  <div id="board"></div>
+</main>
+
+<!-- ------------------------------------------------------------------ -->
+<!-- First-run wizard                                                    -->
+<!-- ------------------------------------------------------------------ -->
+<dialog id="wizard">
+  <form method="dialog" id="wizard-form">
+    <div class="dialog-head">
+      <h2 id="wizard-title" style="margin:0">Welcome to JobRadar</h2>
+      <p class="steps" id="wizard-steps"></p>
+    </div>
+    <div class="dialog-body" id="wizard-body"></div>
+    <div class="dialog-foot">
+      <span class="hint" id="wizard-note"></span>
+      <span class="spacer"></span>
+      <button type="button" class="ghost" id="wizard-back">Back</button>
+      <button type="button" class="primary" id="wizard-next">Continue</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ------------------------------------------------------------------ -->
+<!-- Settings                                                            -->
+<!-- ------------------------------------------------------------------ -->
+<dialog id="settings">
+  <div class="dialog-head"><h2 style="margin:0">Settings</h2></div>
+  <div class="dialog-body" id="settings-body"></div>
+  <div class="dialog-foot">
+    <span class="spacer"></span>
+    <button class="ghost" id="settings-close">Close</button>
+    <button class="primary" id="settings-save">Save</button>
+  </div>
+</dialog>
+
+<script>
+/* ---------------------------------------------------------------------------
+   State. One fetch of /api/state fills everything; every mutation refetches
+   rather than patching the DOM by hand, which keeps the browser and the
+   database from ever disagreeing about what is on screen.
+--------------------------------------------------------------------------- */
+let STATE = null;
+let TAB = "active";
+
+const $ = (sel, root = document) => root.querySelector(sel);
+const el = (tag, props = {}, ...children) => {
+  const node = Object.assign(document.createElement(tag), props);
+  for (const child of children.flat()) {
+    if (child == null) continue;
+    node.append(child.nodeType ? child : document.createTextNode(child));
+  }
+  return node;
+};
+
+function toast(message, ms = 3200) {
+  const node = el("div", { className: "toast", textContent: message });
+  document.body.append(node);
+  setTimeout(() => node.remove(), ms);
+}
+
+async function api(path, options = {}) {
+  const response = await fetch(path, {
+    headers: options.body && !(options.body instanceof FormData)
+      ? { "content-type": "application/json" } : undefined,
+    ...options,
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.detail || response.statusText);
+  return payload;
+}
+
+async function refresh() {
+  STATE = await api("/api/state");
+  render();
+}
+
+/* --------------------------------------------------------------------------
+   The board
+-------------------------------------------------------------------------- */
+const TABS = [
+  ["active",    "Active",    j => j.status === "active" && !j.closed],
+  ["applied",   "Applied",   j => j.status === "applied" && j.stage !== "rejected"],
+  ["rejected",  "Rejected",  j => j.status === "applied" && j.stage === "rejected"],
+  ["discarded", "Discarded", j => j.status === "discarded"],
+  ["closed",    "Closed ads", j => j.closed && j.status === "active"],
+];
+
+function money(job) {
+  if (!job.salary_min) return "salary not stated";
+  const fmt = value => new Intl.NumberFormat(undefined, {
+    style: "currency", currency: job.salary_currency || "EUR", maximumFractionDigits: 0,
+  }).format(value);
+  const range = job.salary_max && job.salary_max !== job.salary_min
+    ? `${fmt(job.salary_min)}–${fmt(job.salary_max)}` : fmt(job.salary_min);
+  return job.salary_origin === "estimated" ? `${range} (estimated)` : range;
+}
+
+function jobCard(job) {
+  const card = el("article", { className: "job" + (job.closed ? " closed" : "") });
+
+  card.append(el("div", { className: "job-head" },
+    el("div", { style: "flex:1" },
+      el("h3", {}, job.title),
+      el("div", { className: "meta" },
+        [job.company || "unnamed company", job.location, job.work_mode,
+         job.posted_at || "no date", money(job), job.source].filter(Boolean).join(" · ")),
+    ),
+    el("div", { className: "score" },
+      el("div", { className: "big" }, job.score_tailored ? job.score_tailored.toFixed(0) + "%" : "—"),
+      el("div", { className: "delta" },
+        job.score_base ? `${job.score_base.toFixed(0)}% as-is · +${job.score_delta.toFixed(0)} tailored` : "not scored"),
+    ),
+  ));
+
+  if (job.strengths.length || job.gaps.length) {
+    card.append(el("div", { className: "chips" },
+      job.strengths.slice(0, 5).map(s => el("span", { className: "chip good" }, s)),
+      job.gaps.slice(0, 4).map(g => el("span", { className: "chip gap" }, "gap: " + g)),
+    ));
+  }
+  for (const alert of job.alerts.slice(0, 3)) {
+    card.append(el("div", { className: "alert" }, alert));
+  }
+
+  /* Actions. Applying is never automated: the button opens the ad. */
+  const actions = el("div", { className: "job-actions" });
+  actions.append(el("a", { href: job.url, target: "_blank", rel: "noopener" },
+    el("button", { className: "primary" }, "Open the ad")));
+  actions.append(button("Tailor CV", () => buildCv(job, card)));
+  actions.append(button("Cover letter", () => buildDoc(job, "cover_letter", card)));
+  actions.append(button("Application email", () => buildDoc(job, "email", card)));
+  if (job.has_cv) {
+    actions.append(el("a", { href: `/api/jobs/${encodeURIComponent(job.id)}/cv/download` },
+      el("button", {}, "Download CV")));
+  }
+  if (job.status !== "discarded") {
+    actions.append(button("Not interested", () => track(job, { status: "discarded" })));
+  } else {
+    actions.append(button("Restore", () => track(job, { status: "active" })));
+  }
+  if (job.status !== "applied") {
+    actions.append(button("Mark as applied", () =>
+      track(job, { status: "applied", stage: "applied", applied_on: new Date().toISOString().slice(0, 10) })));
+  }
+  card.append(actions);
+
+  /* Tracking controls, only once the user has actually applied. */
+  if (job.status === "applied") {
+    const stage = el("select", {},
+      ...["applied", "screening", "interview", "offer", "rejected"].map(value =>
+        el("option", { value, selected: job.stage === value }, value)));
+    stage.onchange = () => track(job, { status: "applied", stage: stage.value,
+                                        applied_on: job.applied_on, notes: job.notes });
+    const notes = el("input", { value: job.notes || "", placeholder: "Notes (saved when you leave the field)" });
+    notes.onchange = () => track(job, { status: "applied", stage: job.stage,
+                                        applied_on: job.applied_on, notes: notes.value });
+    card.append(el("div", { className: "track" },
+      el("div", {}, el("label", {}, "Stage"), stage),
+      el("div", { style: "grid-column: span 2" }, el("label", {}, "Notes"), notes),
+    ));
+  }
+
+  const detail = el("details", { className: "detail" },
+    el("summary", {}, "What this job asks for"),
+    el("div", { className: "detail-body" },
+      el("div", { className: "chips" }, job.requirements.map(r => el("span", { className: "chip" }, r))),
+      job.salary_basis ? el("p", { className: "hint" }, job.salary_basis) : null,
+      job.min_years_experience ? el("p", { className: "hint" },
+        `Asks for ${job.min_years_experience}+ years of experience.`) : null,
+    ));
+  card.append(detail);
+
+  const output = el("div", { className: "job-output" });
+  card.append(output);
+  return card;
+}
+
+function button(text, onclick) {
+  const node = el("button", {}, text);
+  node.onclick = async () => {
+    node.disabled = true;
+    const original = node.textContent;
+    node.textContent = "Working…";
+    try { await onclick(); } catch (error) { toast(error.message); }
+    node.textContent = original;
+    node.disabled = false;
+  };
+  return node;
+}
+
+async function track(job, payload) {
+  await api(`/api/jobs/${encodeURIComponent(job.id)}/application`, {
+    method: "PUT",
+    body: JSON.stringify({ status: "active", stage: null, applied_on: null, notes: "", ...payload }),
+  });
+  await refresh();
+}
+
+async function buildCv(job, card) {
+  const result = await api(`/api/jobs/${encodeURIComponent(job.id)}/cv`, { method: "POST" });
+  const output = $(".job-output", card);
+  output.innerHTML = "";
+  output.append(
+    el("h4", { style: "margin:14px 0 4px" }, "Tailored CV"),
+    el("p", { className: "hint" },
+      `${result.pages || "?"} page(s) · type scale ${result.scale} · written by ${result.generated_by}`),
+    el("div", { className: "doc-text" }, `${result.headline}\n\n${result.summary}`),
+    lintBlock(result.lint),
+    ...(result.warnings || []).map(w => el("div", { className: "alert" }, w)),
+    ...(result.validation_notes || []).map(n =>
+      el("div", { className: "alert" }, "Draft rejected: " + n)),
+  );
+  await refresh();
+}
+
+async function buildDoc(job, kind, card) {
+  const result = await api(`/api/jobs/${encodeURIComponent(job.id)}/documents/${kind}`, { method: "POST" });
+  const output = $(".job-output", card);
+  const text = result.document.text;
+  output.innerHTML = "";
+  output.append(
+    el("h4", { style: "margin:14px 0 4px" }, kind === "email" ? "Application email" : "Cover letter"),
+    el("p", { className: "hint" },
+      result.document.llm_generated ? "Written by the language model." :
+      "Skeleton from your profile — the bracketed parts are yours to write."),
+    el("div", { className: "doc-text" }, text),
+    button("Copy", async () => { await navigator.clipboard.writeText(text); toast("Copied"); }),
+  );
+  await refresh();
+}
+
+function lintBlock(lint) {
+  if (!lint) return null;
+  const wrapper = el("details", { className: "detail", open: lint.findings.some(f => f.severity === "error") },
+    el("summary", {}, `Red-flag check: ${lint.summary}`));
+  const body = el("div", { className: "detail-body" });
+  for (const finding of lint.findings) {
+    body.append(el("div", { className: "lint-finding" },
+      el("span", { className: "sev " + finding.severity }, finding.severity + " · "),
+      el("span", {}, finding.message),
+      finding.hint ? el("div", { className: "hint" }, finding.hint) : null));
+  }
+  if (!lint.findings.length) body.append(el("p", { className: "hint" }, "Nothing flagged."));
+  wrapper.append(body);
+  return wrapper;
+}
+
+function render() {
+  const tabs = $("#tabs");
+  tabs.innerHTML = "";
+  for (const [key, title, predicate] of TABS) {
+    const count = STATE.jobs.filter(predicate).length;
+    const node = el("button", { role: "tab" }, `${title} (${count})`);
+    node.setAttribute("aria-selected", key === TAB);
+    node.onclick = () => { TAB = key; render(); };
+    tabs.append(node);
+  }
+
+  const predicate = TABS.find(t => t[0] === TAB)[2];
+  const needle = $("#filter").value.trim().toLowerCase();
+  let jobs = STATE.jobs.filter(predicate);
+  if (needle) {
+    jobs = jobs.filter(job =>
+      `${job.title} ${job.company} ${job.strengths.join(" ")} ${job.requirements.join(" ")}`
+        .toLowerCase().includes(needle));
+  }
+  const sort = $("#sort").value;
+  jobs.sort((a, b) =>
+    sort === "date" ? String(b.posted_at || "").localeCompare(String(a.posted_at || "")) :
+    sort === "salary" ? (b.salary_max || 0) - (a.salary_max || 0) :
+    b.score_tailored - a.score_tailored);
+
+  $("#job-count").textContent = `${STATE.jobs.length} jobs tracked`;
+  const board = $("#board");
+  board.innerHTML = "";
+  if (!jobs.length) {
+    board.append(el("div", { className: "empty" },
+      STATE.jobs.length ? "Nothing in this tab." :
+      "No jobs yet. Press “Search now” to run the first search."));
+  } else {
+    jobs.forEach(job => board.append(jobCard(job)));
+  }
+
+  const last = STATE.runs[0];
+  $("#run-note").textContent = last
+    ? `Last run: ${last.kept} kept of ${last.fetched} fetched, ${last.new} new.` : "";
+}
+
+/* --------------------------------------------------------------------------
+   Onboarding wizard
+-------------------------------------------------------------------------- */
+const WIZARD = {
+  step: 0,
+  file: null,
+  data: {
+    full_name: "", email: "", country: "ES", default_language: "en", cv_text: "",
+    titles: [], keywords: [], company_domains: [], enabled_sources: [], cv_template: "classic",
+    filters: {
+      work_modes: ["remote"], local_areas: [], home_country: "ES",
+      allow_international_remote: true, eligible_countries: [],
+      min_salary: null, salary_currency: "EUR", require_published_salary: false,
+      max_years_experience: null, required_keywords: [], excluded_keywords: [],
+      excluded_companies: [], max_age_days: 7, keep_undated: true,
+    },
+  },
+};
+
+const WIZARD_STEPS = ["You", "Your CV", "What you're looking for", "Filters", "Where to search"];
+
+function wizardStep(step) {
+  const data = WIZARD.data;
+  const body = el("div");
+  if (step === 0) {
+    body.append(
+      el("p", { className: "hint" },
+        "JobRadar keeps everything on this machine. Nothing here is uploaded anywhere."),
+      el("label", {}, "Full name"),
+      input("full_name", data.full_name, "As it should appear on your CV"),
+      el("div", { className: "two" },
+        el("div", {}, el("label", {}, "Email"), input("email", data.email, "you@example.com")),
+        el("div", {}, el("label", {}, "Country you work from"), countrySelect(data.country)),
+      ),
+      el("label", {}, "Language for generated documents when the ad's language is unclear"),
+      languageSelect(data.default_language),
+    );
+  } else if (step === 1) {
+    body.append(
+      el("p", { className: "hint" },
+        "Upload your current CV (PDF, DOCX or text) or paste it below. JobRadar reads it into a " +
+        "structured profile — that profile is then the only source of facts any generated " +
+        "document may use."),
+      el("label", {}, "CV file"),
+      el("input", { type: "file", id: "cv-file", accept: ".pdf,.docx,.txt,.md,.html" }),
+      el("label", {}, "…or paste the text"),
+      el("textarea", { id: "cv-text", value: data.cv_text, placeholder: "Paste your CV here" }),
+      el("label", {}, "CV template"),
+      selectFrom("cv_template", data.cv_template,
+        [["classic", "Classic — serif, dense, conservative"],
+         ["compact", "Compact — sans-serif, tight"],
+         ["modern", "Modern — one accent colour, more space"]]),
+      el("p", { className: "hint" },
+        "All three are single-column and machine-readable, which is what applicant tracking " +
+        "systems need. Your original layout is not reproduced pixel for pixel — its content is."),
+    );
+  } else if (step === 2) {
+    body.append(
+      el("label", {}, "Job titles you are looking for"),
+      el("textarea", { id: "titles", value: data.titles.join("\n"),
+                       placeholder: "One per line, e.g.\nMachine Learning Engineer\nBackend Developer" }),
+      el("p", { className: "hint" }, "These are sent to every job board as search queries."),
+      el("label", {}, "Extra keywords (optional)"),
+      el("textarea", { id: "keywords", value: data.keywords.join("\n"),
+                       placeholder: "One per line, e.g.\nLLM\ncomputer vision" }),
+    );
+  } else if (step === 3) {
+    const f = data.filters;
+    body.append(
+      el("label", {}, "Acceptable ways of working"),
+      el("div", { className: "row" },
+        ...["remote", "hybrid", "onsite"].map(mode =>
+          el("label", { className: "row", style: "margin:0 14px 0 0;font-weight:400" },
+            el("input", { type: "checkbox", className: "mode", value: mode,
+                          checked: f.work_modes.includes(mode) }), " " + mode))),
+      el("label", {}, "Places where you would also take a hybrid or on-site job"),
+      input("local_areas", f.local_areas.join(", "), "e.g. Navarre, Gipuzkoa, Berlin"),
+      el("p", { className: "hint" },
+        "This is the exception to the rule above: remote anywhere, plus the office within reach."),
+      el("div", { className: "two" },
+        el("div", {}, el("label", {}, "Minimum salary per year (leave blank for none)"),
+          el("input", { id: "min_salary", type: "number", value: f.min_salary ?? "", placeholder: "35000" })),
+        el("div", {}, el("label", {}, "Currency"), input("salary_currency", f.salary_currency, "EUR")),
+      ),
+      el("p", { className: "hint" },
+        "Most ads publish no salary, so JobRadar estimates one and marks it as an estimate. " +
+        "Nothing is dropped for an unknown salary unless you ask for published figures only."),
+      el("div", { className: "row", style: "margin-top:8px" },
+        el("input", { type: "checkbox", id: "require_published", checked: f.require_published_salary }),
+        el("label", { style: "margin:0" }, "Only show jobs that publish a salary")),
+      el("div", { className: "two" },
+        el("div", {}, el("label", {}, "Skip ads asking for more than N years"),
+          el("input", { id: "max_years", type: "number", value: f.max_years_experience ?? "", placeholder: "5" })),
+        el("div", {}, el("label", {}, "Only ads published in the last N days"),
+          el("input", { id: "max_age", type: "number", value: f.max_age_days })),
+      ),
+      el("label", {}, "Words that disqualify an ad"),
+      input("excluded_keywords", f.excluded_keywords.join(", "), "e.g. unpaid, commission only"),
+      el("div", { className: "row", style: "margin-top:10px" },
+        el("input", { type: "checkbox", id: "intl", checked: f.allow_international_remote }),
+        el("label", { style: "margin:0" }, "Include remote jobs from other countries when they allow it")),
+    );
+  } else {
+    body.append(
+      el("p", { className: "hint" },
+        "Sources marked “restricted” read pages that were built for people, not programs. " +
+        "They are off unless you switch them on, and doing so is your decision under the " +
+        "site's terms and your own jurisdiction."),
+      el("div", { id: "sources" }, ...(STATE?.sources || []).map(sourceRow)),
+      el("label", {}, "Companies to watch"),
+      el("textarea", { id: "domains", value: data.company_domains.join("\n"),
+                       placeholder: "One per line:\nstripe.com\ngreenhouse:airbnb\nlever:netflix" }),
+      el("p", { className: "hint" },
+        "A bare domain is enough — JobRadar finds which hiring system the company uses and reads " +
+        "its job board directly."),
+    );
+  }
+  return body;
+}
+
+function sourceRow(source) {
+  const enabled = WIZARD.data.enabled_sources.length
+    ? WIZARD.data.enabled_sources.includes(source.id)
+    : source.default_enabled;
+  return el("div", { className: "source" },
+    el("input", { type: "checkbox", className: "source-box", value: source.id, checked: enabled }),
+    el("div", {},
+      el("div", {}, el("b", {}, source.name), " ",
+        el("span", { className: "tier " + source.tos_tier }, source.tos_tier)),
+      source.required_env.length
+        ? el("div", { className: "hint" }, "Needs: " + source.required_env.join(", ") + " in your .env")
+        : null,
+      source.tos_note ? el("div", { className: "hint" }, source.tos_note) : null,
+    ));
+}
+
+function input(id, value, placeholder = "") {
+  return el("input", { id, value: value ?? "", placeholder });
+}
+function selectFrom(id, current, options) {
+  return el("select", { id }, ...options.map(([value, text]) =>
+    el("option", { value, selected: value === current }, text)));
+}
+function countrySelect(current) {
+  const entries = Object.entries(STATE?.countries || { ES: "Spain" }).sort((a, b) => a[1].localeCompare(b[1]));
+  return selectFrom("country", current, entries);
+}
+function languageSelect(current) {
+  return selectFrom("default_language", current,
+    [["en", "English"], ["es", "Spanish"], ["fr", "French"], ["de", "German"],
+     ["pt", "Portuguese"], ["it", "Italian"], ["nl", "Dutch"]]);
+}
+
+function collectWizardStep(step) {
+  const data = WIZARD.data;
+  const value = id => ($("#" + id) ? $("#" + id).value.trim() : "");
+  const list = id => value(id).split(/[\n,]/).map(s => s.trim()).filter(Boolean);
+  if (step === 0) {
+    data.full_name = value("full_name");
+    data.email = value("email");
+    data.country = value("country");
+    data.default_language = value("default_language");
+    data.filters.home_country = data.country;
+    if (!data.full_name) return "Your name is needed — it goes at the top of every CV.";
+  } else if (step === 1) {
+    const picker = $("#cv-file");
+    WIZARD.file = picker && picker.files.length ? picker.files[0] : null;
+    data.cv_text = value("cv-text");
+    data.cv_template = value("cv_template");
+  } else if (step === 2) {
+    data.titles = list("titles");
+    data.keywords = list("keywords");
+    if (!data.titles.length) return "Add at least one job title to search for.";
+  } else if (step === 3) {
+    const f = data.filters;
+    f.work_modes = [...document.querySelectorAll(".mode:checked")].map(node => node.value);
+    f.local_areas = list("local_areas");
+    f.min_salary = value("min_salary") ? Number(value("min_salary")) : null;
+    f.salary_currency = value("salary_currency") || "EUR";
+    f.require_published_salary = $("#require_published").checked;
+    f.max_years_experience = value("max_years") ? Number(value("max_years")) : null;
+    f.max_age_days = Number(value("max_age") || 7);
+    f.excluded_keywords = list("excluded_keywords");
+    f.allow_international_remote = $("#intl").checked;
+    if (!f.work_modes.length) return "Pick at least one way of working.";
+  } else {
+    data.enabled_sources = [...document.querySelectorAll(".source-box:checked")].map(n => n.value);
+    data.company_domains = list("domains");
+  }
+  return null;
+}
+
+function showWizard() {
+  const dialog = $("#wizard");
+  const paint = () => {
+    $("#wizard-steps").innerHTML = "";
+    WIZARD_STEPS.forEach((title, index) => {
+      const node = el("span", {}, title);
+      node.setAttribute("aria-current", index === WIZARD.step);
+      $("#wizard-steps").append(node, index < WIZARD_STEPS.length - 1 ? " › " : "");
+    });
+    $("#wizard-body").innerHTML = "";
+    $("#wizard-body").append(wizardStep(WIZARD.step));
+    $("#wizard-back").style.visibility = WIZARD.step ? "visible" : "hidden";
+    $("#wizard-next").textContent = WIZARD.step === WIZARD_STEPS.length - 1 ? "Finish" : "Continue";
+    $("#wizard-note").textContent = "";
+  };
+  $("#wizard-back").onclick = () => { collectWizardStep(WIZARD.step); WIZARD.step--; paint(); };
+  $("#wizard-next").onclick = async () => {
+    const problem = collectWizardStep(WIZARD.step);
+    if (problem) { $("#wizard-note").textContent = problem; return; }
+    if (WIZARD.step < WIZARD_STEPS.length - 1) { WIZARD.step++; paint(); return; }
+    $("#wizard-next").disabled = true;
+    $("#wizard-note").textContent = "Reading your CV…";
+    try {
+      const form = new FormData();
+      form.append("payload", JSON.stringify(WIZARD.data));
+      if (WIZARD.file) form.append("cv_file", WIZARD.file);
+      const result = await api("/api/onboarding", { method: "POST", body: form });
+      dialog.close();
+      await refresh();
+      if (result.notes.length) alert("Setup done. Worth checking:\n\n• " + result.notes.join("\n• "));
+      toast("Ready. Press “Search now” to run the first search.");
+    } catch (error) {
+      $("#wizard-note").textContent = error.message;
+    }
+    $("#wizard-next").disabled = false;
+  };
+  paint();
+  dialog.showModal();
+}
+
+/* --------------------------------------------------------------------------
+   Settings
+-------------------------------------------------------------------------- */
+function settingsBody() {
+  const settings = STATE.settings;
+  const f = settings.filters;
+  const body = el("div");
+  const profile = STATE.profile;
+
+  body.append(
+    el("fieldset", {},
+      el("legend", {}, "You"),
+      el("div", { className: "two" },
+        el("div", {}, el("label", {}, "Full name"), input("s_name", settings.full_name)),
+        el("div", {}, el("label", {}, "Email"), input("s_email", settings.email)),
+      ),
+      el("div", { className: "two" },
+        el("div", {}, el("label", {}, "Country"), countrySelectFor("s_country", settings.country)),
+        el("div", {}, el("label", {}, "Document language fallback"),
+          selectFrom("s_language", settings.default_language,
+            [["en","English"],["es","Spanish"],["fr","French"],["de","German"],["pt","Portuguese"],["it","Italian"]])),
+      ),
+      el("label", {}, "CV template"),
+      selectFrom("s_template", settings.cv_template,
+        [["classic","Classic"],["compact","Compact"],["modern","Modern"]]),
+    ),
+
+    el("fieldset", {},
+      el("legend", {}, "What you're looking for"),
+      el("label", {}, "Job titles"),
+      el("textarea", { id: "s_titles", value: settings.search.titles.join("\n") }),
+      el("label", {}, "Extra keywords"),
+      el("textarea", { id: "s_keywords", value: settings.search.keywords.join("\n") }),
+    ),
+
+    el("fieldset", {},
+      el("legend", {}, "Filters"),
+      el("label", {}, "Acceptable ways of working"),
+      el("div", { className: "row" },
+        ...["remote", "hybrid", "onsite"].map(mode =>
+          el("label", { className: "row", style: "margin:0 14px 0 0;font-weight:400" },
+            el("input", { type: "checkbox", className: "s_mode", value: mode,
+                          checked: f.work_modes.includes(mode) }), " " + mode))),
+      el("label", {}, "Areas where hybrid or on-site is fine"),
+      input("s_areas", f.local_areas.join(", ")),
+      el("div", { className: "two" },
+        el("div", {}, el("label", {}, "Minimum salary"),
+          el("input", { id: "s_minsal", type: "number", value: f.min_salary ?? "" })),
+        el("div", {}, el("label", {}, "Currency"), input("s_currency", f.salary_currency)),
+      ),
+      el("div", { className: "two" },
+        el("div", {}, el("label", {}, "Max years of experience asked for"),
+          el("input", { id: "s_maxyears", type: "number", value: f.max_years_experience ?? "" })),
+        el("div", {}, el("label", {}, "Ads from the last N days"),
+          el("input", { id: "s_age", type: "number", value: f.max_age_days })),
+      ),
+      el("label", {}, "Excluded keywords"), input("s_exclude", f.excluded_keywords.join(", ")),
+      el("label", {}, "Excluded companies"), input("s_excludeco", f.excluded_companies.join(", ")),
+      el("div", { className: "row", style: "margin-top:10px" },
+        el("input", { type: "checkbox", id: "s_intl", checked: f.allow_international_remote }),
+        el("label", { style: "margin:0" }, "Include international remote when the ad allows it")),
+      el("div", { className: "row", style: "margin-top:6px" },
+        el("input", { type: "checkbox", id: "s_published", checked: f.require_published_salary }),
+        el("label", { style: "margin:0" }, "Published salaries only")),
+    ),
+
+    el("fieldset", {},
+      el("legend", {}, "Where to search"),
+      ...STATE.sources.map(source => {
+        const enabled = settings.sources.enabled.length
+          ? settings.sources.enabled.includes(source.id) : source.default_enabled;
+        return el("div", { className: "source" },
+          el("input", { type: "checkbox", className: "s_source", value: source.id, checked: enabled }),
+          el("div", {},
+            el("div", {}, el("b", {}, source.name), " ",
+              el("span", { className: "tier " + source.tos_tier }, source.tos_tier)),
+            source.required_env.length
+              ? el("div", { className: "hint" }, "Needs " + source.required_env.join(", ")) : null,
+            source.tos_note ? el("div", { className: "hint" }, source.tos_note) : null));
+      }),
+      el("label", {}, "Companies to watch"),
+      el("textarea", { id: "s_domains", value: settings.sources.company_domains.join("\n") }),
+      el("div", { className: "two" },
+        el("div", {}, el("label", {}, "Seconds between requests"),
+          el("input", { id: "s_delay", type: "number", step: "0.5", value: settings.sources.request_delay })),
+        el("div", {}, el("label", {}, "Results per source per run"),
+          el("input", { id: "s_limit", type: "number", value: settings.sources.max_results_per_source })),
+      ),
+    ),
+
+    el("fieldset", {},
+      el("legend", {}, "Language model (optional)"),
+      el("p", { className: "hint" },
+        "Everything works without one. A model reads each ad properly and writes the summary " +
+        "and letters; keys are read from your .env file and never stored in the database."),
+      el("div", { className: "two" },
+        el("div", {}, el("label", {}, "Provider"),
+          selectFrom("s_provider", settings.llm.provider,
+            [["none","None — rules only"],["anthropic","Anthropic"],["openai","OpenAI"],
+             ["openai-compatible","OpenAI-compatible endpoint"],["ollama","Ollama (local)"]])),
+        el("div", {}, el("label", {}, "Model"), input("s_model", settings.llm.model, "e.g. claude-sonnet-4-5")),
+      ),
+      el("div", { className: "two" },
+        el("div", {}, el("label", {}, "Base URL (compatible endpoints only)"),
+          input("s_baseurl", settings.llm.base_url)),
+        el("div", {}, el("label", {}, "Max model calls per run"),
+          el("input", { id: "s_calls", type: "number", value: settings.llm.max_calls_per_run })),
+      ),
+    ),
+  );
+
+  if (profile) {
+    const skills = el("div");
+    for (const skill of profile.skills.slice(0, 40)) {
+      skills.append(el("div", { className: "skill-row" },
+        el("span", {}, skill.label),
+        el("input", { type: "number", step: "0.1", min: "0", max: "1",
+                      className: "ev", "data-key": skill.key, value: skill.evidence }),
+        el("input", { type: "number", step: "0.1", min: "0", max: "1",
+                      className: "ce", "data-key": skill.key, value: skill.ceiling })));
+    }
+    body.append(el("fieldset", {},
+      el("legend", {}, "Your profile"),
+      el("p", { className: "hint" },
+        `${profile.full_name} · ${profile.years} years of experience · ` +
+        `red-flag check ${profile.lint.score}/100`),
+      lintBlock(profile.lint),
+      el("label", {}, "Replace the profile with a new CV"),
+      el("input", { type: "file", id: "s_cv", accept: ".pdf,.docx,.txt,.md,.html" }),
+      el("label", {}, "Evidence and ceiling per skill"),
+      el("p", { className: "hint" },
+        "Evidence is how strongly your CV proves a skill today. Ceiling is how far a tailored CV " +
+        "may push it — that is, how well you could defend it in an interview. A skill with zero " +
+        "evidence can never be raised, which is what stops any generated document from inventing " +
+        "experience."),
+      el("div", { className: "skill-row" },
+        el("b", {}, "Skill"), el("b", {}, "Evidence"), el("b", {}, "Ceiling")),
+      skills,
+    ));
+  }
+  return body;
+}
+
+function countrySelectFor(id, current) {
+  const entries = Object.entries(STATE.countries).sort((a, b) => a[1].localeCompare(b[1]));
+  return selectFrom(id, current, entries);
+}
+
+async function saveSettings() {
+  const settings = structuredClone(STATE.settings);
+  const value = id => ($("#" + id) ? $("#" + id).value.trim() : "");
+  const list = id => value(id).split(/[\n,]/).map(s => s.trim()).filter(Boolean);
+
+  settings.full_name = value("s_name");
+  settings.email = value("s_email");
+  settings.country = value("s_country");
+  settings.default_language = value("s_language");
+  settings.cv_template = value("s_template");
+  settings.search.titles = list("s_titles");
+  settings.search.keywords = list("s_keywords");
+
+  const f = settings.filters;
+  f.work_modes = [...document.querySelectorAll(".s_mode:checked")].map(n => n.value);
+  f.local_areas = list("s_areas");
+  f.min_salary = value("s_minsal") ? Number(value("s_minsal")) : null;
+  f.salary_currency = value("s_currency") || "EUR";
+  f.max_years_experience = value("s_maxyears") ? Number(value("s_maxyears")) : null;
+  f.max_age_days = Number(value("s_age") || 7);
+  f.excluded_keywords = list("s_exclude");
+  f.excluded_companies = list("s_excludeco");
+  f.allow_international_remote = $("#s_intl").checked;
+  f.require_published_salary = $("#s_published").checked;
+
+  settings.sources.enabled = [...document.querySelectorAll(".s_source:checked")].map(n => n.value);
+  settings.sources.company_domains = list("s_domains");
+  settings.sources.request_delay = Number(value("s_delay") || 1);
+  settings.sources.max_results_per_source = Number(value("s_limit") || 100);
+
+  settings.llm.provider = value("s_provider");
+  settings.llm.model = value("s_model");
+  settings.llm.base_url = value("s_baseurl");
+  settings.llm.max_calls_per_run = Number(value("s_calls") || 60);
+
+  await api("/api/settings", { method: "PUT", body: JSON.stringify({ settings }) });
+
+  const evidence = {}, ceiling = {};
+  document.querySelectorAll(".ev").forEach(n => evidence[n.dataset.key] = Number(n.value));
+  document.querySelectorAll(".ce").forEach(n => ceiling[n.dataset.key] = Number(n.value));
+  if (Object.keys(evidence).length) {
+    await api("/api/profile", { method: "PUT", body: JSON.stringify({ evidence, ceiling }) });
+  }
+  const picker = $("#s_cv");
+  if (picker && picker.files.length) {
+    const form = new FormData();
+    form.append("cv_file", picker.files[0]);
+    const result = await api("/api/profile/reimport", { method: "POST", body: form });
+    if (result.notes.length) alert("New CV imported. Worth checking:\n\n• " + result.notes.join("\n• "));
+  }
+  $("#settings").close();
+  await refresh();
+  toast("Settings saved");
+}
+
+/* --------------------------------------------------------------------------
+   Wiring
+-------------------------------------------------------------------------- */
+$("#btn-search").onclick = async () => {
+  const node = $("#btn-search");
+  node.disabled = true; node.textContent = "Searching…";
+  try {
+    const result = await api("/api/search", { method: "POST" });
+    await refresh();
+    toast(`${result.run.kept} jobs kept, ${result.run.new} new, ${result.rejected} filtered out.`);
+  } catch (error) { toast(error.message); }
+  node.disabled = false; node.textContent = "Search now";
+};
+
+$("#btn-sweep").onclick = async () => {
+  const node = $("#btn-sweep");
+  node.disabled = true; node.textContent = "Checking…";
+  try {
+    const result = await api("/api/sweep", { method: "POST" });
+    await refresh();
+    toast(result.summary);
+  } catch (error) { toast(error.message); }
+  node.disabled = false; node.textContent = "Check closed ads";
+};
+
+$("#btn-settings").onclick = () => {
+  $("#settings-body").innerHTML = "";
+  $("#settings-body").append(settingsBody());
+  $("#settings").showModal();
+};
+$("#settings-close").onclick = () => $("#settings").close();
+$("#settings-save").onclick = async () => {
+  try { await saveSettings(); } catch (error) { toast(error.message); }
+};
+$("#filter").oninput = () => render();
+$("#sort").onchange = () => render();
+
+(async () => {
+  await refresh();
+  if (!STATE.onboarded) showWizard();
+})();
+</script>
+</body>
+</html>

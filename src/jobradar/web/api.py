@@ -1,0 +1,95 @@
+"""Request and response models for the dashboard API.
+
+Kept separate from the routes so the shapes the browser depends on are visible
+in one place — and so that a different front end (or a script) can be written
+against the same contract.
+"""
+
+from __future__ import annotations
+
+from datetime import date
+
+from pydantic import BaseModel, Field
+
+from ..config import Filters, Settings
+from ..models import ApplicationStage, ApplicationStatus
+
+
+class OnboardingPayload(BaseModel):
+    """Everything the first-run wizard collects.
+
+    The CV arrives either as an uploaded file (handled separately as multipart)
+    or as pasted text in ``cv_text``; ``cv_text`` empty and no file means the
+    user chose to type their details instead.
+    """
+
+    full_name: str = ""
+    email: str = ""
+    country: str = "ES"
+    default_language: str = "en"
+    cv_text: str = ""
+    titles: list[str] = Field(default_factory=list)
+    keywords: list[str] = Field(default_factory=list)
+    filters: Filters = Field(default_factory=Filters)
+    company_domains: list[str] = Field(default_factory=list)
+    enabled_sources: list[str] = Field(default_factory=list)
+    cv_template: str = "classic"
+
+
+class SettingsPayload(BaseModel):
+    """A settings update from the configuration panel."""
+
+    settings: Settings
+
+
+class ApplicationPayload(BaseModel):
+    """A change to the user's own tracking record for one job."""
+
+    status: ApplicationStatus = ApplicationStatus.ACTIVE
+    stage: ApplicationStage | None = None
+    applied_on: date | None = None
+    notes: str = ""
+
+
+class ProfilePatch(BaseModel):
+    """Edits to the parts of the profile the dashboard exposes directly."""
+
+    summary: str | None = None
+    evidence: dict[str, float] | None = None
+    ceiling: dict[str, float] | None = None
+
+
+class JobView(BaseModel):
+    """One row of the board, flattened for the browser."""
+
+    id: str
+    title: str
+    company: str
+    location: str
+    work_mode: str
+    remote_scope: str
+    source: str
+    url: str
+    language: str
+    posted_at: date | None
+    salary_min: int | None
+    salary_max: int | None
+    salary_currency: str
+    salary_origin: str
+    salary_basis: str
+    min_years_experience: int | None
+    alerts: list[str]
+    requirements: list[str]
+    score_base: float
+    score_tailored: float
+    score_delta: float
+    gaps: list[str]
+    strengths: list[str]
+    status: str
+    stage: str | None
+    applied_on: date | None
+    notes: str
+    closed: bool
+    has_cv: bool
+    has_cover_letter: bool
+    has_email: bool

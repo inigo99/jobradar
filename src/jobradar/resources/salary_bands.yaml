@@ -1,0 +1,108 @@
+# ---------------------------------------------------------------------------
+# Reference salary bands, used ONLY when an ad publishes no figures.
+#
+# Roughly two thirds of job ads hide the salary, so without an estimate the
+# minimum-salary filter would silently drop almost everything. JobRadar
+# therefore estimates a band and *always* marks it as an estimate
+# (`salary.origin == "estimated"`), never as a published figure.
+#
+# The numbers below are deliberately conservative, annual, gross, in the
+# currency named by `currency`, and are meant to be edited. Treat them as a
+# starting point for your own market, not as authoritative data.
+#
+# Structure:
+#   families:  <family key> -> <seniority> -> [min, max] in the base currency
+#   base_currency: the currency the family bands are expressed in
+#   country_multipliers: per-country cost/market adjustment applied to the band
+#
+# Seniority is inferred from the job title and the years of experience the ad
+# asks for; see `jobradar/pipeline/salary.py`.
+# ---------------------------------------------------------------------------
+
+base_currency: EUR
+
+families:
+  software_engineering:
+    junior: [22000, 32000]
+    mid: [33000, 48000]
+    senior: [48000, 70000]
+    lead: [65000, 95000]
+  data_science:
+    junior: [24000, 34000]
+    mid: [35000, 52000]
+    senior: [52000, 75000]
+    lead: [70000, 100000]
+  machine_learning:
+    junior: [26000, 36000]
+    mid: [38000, 55000]
+    senior: [55000, 80000]
+    lead: [75000, 110000]
+  data_engineering:
+    junior: [24000, 34000]
+    mid: [36000, 52000]
+    senior: [52000, 75000]
+    lead: [70000, 100000]
+  devops:
+    junior: [24000, 34000]
+    mid: [36000, 54000]
+    senior: [54000, 78000]
+    lead: [72000, 105000]
+  product:
+    junior: [26000, 36000]
+    mid: [38000, 55000]
+    senior: [55000, 80000]
+    lead: [75000, 110000]
+  design:
+    junior: [20000, 28000]
+    mid: [30000, 44000]
+    senior: [44000, 62000]
+    lead: [58000, 85000]
+  marketing:
+    junior: [18000, 26000]
+    mid: [28000, 42000]
+    senior: [42000, 60000]
+    lead: [56000, 82000]
+  sales:
+    junior: [20000, 30000]
+    mid: [30000, 46000]
+    senior: [46000, 70000]
+    lead: [65000, 100000]
+  operations:
+    junior: [18000, 26000]
+    mid: [27000, 40000]
+    senior: [40000, 58000]
+    lead: [54000, 78000]
+  generic:
+    junior: [18000, 28000]
+    mid: [28000, 42000]
+    senior: [42000, 62000]
+    lead: [58000, 85000]
+
+# Multiplier applied to the base (Spain-ish continental European) band.
+country_multipliers:
+  ES: 1.00
+  PT: 0.85
+  IT: 0.95
+  FR: 1.15
+  DE: 1.30
+  AT: 1.25
+  NL: 1.30
+  BE: 1.20
+  IE: 1.30
+  GB: 1.35
+  CH: 1.90
+  PL: 0.75
+  US: 1.90
+  CA: 1.40
+  AU: 1.45
+  NZ: 1.25
+  SG: 1.30
+  MX: 0.45
+  BR: 0.40
+  AR: 0.30
+  CO: 0.30
+  CL: 0.45
+  IN: 0.30
+  ZA: 0.40
+  # Fully remote roles with no anchor country: assume a European-average band.
+  _default: 1.00

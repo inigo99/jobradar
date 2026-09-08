@@ -1,0 +1,210 @@
+[
+ {
+  "source": "demo",
+  "native_id": "1001",
+  "title": "Machine Learning Engineer",
+  "company": "Kestrel AI",
+  "location": "Spain (100% remote)",
+  "country": "ES",
+  "work_mode": "remote",
+  "remote_scope": "country",
+  "url": "https://example.com/jobs/1001",
+  "posted_at": "2026-08-31",
+  "language": "en",
+  "salary": {
+   "minimum": 45000,
+   "maximum": 58000,
+   "currency": "EUR",
+   "origin": "published",
+   "basis": "Published in the job ad."
+  },
+  "min_years_experience": 3,
+  "description": "We are hiring a Machine Learning Engineer to take models into production. Requirements: strong Python, experience with PyTorch or TensorFlow, Docker, AWS, and CI/CD. You will build data pipelines and own deployment. MLOps experience and Terraform are a plus. Fully remote within Spain."
+ },
+ {
+  "source": "demo",
+  "native_id": "1002",
+  "title": "Senior Backend Engineer (Python)",
+  "company": "Lumen Systems",
+  "location": "Remote — EMEA",
+  "country": "",
+  "work_mode": "remote",
+  "remote_scope": "region",
+  "remote_regions": [
+   "EMEA"
+  ],
+  "url": "https://example.com/jobs/1002",
+  "posted_at": "2026-08-30",
+  "language": "en",
+  "salary": {
+   "minimum": 60000,
+   "maximum": 80000,
+   "currency": "EUR",
+   "origin": "published",
+   "basis": "Published in the job ad."
+  },
+  "min_years_experience": 5,
+  "description": "Senior Backend Engineer. You will design REST APIs and microservices in Python, run them on Kubernetes, and keep PostgreSQL happy at scale. We expect strong testing discipline and experience with distributed systems. Remote anywhere in EMEA."
+ },
+ {
+  "source": "demo",
+  "native_id": "1003",
+  "title": "Data Engineer",
+  "company": "Marisol Foods",
+  "location": "Valencia, Spain",
+  "country": "ES",
+  "work_mode": "hybrid",
+  "url": "https://example.com/jobs/1003",
+  "posted_at": "2026-08-29",
+  "language": "en",
+  "salary": {
+   "currency": "EUR",
+   "origin": "unknown"
+  },
+  "description": "Data Engineer for our analytics team. Build ETL pipelines with Airflow and dbt, model data in Snowflake, write SQL and Python. Hybrid: three days in the Valencia office. Spark experience valued."
+ },
+ {
+  "source": "demo",
+  "native_id": "1004",
+  "title": "AI Engineer — LLM Products",
+  "company": "Vantage Labs",
+  "location": "Remote (Work from Anywhere)",
+  "country": "",
+  "work_mode": "remote",
+  "remote_scope": "worldwide",
+  "url": "https://example.com/jobs/1004",
+  "posted_at": "2026-08-31",
+  "language": "en",
+  "salary": {
+   "minimum": 90000,
+   "maximum": 130000,
+   "currency": "USD",
+   "origin": "published",
+   "basis": "Published in the job ad."
+  },
+  "description": "Our client, a leading company in the sector, is hiring an AI Engineer for LLM products. RAG pipelines, embeddings, vector databases, LangChain, prompt engineering and Python. Work from anywhere."
+ },
+ {
+  "source": "demo",
+  "native_id": "1005",
+  "title": "Full Stack Developer",
+  "company": "Tramuntana Digital",
+  "location": "Barcelona, Spain",
+  "country": "ES",
+  "work_mode": "onsite",
+  "url": "https://example.com/jobs/1005",
+  "posted_at": "2026-08-27",
+  "language": "es",
+  "salary": {
+   "minimum": 32000,
+   "maximum": 38000,
+   "currency": "EUR",
+   "origin": "published",
+   "basis": "Publicado en la oferta."
+  },
+  "description": "Buscamos Full Stack Developer para trabajo presencial en Barcelona. React, JavaScript, Node.js, SQL y APIs REST. Al menos 3 años de experiencia. Se valorará Docker."
+ },
+ {
+  "source": "demo",
+  "native_id": "1006",
+  "title": "Junior Data Scientist",
+  "company": "Aurora Insurance",
+  "location": "Madrid, Spain",
+  "country": "ES",
+  "work_mode": "hybrid",
+  "url": "https://example.com/jobs/1006",
+  "posted_at": "2026-08-26",
+  "language": "en",
+  "salary": {
+   "minimum": 24000,
+   "maximum": 28000,
+   "currency": "EUR",
+   "origin": "published",
+   "basis": "Published in the job ad."
+  },
+  "min_years_experience": 1,
+  "description": "Junior Data Scientist. Python, Pandas, Scikit-learn, statistics and SQL. You will support pricing models. Hybrid in Madrid, two days from home."
+ },
+ {
+  "source": "demo",
+  "native_id": "1007",
+  "title": "Staff Platform Engineer",
+  "company": "Halden Cloud",
+  "location": "Remote — US only",
+  "country": "US",
+  "work_mode": "remote",
+  "remote_scope": "country",
+  "url": "https://example.com/jobs/1007",
+  "posted_at": "2026-08-30",
+  "language": "en",
+  "salary": {
+   "minimum": 180000,
+   "maximum": 220000,
+   "currency": "USD",
+   "origin": "published",
+   "basis": "Published in the job ad."
+  },
+  "min_years_experience": 9,
+  "description": "Staff Platform Engineer. Kubernetes, Terraform, Go, observability. Must be authorized to work in the US; this role is US only."
+ },
+ {
+  "source": "demo",
+  "native_id": "1008",
+  "title": "Product Manager — Payments",
+  "company": "Ribera Fintech",
+  "location": "Remote — Spain",
+  "country": "ES",
+  "work_mode": "remote",
+  "remote_scope": "country",
+  "url": "https://example.com/jobs/1008",
+  "posted_at": "2026-08-28",
+  "language": "en",
+  "salary": {
+   "currency": "EUR",
+   "origin": "unknown"
+  },
+  "description": "Product Manager for our payments area. Roadmap ownership, stakeholder management, working with engineering and design. Analytics literacy expected. Remote within Spain."
+ },
+ {
+  "source": "demo",
+  "native_id": "1009",
+  "title": "Computer Vision Engineer",
+  "company": "Orbital Metrics",
+  "location": "Remote — Europe",
+  "country": "",
+  "work_mode": "remote",
+  "remote_scope": "region",
+  "remote_regions": [
+   "EU"
+  ],
+  "url": "https://example.com/jobs/1009",
+  "posted_at": "2026-08-29",
+  "language": "en",
+  "salary": {
+   "currency": "EUR",
+   "origin": "unknown"
+  },
+  "min_years_experience": 4,
+  "description": "Computer Vision Engineer. OpenCV, PyTorch, image processing and deployment of inference services. Python and Docker required. Remote within Europe."
+ },
+ {
+  "source": "demo",
+  "native_id": "1010",
+  "title": "Backend Developer (Java)",
+  "company": "Castellón Logistics",
+  "location": "Castellón, Spain",
+  "country": "ES",
+  "work_mode": "onsite",
+  "url": "https://example.com/jobs/1010",
+  "posted_at": "2026-08-23",
+  "language": "es",
+  "salary": {
+   "minimum": 28000,
+   "maximum": 34000,
+   "currency": "EUR",
+   "origin": "published",
+   "basis": "Publicado en la oferta."
+  },
+  "description": "Desarrollador Backend Java. Spring Boot, SQL, microservicios y Docker. Trabajo presencial en Castellón. Al menos 4 años de experiencia."
+ }
+]
