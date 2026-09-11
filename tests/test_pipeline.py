@@ -114,3 +114,45 @@ def test_sweep_never_retires_a_job_the_user_has_touched(database, profile, confi
     assert report.skipped_tracked == 1
     assert [job_id for job_id, _, _ in report.closed] == [untouched.id]
     assert database.get_job(applied.id).closed is False
+
+
+def test_the_run_stores_what_it_rejected(database, profile, configured):
+    """A rejection whose job is discarded is a number nobody can argue with."""
+    kept = make_job(native_id="keep", company="Northwind", title="Backend Engineer",
+                    posted_at=TODAY)
+    dropped = make_job(
+        native_id="drop", company="Cheapskate", title="Backend Engineer", posted_at=TODAY,
+        salary=Salary(minimum=12000, maximum=15000, currency="EUR",
+                      origin=SalaryOrigin.PUBLISHED, basis="Published."),
+    )
+    pipeline = SearchPipeline(configured, profile, database,
+                             sources=[FakeSource([kept, dropped])], today=TODAY)
+    result = pipeline.run(enrich=False)
+
+    assert [job.id for job in result.kept] == [kept.id]
+    stored = database.list_filtered()
+    assert [entry["id"] for entry in stored] == [dropped.id]
+    assert stored[0]["category"] == "salary"
+
+    # And it can be put back, with the filter still in place.
+    assert database.restore_filtered(dropped.id) is not None
+    assert database.get_job(dropped.id) is not None
+
+
+def test_a_job_that_passes_later_leaves_the_filtered_list(database, profile, configured):
+    """Raise the ceiling and the ad is not still sitting in the rejected pile."""
+    job = make_job(native_id="edge", company="Borderline", title="Backend Engineer",
+                   posted_at=TODAY,
+                   salary=Salary(minimum=25000, maximum=28000, currency="EUR",
+                                 origin=SalaryOrigin.PUBLISHED, basis="Published."))
+    strict = SearchPipeline(configured, profile, database,
+                            sources=[FakeSource([job])], today=TODAY)
+    strict.run(enrich=False)
+    assert [e["id"] for e in database.list_filtered()] == [job.id]
+
+    configured.filters.min_salary = 20000
+    relaxed = SearchPipeline(configured, profile, database,
+                             sources=[FakeSource([job])], today=TODAY)
+    relaxed.run(enrich=False)
+    assert database.list_filtered() == []
+    assert database.get_job(job.id) is not None

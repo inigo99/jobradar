@@ -117,9 +117,23 @@ pydantic models are the schema of record and adding a field needs no migration.
 | You want to | Change |
 |---|---|
 | Add a job board | One file in `sources/`, one line in `sources/__init__.py`. See [SOURCES.md](SOURCES.md) |
-| Add a filter rule | A `_check_*` function in `pipeline/filters.py`, added to the tuple in `apply_filters` |
+| Add a filter rule | A `_check_*` function in `pipeline/filters.py`, added to the tuple in `apply_filters`. Rejections are stored, so give yours a reason a person can argue with |
+| Change the triage order | `pipeline/focus.py`. It is computed at display time and stored nowhere, so it can never go stale |
+| Say how hard a skill is to pick up | The `_learning_difficulty` block in `resources/skills.yaml` |
 | Add a linter rule | A generator in `lint/rules.py`, added to `PROFILE_RULES` |
 | Add a CV template | An HTML file in `documents/templates/`; keep it one column, real text, nothing in the margins |
 | Cover a new field of work | Keys in `resources/skills.yaml`; bands in `resources/salary_bands.yaml` |
 | Support another country | An entry in `resources/countries.yaml` |
 | Change what a model is asked | `llm/prompts.py` — every prompt is a plain function returning `(system, user)`, so they can be diffed and tested |
+
+## Two things deliberately not stored
+
+**Focus** is computed on every request from the job's age, its title and the
+candidate's years. Storing it would mean a number that was true the morning it
+was written and quietly wrong a week later, and staleness in a ranking is worse
+than recomputing a multiplication.
+
+**Filtered-out ads** are the mirror image: they *are* stored, including the
+whole job, because the alternative is a count. A count tells you that forty
+things were rejected; it does not let you look at the fourth one and realise
+your salary floor is wrong.

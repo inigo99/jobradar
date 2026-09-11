@@ -38,6 +38,7 @@ from .llm import build_client
 from .models import ApplicationStatus, WorkMode
 from .pipeline import run_search, sweep_closed
 from .pipeline.filters import explain
+from .pipeline.focus import focus_for
 from .pipeline.scoring import score_job
 from .profile import import_profile
 from .sources import available as available_sources
@@ -215,6 +216,7 @@ def cmd_search(args: argparse.Namespace) -> int:
     if args.explain and result.rejected:
         table("Why jobs were dropped", ["Reason", "Count"],
               [[reason, count] for reason, count in explain(result.rejected)])
+        out("Nothing was thrown away: see them with [bold]jobradar filtered[/bold].")
 
     if args.notify:
         from .notify import send_digest
@@ -319,10 +321,12 @@ def cmd_lint(args: argparse.Namespace) -> int:
 
 
 def cmd_jobs(args: argparse.Namespace) -> int:
-    """List the pipeline."""
+    """List the pipeline, in focus order."""
     database = _database(args)
     scores = database.all_scores()
     applications = database.all_applications()
+    profile = database.load_profile()
+    years = profile.years_of_experience() if profile else None
     rows = []
     for job in database.list_jobs(include_closed=args.all):
         application = applications.get(job.id)
@@ -330,7 +334,10 @@ def cmd_jobs(args: argparse.Namespace) -> int:
         if args.status and status != args.status:
             continue
         score = scores.get(job.id)
+        focus, _reason = focus_for(job, score, max_years=years)
         rows.append([
+            focus,
+            f"{focus:.0f}",
             f"{score.tailored:.0f}%" if score else "—",
             status,
             job.company[:24],
@@ -339,9 +346,56 @@ def cmd_jobs(args: argparse.Namespace) -> int:
             f"{job.salary.minimum:,}" if job.salary.minimum else "—",
             job.id,
         ])
-    rows.sort(key=lambda row: row[0], reverse=True)
-    table(f"{len(rows)} jobs", ["Score", "Status", "Company", "Title", "Where", "Salary", "Id"],
-          rows[: args.limit])
+    rows.sort(key=lambda row: -row[0])
+    table(f"{len(rows)} jobs",
+          ["Focus", "Match", "Status", "Company", "Title", "Where", "Salary", "Id"],
+          [row[1:] for row in rows[: args.limit]])
+    database.close()
+    return 0
+
+
+def cmd_filtered(args: argparse.Namespace) -> int:
+    """Show what the filters rejected — and optionally put one back.
+
+    This is the command that answers "why is my board empty". The tally says
+    which filter to reach for; the list says what it actually cost.
+    """
+    database = _database(args)
+    if args.restore:
+        job = database.restore_filtered(args.restore)
+        if job is None:
+            out("[red]Not in the filtered list.[/red]")
+            database.close()
+            return 1
+        profile = database.load_profile()
+        if profile is not None:
+            database.save_score(job.id, score_job(job, profile))
+        out(f"Restored [bold]{job.company} — {job.title}[/bold]. "
+            "The filter that rejected it is still on; change it in Settings if you meant to.")
+        database.close()
+        return 0
+
+    if args.clear:
+        database.clear_filtered()
+        out("Filtered list emptied. The ads come back on the next search.")
+        database.close()
+        return 0
+
+    entries = database.list_filtered(limit=args.limit)
+    tally = database.filtered_tally()
+    if not entries:
+        out("Nothing has been filtered out.")
+        database.close()
+        return 0
+
+    total = sum(count for _, count in tally["by_category"])
+    table("What each filter is rejecting", ["Filter", "Jobs", "Share"],
+          [[name, count, f"{100 * count / total:.0f}%"] for name, count in tally["by_category"]])
+    table("The commonest reasons, verbatim", ["Reason (numbers as N)", "Count"],
+          [[shape, count] for shape, count in tally["by_shape"]])
+    table(f"{len(entries)} filtered ads", ["Company", "Title", "Reason", "Id"],
+          [[e["company"][:24], e["title"][:38], e["reason"][:52], e["id"]] for e in entries])
+    out("Put one back with [bold]jobradar filtered --restore <id>[/bold].")
     database.close()
     return 0
 
@@ -498,6 +552,14 @@ def build_parser() -> argparse.ArgumentParser:
     jobs.add_argument("--all", action="store_true", help="Include closed ads")
     jobs.add_argument("--limit", type=int, default=40)
     jobs.set_defaults(func=cmd_jobs)
+
+    filtered = sub.add_parser("filtered", help="Show what the filters rejected")
+    filtered.add_argument("--limit", type=int, default=60)
+    filtered.add_argument("--restore", metavar="JOB_ID",
+                          help="Put one rejected ad back on the board")
+    filtered.add_argument("--clear", action="store_true",
+                          help="Empty the list; the ads return on the next search")
+    filtered.set_defaults(func=cmd_filtered)
 
     export = sub.add_parser("export", help="Export to CSV or Excel")
     export.add_argument("--format", choices=["csv", "excel"], default="csv")

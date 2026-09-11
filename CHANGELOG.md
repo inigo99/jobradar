@@ -4,6 +4,39 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/).
 
+## 1.1.0 — 2026-09-11
+
+### Added
+
+- **Filtered out.** Rejected ads are kept with their reason instead of being
+  discarded, with a tally by filter and by the exact wording, and a button to
+  put one back. A filter one notch too strict used to be invisible: its victims
+  vanished, and an empty board looked the same as a quiet day.
+  `jobradar filtered` does the same from the terminal.
+- **Focus ordering.** The board and `jobradar jobs` are ordered by focus: the
+  match score less what is already known to go nowhere — ads that have aged
+  past the point of a reply, titles pitched above the candidate's years — plus
+  a nudge for ads that publish a band. Every job carries one sentence saying
+  why. Nothing is stored, so it cannot go stale, and `score.tailored` is
+  untouched.
+- **Today.** A six-job queue in focus order with a weekly application counter
+  and goal (`weekly_goal`, `today_queue_size`).
+- **Learning difficulty.** Every gap is marked `fast`, `medium` or `slow` —
+  how realistic it is to close before an interview. Configured in the
+  `_learning_difficulty` block of `skills.yaml`. It never decides what counts
+  as a gap and never puts anything on a CV.
+- **The years ceiling comes from the CV.** `use_profile_years` (on by default)
+  takes it from the profile's own dates, so it rises on its own instead of
+  ageing quietly; `years_margin` separates the ads missed by a hair from the
+  ones far out of reach. An explicit `max_years_experience` still wins, and an
+  ad that states no minimum is still never filtered on years.
+
+### Changed
+
+- `apply_filters` takes an optional `profile_years`.
+- `MatchScore` gained `gap_details`; `JobView` gained `focus`, `focus_reason`
+  and `gap_details`. Both are additive: old databases load unchanged.
+
 ## [1.0.0] — 2026-09-08
 
 First public release.

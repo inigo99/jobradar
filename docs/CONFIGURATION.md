@@ -36,12 +36,17 @@ filters:
   min_salary: 35000
   salary_currency: EUR
   require_published_salary: false
-  max_years_experience: 6
+  max_years_experience:          # empty: take the ceiling from your CV's dates
+  use_profile_years: true        # …which is what this does, and it rises on its own
+  years_margin: 1.0              # years past yours that still count as "just short"
   required_keywords: []
   excluded_keywords: [unpaid, commission only]
   excluded_companies: []
   max_age_days: 7
   keep_undated: true
+
+weekly_goal: 10                  # applications a week; drives the Today queue
+today_queue_size: 6              # how many jobs that queue shows at once
 
 sources:
   enabled: []                    # empty == every non-restricted source
@@ -134,3 +139,31 @@ and are meant to be replaced with what you know about your market.
 **`src/jobradar/resources/countries.yaml`** — currency, common ad languages,
 the Adzuna country code and which national sources are relevant. Adding a
 country is an entry here and nothing else.
+
+## Years of experience
+
+Three settings, and the order matters.
+
+`max_years_experience` is a hard ceiling you type yourself. It wins whenever it
+is set, because a number somebody typed was meant. Its problem is that nobody
+remembers to raise it, so a year later it is quietly rejecting jobs you could
+now do.
+
+`use_profile_years` (on by default) takes the ceiling from the dates in your own
+profile instead. It goes up on its own as time passes, which is the only version
+of this number that stays true without maintenance.
+
+`years_margin` splits the rejections in two. An ad asking for one year more than
+you have is worth a direct email naming the gap; an ad asking for six more is
+not. Both are kept under **Filtered out** either way, labelled differently.
+
+**An ad that states no minimum is never filtered on years.** Most ads state
+none, and treating silence as a rejection would throw away most of the board.
+
+## What happens to rejected ads
+
+They are stored, not dropped. **Filtered out** shows every one with its reason,
+a tally by filter and by the exact wording, and a button to put one back;
+`jobradar filtered` does the same from the terminal. Restoring an ad does not
+change the filter that rejected it — that is a Settings change — it just makes
+the decision yours and visible.

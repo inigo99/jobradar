@@ -395,6 +395,10 @@ class MatchScore(BaseModel):
     improvement_pct: float = 0.0
     # Requirement labels the candidate cannot meet at all, worst first.
     gaps: list[str] = Field(default_factory=list)
+    # The same gaps with their weight and learning difficulty, so the list can
+    # be read as a plan rather than a list of reproaches. See
+    # ``taxonomy.difficulty_for``.
+    gap_details: list[dict[str, Any]] = Field(default_factory=list)
     # Requirement labels the candidate meets strongly, best first.
     strengths: list[str] = Field(default_factory=list)
     # Skill keys the tailored CV should promote into bullets or the summary.

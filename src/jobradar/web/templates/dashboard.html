@@ -91,6 +91,30 @@
   }
   .chip.good { background: var(--accent-soft); color: var(--accent-ink); border-color: transparent; }
   .chip.gap { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+  [hidden] { display: none !important; }
+  .chip.fast { background: var(--accent-soft); color: var(--accent-ink); border-color: transparent; }
+  .chip.medium { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+  .chip.slow { background: var(--surface-2); color: var(--danger); border-color: transparent; }
+  .score .focus { font-size: 12px; color: var(--ink-3); }
+  .why { font-size: 12px; color: var(--ink-3); margin-top: 6px; font-style: italic; }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; }
+  .panel h2 { margin: 0 0 4px; font-size: 17px; }
+  .panel .lede { color: var(--ink-2); font-size: 13.5px; max-width: 68ch; margin: 0 0 16px; }
+  .tiles { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+  .tile { border: 1px solid var(--line); border-radius: 10px; padding: 10px 13px; min-width: 132px; }
+  .tile b { display: block; font-size: 20px; line-height: 1.15; font-variant-numeric: tabular-nums; }
+  .tile span { font-size: 12px; color: var(--ink-2); }
+  .bars { list-style: none; margin: 0 0 18px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .bars li { display: grid; grid-template-columns: 40px 96px 1fr; gap: 10px; align-items: center; font-size: 13px; }
+  .bars .n { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .bars .track { height: 7px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+  .bars .track i { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+  .ftable { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .ftable th { text-align: left; font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--ink-3); border-bottom: 1px solid var(--line); padding: 6px 8px; }
+  .ftable td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .goal { height: 8px; border-radius: 5px; background: var(--surface-2); overflow: hidden; margin: 8px 0 4px; }
+  .goal i { display: block; height: 100%; background: var(--accent); border-radius: 5px; }
   .alert {
     margin-top: 9px; font-size: 13px; padding: 7px 10px; border-radius: 8px;
     background: var(--warn-soft); color: var(--warn);
@@ -156,9 +180,10 @@
 
 <main>
   <div class="tabs" id="tabs" role="tablist"></div>
-  <div class="toolbar">
+  <div class="toolbar" id="toolbar">
     <input type="search" id="filter" placeholder="Filter by company, title or skill…">
     <select id="sort" style="max-width:200px">
+      <option value="focus">Focus — what to apply to now</option>
       <option value="score">Best match first</option>
       <option value="date">Newest first</option>
       <option value="salary">Highest salary first</option>
@@ -207,7 +232,7 @@
    database from ever disagreeing about what is on screen.
 --------------------------------------------------------------------------- */
 let STATE = null;
-let TAB = "active";
+let TAB = "today";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const el = (tag, props = {}, ...children) => {
@@ -244,12 +269,19 @@ async function refresh() {
 /* --------------------------------------------------------------------------
    The board
 -------------------------------------------------------------------------- */
+/* Panel tabs are not lists of jobs, so they render their own thing and the
+   board is hidden for them. "Today" is first because a board with two hundred
+   jobs does not say where to start. */
+const PANELS = { today: renderToday, filtered: renderFiltered };
+
 const TABS = [
+  ["today",     "Today",     j => j.status === "active" && !j.closed],
   ["active",    "Active",    j => j.status === "active" && !j.closed],
   ["applied",   "Applied",   j => j.status === "applied" && j.stage !== "rejected"],
   ["rejected",  "Rejected",  j => j.status === "applied" && j.stage === "rejected"],
   ["discarded", "Discarded", j => j.status === "discarded"],
   ["closed",    "Closed ads", j => j.closed && j.status === "active"],
+  ["filtered",  "Filtered out", () => false],
 ];
 
 function money(job) {
@@ -276,14 +308,29 @@ function jobCard(job) {
       el("div", { className: "big" }, job.score_tailored ? job.score_tailored.toFixed(0) + "%" : "—"),
       el("div", { className: "delta" },
         job.score_base ? `${job.score_base.toFixed(0)}% as-is · +${job.score_delta.toFixed(0)} tailored` : "not scored"),
+      job.focus ? el("div", { className: "focus" }, `focus ${job.focus.toFixed(0)}`) : null,
     ),
   ));
 
   if (job.strengths.length || job.gaps.length) {
+    /* Gaps carry how long they would take to close, so the list reads as a
+       plan for the days before an interview instead of a list of failures.
+       It never changes what goes on the CV: that still needs the skill to
+       have actually been learnt. */
+    const byKey = Object.fromEntries((job.gap_details || []).map(g => [g.label, g]));
     card.append(el("div", { className: "chips" },
       job.strengths.slice(0, 5).map(s => el("span", { className: "chip good" }, s)),
-      job.gaps.slice(0, 4).map(g => el("span", { className: "chip gap" }, "gap: " + g)),
+      job.gaps.slice(0, 4).map(g => {
+        const detail = byKey[g];
+        const chip = el("span", { className: "chip " + (detail ? detail.difficulty : "gap") },
+                        detail ? `gap: ${g} · ${detail.difficulty}` : "gap: " + g);
+        if (detail) chip.title = detail.note;
+        return chip;
+      }),
     ));
+  }
+  if (job.focus_reason) {
+    card.append(el("div", { className: "why" }, "Lower in the queue: " + job.focus_reason + "."));
   }
   for (const alert of job.alerts.slice(0, 3)) {
     card.append(el("div", { className: "alert" }, alert));
@@ -412,16 +459,32 @@ function lintBlock(lint) {
   return wrapper;
 }
 
+function tabCount(key, predicate) {
+  if (key === "filtered") return (STATE.filtered || []).length;
+  if (key === "today") return Math.max(0, weeklyGoal() - appliedThisWeek());
+  return STATE.jobs.filter(predicate).length;
+}
+
 function render() {
   const tabs = $("#tabs");
   tabs.innerHTML = "";
   for (const [key, title, predicate] of TABS) {
-    const count = STATE.jobs.filter(predicate).length;
-    const node = el("button", { role: "tab" }, `${title} (${count})`);
+    const node = el("button", { role: "tab" }, `${title} (${tabCount(key, predicate)})`);
     node.setAttribute("aria-selected", key === TAB);
     node.onclick = () => { TAB = key; render(); };
     tabs.append(node);
   }
+
+  const board = $("#board");
+  board.innerHTML = "";
+  $("#job-count").textContent = `${STATE.jobs.length} jobs tracked`;
+  const last = STATE.runs[0];
+  $("#run-note").textContent = last
+    ? `Last run: ${last.kept} kept of ${last.fetched} fetched, ${last.new} new.` : "";
+
+  const isPanel = Object.prototype.hasOwnProperty.call(PANELS, TAB);
+  $("#toolbar").hidden = isPanel;
+  if (isPanel) { board.append(PANELS[TAB]()); return; }
 
   const predicate = TABS.find(t => t[0] === TAB)[2];
   const needle = $("#filter").value.trim().toLowerCase();
@@ -435,22 +498,131 @@ function render() {
   jobs.sort((a, b) =>
     sort === "date" ? String(b.posted_at || "").localeCompare(String(a.posted_at || "")) :
     sort === "salary" ? (b.salary_max || 0) - (a.salary_max || 0) :
-    b.score_tailored - a.score_tailored);
+    sort === "score" ? b.score_tailored - a.score_tailored :
+    b.focus - a.focus);
 
-  $("#job-count").textContent = `${STATE.jobs.length} jobs tracked`;
-  const board = $("#board");
-  board.innerHTML = "";
   if (!jobs.length) {
     board.append(el("div", { className: "empty" },
       STATE.jobs.length ? "Nothing in this tab." :
-      "No jobs yet. Press “Search now” to run the first search."));
+      "No jobs yet. Press \u201cSearch now\u201d to run the first search."));
   } else {
     jobs.forEach(job => board.append(jobCard(job)));
   }
+}
 
-  const last = STATE.runs[0];
-  $("#run-note").textContent = last
-    ? `Last run: ${last.kept} kept of ${last.fetched} fetched, ${last.new} new.` : "";
+/* --------------------------------------------------------------------------
+   Today: the short queue
+   A board is a list; it does not say where to start. This is six jobs in focus
+   order and a weekly counter, which is the smallest thing that turns a board
+   into a session of work.
+-------------------------------------------------------------------------- */
+const weeklyGoal = () => (STATE.settings && STATE.settings.weekly_goal) || 10;
+const queueSize = () => (STATE.settings && STATE.settings.today_queue_size) || 6;
+
+function mondayOfThisWeek() {
+  const now = new Date();
+  const day = (now.getDay() + 6) % 7;          // Monday = 0
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day);
+  return monday.toISOString().slice(0, 10);
+}
+
+function appliedThisWeek() {
+  const since = mondayOfThisWeek();
+  return STATE.jobs.filter(j => j.status === "applied" && j.applied_on && j.applied_on >= since).length;
+}
+
+function renderToday() {
+  const panel = el("div", { className: "panel" });
+  const done = appliedThisWeek(), goal = weeklyGoal();
+  const queue = STATE.jobs
+    .filter(j => j.status === "active" && !j.closed)
+    .sort((a, b) => b.focus - a.focus)
+    .slice(0, queueSize());
+
+  panel.append(
+    el("h2", {}, "Today"),
+    el("p", { className: "lede" },
+      "The short queue, in focus order: the match score less what is already known to go " +
+      "nowhere \u2014 ads that have aged past the point of a reply, and titles pitched above " +
+      "your years. Every job says why it sits where it does."),
+    el("div", { className: "goal" }, el("i", { style: `width:${Math.min(100, 100 * done / Math.max(1, goal))}%` })),
+    el("p", { className: "hint" }, `${done} of ${goal} applications this week. Change the goal in Settings.`),
+  );
+
+  if (!queue.length) {
+    panel.append(el("div", { className: "empty" }, "Nothing active. Run a search."));
+    return panel;
+  }
+  queue.forEach(job => panel.append(jobCard(job)));
+  return panel;
+}
+
+/* --------------------------------------------------------------------------
+   Filtered out: what the settings are costing
+-------------------------------------------------------------------------- */
+function renderFiltered() {
+  const panel = el("div", { className: "panel" });
+  const entries = STATE.filtered || [];
+  const tally = STATE.filtered_tally || { by_category: [], by_shape: [] };
+
+  panel.append(
+    el("h2", {}, "Filtered out"),
+    el("p", { className: "lede" },
+      "Nothing is thrown away. A filter one notch too strict is invisible while its victims " +
+      "vanish, and \u201cthe board is empty\u201d looks exactly like \u201cthere were no jobs today\u201d. " +
+      "These ads were rejected by your current settings \u2014 read them, and change the setting " +
+      "or put one back."));
+
+  if (!entries.length) {
+    panel.append(el("div", { className: "empty" }, "Nothing has been filtered out yet."));
+    return panel;
+  }
+
+  const total = (tally.by_category || []).reduce((sum, [, n]) => sum + n, 0) || entries.length;
+  panel.append(el("div", { className: "tiles" },
+    ...(tally.by_category || []).map(([name, n]) =>
+      el("div", { className: "tile" },
+        el("b", {}, String(n)),
+        el("span", {}, `${name} \u00b7 ${Math.round(100 * n / total)}% of what was rejected`)))));
+
+  const worst = (tally.by_category || [])[0];
+  if (worst && worst[1] / total >= 0.4) {
+    panel.append(el("p", { className: "lede" },
+      el("b", {}, worst[0]), ` is rejecting ${Math.round(100 * worst[1] / total)}% of everything that gets this far. `,
+      "If that is not what you meant, that is the setting to change \u2014 not the others."));
+  }
+
+  const shapes = tally.by_shape || [];
+  if (shapes.length) {
+    const top = shapes[0][1];
+    panel.append(
+      el("p", { className: "lede" }, "The commonest reasons, with the numbers blanked so they group:"),
+      el("ul", { className: "bars" },
+        ...shapes.map(([text, n]) => el("li", {},
+          el("span", { className: "n" }, String(n)),
+          el("span", { className: "track" }, el("i", { style: `width:${Math.round(100 * n / top)}%` })),
+          el("span", {}, text)))));
+  }
+
+  const rows = entries.map(entry => el("tr", {},
+    el("td", {}, el("b", {}, entry.company || "\u2014")),
+    el("td", {}, entry.title || "\u2014"),
+    el("td", {}, entry.reason),
+    el("td", {}, entry.source || ""),
+    el("td", {},
+      entry.url ? el("a", { href: entry.url, target: "_blank", rel: "noopener" }, "Open") : null,
+      " ",
+      button("Put back", async () => {
+        await api(`/api/filtered/${encodeURIComponent(entry.id)}/restore`, { method: "POST" });
+        toast("Back on the board. The filter that rejected it is still on.");
+        await refresh();
+      }))));
+
+  panel.append(el("table", { className: "ftable" },
+    el("thead", {}, el("tr", {},
+      ...["Company", "Title", "Why it was rejected", "Source", ""].map(h => el("th", {}, h)))),
+    el("tbody", {}, ...rows)));
+  return panel;
 }
 
 /* --------------------------------------------------------------------------
@@ -737,10 +909,24 @@ function settingsBody() {
       ),
       el("div", { className: "two" },
         el("div", {}, el("label", {}, "Max years of experience asked for"),
-          el("input", { id: "s_maxyears", type: "number", value: f.max_years_experience ?? "" })),
+          el("input", { id: "s_maxyears", type: "number", value: f.max_years_experience ?? "",
+                        placeholder: profile ? `empty = from your CV (${profile.years})` : "empty = from your CV" })),
         el("div", {}, el("label", {}, "Ads from the last N days"),
           el("input", { id: "s_age", type: "number", value: f.max_age_days })),
       ),
+      el("div", { className: "row", style: "margin-top:6px" },
+        el("input", { type: "checkbox", id: "s_profileyears", checked: f.use_profile_years }),
+        el("label", { style: "margin:0" }, "Take the ceiling from my CV's own dates, so it rises on its own")),
+      el("div", { className: "two" },
+        el("div", {}, el("label", {}, "Years margin — how far past mine still counts as \u201cjust short\u201d"),
+          el("input", { id: "s_yearsmargin", type: "number", step: "0.5", value: f.years_margin })),
+        el("div", {}, el("label", {}, "Applications a week you are aiming for"),
+          el("input", { id: "s_goal", type: "number", value: settings.weekly_goal })),
+      ),
+      el("p", { className: "hint" },
+        "An ad that states no minimum is never filtered on years \u2014 most state none. " +
+        "Everything rejected here is kept under \u201cFiltered out\u201d, with the ones you " +
+        "miss by a hair separated from the ones far out of reach."),
       el("label", {}, "Excluded keywords"), input("s_exclude", f.excluded_keywords.join(", ")),
       el("label", {}, "Excluded companies"), input("s_excludeco", f.excluded_companies.join(", ")),
       el("div", { className: "row", style: "margin-top:10px" },
@@ -852,6 +1038,9 @@ async function saveSettings() {
   f.min_salary = value("s_minsal") ? Number(value("s_minsal")) : null;
   f.salary_currency = value("s_currency") || "EUR";
   f.max_years_experience = value("s_maxyears") ? Number(value("s_maxyears")) : null;
+  f.use_profile_years = $("#s_profileyears").checked;
+  f.years_margin = Number(value("s_yearsmargin") || 1);
+  settings.weekly_goal = Number(value("s_goal") || 10);
   f.max_age_days = Number(value("s_age") || 7);
   f.excluded_keywords = list("s_exclude");
   f.excluded_companies = list("s_excludeco");

@@ -125,8 +125,19 @@ class Filters(BaseModel):
     require_published_salary: bool = False
 
     # --- Requirements ------------------------------------------------------
-    #: Discard ads demanding more than this many years of experience.
+    #: Discard ads demanding more than this many years of experience. Leave it
+    #: unset and let ``use_profile_years`` do the work: a number typed here
+    #: once is a number nobody remembers to raise, and a filter that quietly
+    #: ages is worse than no filter.
     max_years_experience: int | None = None
+    #: Take the ceiling from the profile's own dates instead, so it rises on
+    #: its own as time passes. ``max_years_experience`` still wins if set.
+    use_profile_years: bool = True
+    #: Years above the candidate's own that still count as "just short". Ads in
+    #: that band are separated from the ones that are far out of reach: they
+    #: are worth a direct email naming the gap, even though a form would filter
+    #: them out. An ad that states no years is never filtered on this at all.
+    years_margin: float = 1.0
     #: A job must contain at least one of these (empty == no constraint).
     required_keywords: list[str] = Field(default_factory=list)
     #: A job containing any of these is dropped (agencies, sectors, stacks...).
@@ -235,6 +246,12 @@ class Settings(BaseModel):
     sources: SourceSettings = Field(default_factory=SourceSettings)
     llm: LLMSettings = Field(default_factory=LLMSettings)
     notifications: NotificationSettings = Field(default_factory=NotificationSettings)
+
+    #: Applications a week the user is aiming for. Drives the "Today" queue,
+    #: which is the answer to "a board with two hundred jobs, now what".
+    weekly_goal: int = 10
+    #: How many jobs the "Today" queue shows at once. Short on purpose.
+    today_queue_size: int = 6
 
     #: CV template used to render the tailored CV, see documents/templates.
     cv_template: str = "classic"

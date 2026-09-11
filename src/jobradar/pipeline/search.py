@@ -31,6 +31,7 @@ from ..storage import Database
 from .dedupe import deduplicate
 from .enrich import enrich_job
 from .filters import apply_filters
+from .filters import category as filter_category
 from .salary import ExchangeRates
 from .scoring import score_job
 
@@ -47,6 +48,10 @@ class SearchResult:
     scores: dict[str, MatchScore] = field(default_factory=dict)
     #: job id -> why it was dropped, for `jobradar search --explain`.
     rejected: dict[str, str] = field(default_factory=dict)
+    #: The same rejections with the job attached, so they can be stored and
+    #: read later. A rejection whose job is thrown away is a number; one that
+    #: keeps the job is something the user can disagree with.
+    filtered: list[tuple[Job, str]] = field(default_factory=list)
     warnings: dict[str, list[str]] = field(default_factory=dict)
 
 
@@ -117,21 +122,28 @@ class SearchPipeline:
             collected.extend(found)
         return collected, used, errors
 
-    def _prefilter(self, jobs: list[Job]) -> tuple[list[Job], dict[str, str]]:
+    def _prefilter(
+        self, jobs: list[Job]
+    ) -> tuple[list[Job], dict[str, str], list[tuple[Job, str]]]:
         """Cheap rejections that need no ad body: age and known-closed ads."""
         known_closed = self.database.closed_job_ids()
         rejected: dict[str, str] = {}
+        filtered: list[tuple[Job, str]] = []
         survivors: list[Job] = []
         for job in jobs:
             if job.id in known_closed:
+                # Not a filter decision: the ad is gone, and it is already
+                # recorded in closed_jobs. Nothing to reconsider.
                 rejected[job.id] = "previously recorded as closed"
                 continue
             age = job.age_days(self.today)
             if age is not None and age > self.settings.filters.max_age_days:
-                rejected[job.id] = f"published {age} days ago"
+                reason = f"published {age} days ago (limit {self.settings.filters.max_age_days})"
+                rejected[job.id] = reason
+                filtered.append((job, reason))
                 continue
             survivors.append(job)
-        return survivors, rejected
+        return survivors, rejected, filtered
 
     def _source_for(self, job: Job) -> JobSource | None:
         return next((source for source in self.sources() if source.id == job.source), None)
@@ -144,7 +156,7 @@ class SearchPipeline:
 
         collected, used, errors = self.collect(query)
         deduped = deduplicate(collected)
-        candidates, rejected = self._prefilter(deduped)
+        candidates, rejected, prefiltered = self._prefilter(deduped)
 
         known_ids = self.database.known_job_ids()
         result = SearchResult(
@@ -156,7 +168,12 @@ class SearchPipeline:
                 errors=errors,
             ),
             rejected=rejected,
+            filtered=list(prefiltered),
         )
+
+        # The years ceiling comes from the profile's own dates unless the user
+        # typed a number, so it rises on its own instead of ageing quietly.
+        profile_years = self.profile.years_of_experience(self.today) if self.profile else None
 
         for job in candidates:
             if enrich:
@@ -169,9 +186,12 @@ class SearchPipeline:
                     fetch_description=source.fetch_description if source else None,
                 )
 
-            outcome = apply_filters(job, self.settings.filters, self.rates, self.today)
+            outcome = apply_filters(
+                job, self.settings.filters, self.rates, self.today, profile_years
+            )
             if not outcome.keep:
                 result.rejected[job.id] = outcome.reason
+                result.filtered.append((job, outcome.reason))
                 continue
             if outcome.warnings:
                 result.warnings[job.id] = list(outcome.warnings)
@@ -185,6 +205,17 @@ class SearchPipeline:
 
             if self.profile:
                 result.scores[job.id] = score_job(job, self.profile)
+
+        # Nothing rejected is thrown away: a filter one notch too strict is
+        # invisible while its victims vanish, and the symptom — an empty
+        # board — looks exactly like "there were no jobs today".
+        kept_ids = {job.id for job in result.kept}
+        self.database.save_filtered(
+            (job, reason, filter_category(reason))
+            for job, reason in result.filtered
+            if job.id not in kept_ids
+        )
+        self.database.drop_filtered(sorted(kept_ids))
 
         new, _updated = self.database.upsert_jobs(result.kept)
         for job_id, score in result.scores.items():

@@ -43,11 +43,15 @@ jobradar serve                  # dashboard on http://127.0.0.1:8000
 
 **3. Reads the fine print.** Each ad is fetched in full and re-read: work mode (an ad that says "remote" three times and then mentions two office days is hybrid), which countries a remote role may actually be performed from, minimum years of experience, and any published salary.
 
-**4. Filters.** Work mode, geography, salary floor with live currency conversion, seniority, recency, keywords, blocked companies. Missing information is never treated as a rejection: a job with an unclear remote scope is kept and flagged, because the alternative is losing good jobs to bad metadata. Every rejection carries a reason, and `jobradar search --explain` shows you the tally — which is how you find the one filter that is quietly eating everything.
+**4. Filters.** Work mode, geography, salary floor with live currency conversion, seniority, recency, keywords, blocked companies. Missing information is never treated as a rejection: a job with an unclear remote scope is kept and flagged, because the alternative is losing good jobs to bad metadata. **Nothing rejected is thrown away**: every dropped ad is kept with its reason under *Filtered out*, where the tally says which filter is doing the damage and one button puts an ad back. A filter one notch too strict is invisible when its victims vanish, and "the board is empty" looks exactly like "there were no jobs today".
+
+The years filter takes its ceiling from your CV's own dates, so it rises on its own instead of ageing quietly, and it separates the ads you miss by a hair from the ones far out of reach. An ad that states no minimum is never filtered on years at all — most state none.
 
 **5. Prices.** Around two thirds of ads publish no salary. JobRadar estimates a band from an editable reference table adjusted for the country, always marks it as an estimate, and shows the reasoning.
 
-**6. Scores.** Each job gets two scores: what your CV proves *today*, and what it would prove if the relevant skills were pulled out of your skills list and into an achievement. The difference is what tailoring is worth. Gaps are listed explicitly, worst first.
+**6. Scores, then triages.** Each job gets two scores: what your CV proves *today*, and what it would prove if the relevant skills were pulled out of your skills list and into an achievement. The difference is what tailoring is worth. Gaps are listed explicitly, worst first, each marked with how long it would realistically take to close before an interview.
+
+Match score answers "could I do this job". It stops discriminating once your profile covers most of what the ads ask for — everything clusters near the top, and sorting by match becomes sorting by noise. So the board is ordered by **focus**: the match score less what is already known to go nowhere (ads that have aged past the point of a reply, titles pitched above your years), plus a nudge for ads that publish a band. Every job carries one sentence saying why it sits where it does, and the honest match number is one click away. **Today** is the first tab: six jobs in focus order and a weekly counter, because a board of two hundred jobs does not say where to start.
 
 **7. Tailors.** For any job, JobRadar writes a headline and a professional summary, reorders your achievements by relevance, reorders your skill groups, and renders a one-page PDF — shrinking the type in small steps until it fits rather than cutting your content.
 
@@ -192,7 +196,7 @@ jobradar serve
 
 **First run** collects, in order: who you are and where you work from; your CV (upload or paste); the job titles you are looking for; your filters; and which sources to search. All of it is saved and never asked again — the same values are editable afterwards under **Settings**.
 
-**The board** has five tabs — Active, Applied, Rejected, Discarded and Closed ads — with a search box and sorting by match, date or salary. Each job shows both scores, your strongest overlaps, your genuine gaps, the salary with its provenance, and anything you should clarify before applying.
+**The board** has seven tabs — Today, Active, Applied, Rejected, Discarded, Closed ads and Filtered out — with a search box and sorting by focus, match, date or salary. Each job shows both scores, your strongest overlaps, your genuine gaps, the salary with its provenance, and anything you should clarify before applying.
 
 **Per job**, four buttons: open the ad, tailor the CV, write a cover letter, write the application email. Letters are written on demand, one job at a time, because writing them for every job found is the slowest and most expensive part of any job-search automation and you want them for a handful of jobs.
 
@@ -212,7 +216,8 @@ jobradar serve
 | `jobradar sweep [--limit N]` | Retire ads that have closed |
 | `jobradar tailor [JOB_ID] [--top N]` | Generate tailored CVs |
 | `jobradar lint` | Run the red-flag check on your profile |
-| `jobradar jobs [--status ...] [--all]` | List the pipeline |
+| `jobradar jobs [--status ...] [--all]` | List the pipeline, in focus order |
+| `jobradar filtered [--restore ID] [--clear]` | What the filters rejected, and why |
 | `jobradar export [--format csv\|excel]` | Export everything, including your notes |
 | `jobradar notify [--dry-run]` | Send the digest of new jobs |
 | `jobradar sources` | Show every source and whether it is on |
@@ -237,7 +242,9 @@ The filters, briefly:
 | `allow_international_remote` | Accept remote roles from abroad when the ad actually permits it |
 | `min_salary`, `salary_currency` | The floor, applied after conversion at ECB rates |
 | `require_published_salary` | Drop anything whose salary is only an estimate |
-| `max_years_experience` | Skip ads demanding more than you have |
+| `max_years_experience` | A fixed ceiling. Leave it empty and let the next one work |
+| `use_profile_years`, `years_margin` | Take the ceiling from your CV's dates instead, and how far past it still counts as "just short" |
+| `weekly_goal` | Applications a week — drives the Today queue |
 | `required_keywords`, `excluded_keywords`, `excluded_companies` | The usual |
 | `max_age_days`, `keep_undated` | Freshness |
 
@@ -245,6 +252,8 @@ Two data files are meant to be edited:
 
 - **`src/jobradar/resources/skills.yaml`** — the skill taxonomy. Cross-industry, but if your field is not covered, add your keys here and everything downstream picks them up.
 - **`src/jobradar/resources/salary_bands.yaml`** — reference salary bands by role family, seniority and country. Deliberately conservative; treat them as a starting point for your market, not as data.
+
+The `_learning_difficulty` block at the end of `skills.yaml` says how long each gap would take to close — `fast`, `medium` or `slow` — and that is what the coloured gap chips mean. It never decides *what* is a gap (your evidence does that) and it never puts anything on a CV: a "fast" gap goes on the CV once you have actually learnt it, not before.
 
 Secrets live in `.env` (copy `.env.example`) and are never written to the database.
 

@@ -22,26 +22,62 @@ import yaml
 RESOURCES = Path(__file__).parent / "resources"
 
 
+#: How long it is realistic to spend closing a gap between sending an
+#: application and sitting an interview. Ordered from cheapest to dearest.
+DIFFICULTIES = ("fast", "medium", "slow")
+
+DIFFICULTY_NOTE = {
+    "fast": "Days to a week on top of what you already know — worth a look before an interview.",
+    "medium": "Several weeks of real work to discuss it with any authority, rather than by hearsay.",
+    "slow": "Not realistic inside one hiring process. Prepare an honest answer instead of cramming.",
+}
+
+
 @dataclass(frozen=True)
 class Skill:
     key: str
     label: str
     group: str
     aliases: tuple[str, ...]
+    #: "fast", "medium" or "slow" — see :func:`difficulty_for`.
+    difficulty: str = "medium"
+
+
+def _raw() -> dict:
+    return yaml.safe_load((RESOURCES / "skills.yaml").read_text(encoding="utf-8")) or {}
+
+
+@lru_cache(maxsize=1)
+def _difficulty_rules() -> tuple[str, dict[str, str], dict[str, str]]:
+    """``(default, by_group, overrides)`` from the ``_learning_difficulty`` block."""
+    block = _raw().get("_learning_difficulty") or {}
+    default = str(block.get("default", "medium"))
+    by_group = {str(k): str(v) for k, v in (block.get("by_group") or {}).items()}
+    overrides = {str(k): str(v) for k, v in (block.get("overrides") or {}).items()}
+    return default, by_group, overrides
 
 
 @lru_cache(maxsize=1)
 def taxonomy() -> dict[str, Skill]:
     """Every skill known to JobRadar, keyed by its stable key."""
-    raw = yaml.safe_load((RESOURCES / "skills.yaml").read_text(encoding="utf-8")) or {}
+    raw = _raw()
+    default, by_group, overrides = _difficulty_rules()
     skills: dict[str, Skill] = {}
     for key, entry in raw.items():
+        # Keys starting with "_" are configuration blocks, not skills.
+        if key.startswith("_") or not isinstance(entry, dict):
+            continue
         aliases = tuple(str(a).lower() for a in entry.get("aliases", []))
+        group = entry.get("group", "other")
+        difficulty = entry.get("difficulty") or overrides.get(key) or by_group.get(group) or default
+        if difficulty not in DIFFICULTIES:
+            difficulty = default
         skills[key] = Skill(
             key=key,
             label=entry.get("label", key.replace("_", " ").title()),
-            group=entry.get("group", "other"),
+            group=group,
             aliases=aliases or (key.replace("_", " "),),
+            difficulty=difficulty,
         )
     return skills
 
@@ -98,3 +134,22 @@ def label_for(key: str) -> str:
 def group_for(key: str) -> str:
     skill = taxonomy().get(key)
     return skill.group if skill else "other"
+
+
+def difficulty_for(key: str) -> str:
+    """How realistic it is to close this gap before an interview.
+
+    This does **not** decide whether something is a gap — the profile's
+    evidence does that, and the anti-fabrication lock is unaffected. It only
+    sorts gaps that already exist into what is worth reading up on and what is
+    better answered honestly. A skill being "fast" to learn never puts it on
+    the CV; it goes on the CV when the candidate has actually learnt it.
+    """
+    skill = taxonomy().get(key)
+    if skill:
+        return skill.difficulty
+    return _difficulty_rules()[0]
+
+
+def difficulty_note(key: str) -> str:
+    return DIFFICULTY_NOTE.get(difficulty_for(key), DIFFICULTY_NOTE["medium"])

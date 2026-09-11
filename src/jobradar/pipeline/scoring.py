@@ -19,6 +19,7 @@ Weights come from the job ad; evidence and ceilings come from the profile. See
 from __future__ import annotations
 
 from ..models import Job, MatchScore, Profile, Requirement
+from ..taxonomy import difficulty_for, difficulty_note
 
 #: Evidence at or above this counts as a genuine strength worth leading with.
 STRONG = 0.7
@@ -110,6 +111,16 @@ def score_job(job: Job, profile: Profile) -> MatchScore:
         delta=round(tailored - base, 1),
         improvement_pct=round(100 * (tailored - base) / base, 1) if base else 0.0,
         gaps=[r.label for r in gaps][:6],
+        gap_details=[
+            {
+                "key": r.key,
+                "label": r.label,
+                "weight": r.weight,
+                "difficulty": difficulty_for(r.key),
+                "note": difficulty_note(r.key),
+            }
+            for r in gaps[:10]
+        ],
         strengths=[r.label for r in strengths][:6],
         surfaced=surfaced,
     )

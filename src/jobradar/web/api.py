@@ -84,7 +84,16 @@ class JobView(BaseModel):
     score_tailored: float
     score_delta: float
     gaps: list[str]
+    #: The same gaps with weight and learning difficulty, so the list reads as
+    #: a plan for the days before an interview rather than a list of failures.
+    gap_details: list[dict] = Field(default_factory=list)
     strengths: list[str]
+    #: Triage order: the match score less what is already known to go nowhere.
+    #: Computed fresh on every request, never stored, so it cannot go stale.
+    focus: float = 0.0
+    #: One sentence saying why this job sits where it does. A ranking nobody
+    #: can audit is a ranking nobody should trust.
+    focus_reason: str = ""
     status: str
     stage: str | None
     applied_on: date | None
@@ -93,3 +102,18 @@ class JobView(BaseModel):
     has_cv: bool
     has_cover_letter: bool
     has_email: bool
+
+
+class FilteredView(BaseModel):
+    """One ad a filter rejected, kept so the cost of the settings is visible."""
+
+    id: str
+    company: str = ""
+    title: str = ""
+    source: str = ""
+    url: str = ""
+    posted_at: str | None = None
+    reason: str = ""
+    reason_shape: str = ""
+    category: str = "other"
+    filtered_at: str = ""

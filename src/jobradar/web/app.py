@@ -30,12 +30,20 @@ from ..lint import lint_profile, lint_tailored
 from ..llm import build_client
 from ..models import Application, Job, MatchScore, Profile
 from ..pipeline import run_search, sweep_closed
+from ..pipeline.focus import focus_for
 from ..pipeline.salary import ExchangeRates
 from ..pipeline.scoring import score_job
 from ..profile import import_profile
 from ..sources import available as available_sources
 from ..storage import Database
-from .api import ApplicationPayload, JobView, OnboardingPayload, ProfilePatch, SettingsPayload
+from .api import (
+    ApplicationPayload,
+    FilteredView,
+    JobView,
+    OnboardingPayload,
+    ProfilePatch,
+    SettingsPayload,
+)
 
 log = logging.getLogger(__name__)
 
@@ -44,7 +52,8 @@ STATIC = Path(__file__).parent / "static"
 
 
 def _job_view(job: Job, score: MatchScore | None, application: Application,
-              documents: dict) -> JobView:
+              documents: dict, profile_years: float | None = None) -> JobView:
+    focus, focus_reason = focus_for(job, score, max_years=profile_years)
     return JobView(
         id=job.id,
         title=job.title,
@@ -68,7 +77,10 @@ def _job_view(job: Job, score: MatchScore | None, application: Application,
         score_tailored=score.tailored if score else 0.0,
         score_delta=score.delta if score else 0.0,
         gaps=score.gaps if score else [],
+        gap_details=score.gap_details if score else [],
         strengths=score.strengths if score else [],
+        focus=focus,
+        focus_reason=focus_reason,
         status=application.status.value,
         stage=application.stage.value if application.stage else None,
         applied_on=application.applied_on,
@@ -144,12 +156,18 @@ def create_app(paths: Paths | None = None) -> FastAPI:
         profile = database.load_profile()
         scores = database.all_scores()
         applications = database.all_applications()
+        profile_years = profile.years_of_experience() if profile else None
         jobs = []
         for job in database.list_jobs(include_closed=True):
             application = applications.get(job.id) or Application(job_id=job.id)
             documents = database.documents_for(job.id)
-            jobs.append(_job_view(job, scores.get(job.id), application, documents).model_dump(mode="json"))
-        jobs.sort(key=lambda item: (-item["score_tailored"], item["company"]))
+            jobs.append(
+                _job_view(job, scores.get(job.id), application, documents, profile_years)
+                .model_dump(mode="json")
+            )
+        # Focus order by default: once a profile covers most of what the ads
+        # ask for, sorting by match score is sorting by noise.
+        jobs.sort(key=lambda item: (-item["focus"], -item["score_tailored"], item["company"]))
 
         runs = [run.model_dump(mode="json") for run in database.recent_runs(5)]
         return {
@@ -160,6 +178,9 @@ def create_app(paths: Paths | None = None) -> FastAPI:
             "sources": available_sources(),
             "countries": {code: entry.get("name", code) for code, entry in countries().items()},
             "runs": runs,
+            "filtered": [FilteredView(**entry).model_dump(mode="json")
+                         for entry in database.list_filtered()],
+            "filtered_tally": database.filtered_tally(),
             "running": app.state.running,
             "version": __version__,
         }
@@ -445,6 +466,28 @@ def create_app(paths: Paths | None = None) -> FastAPI:
             "summary": report.summary(),
             "closed": [{"id": i, "job": j, "reason": r} for i, j, r in report.closed],
         }
+
+    @app.post("/api/filtered/{job_id}/restore")
+    def restore_filtered(job_id: str):
+        """Put a rejected ad back on the board.
+
+        The filter that rejected it is still there and a later run would reject
+        it again — that is fine. What changes is that the decision is the
+        user's and visible, instead of a drop nobody could see.
+        """
+        job = database.restore_filtered(job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail="Not in the filtered list")
+        profile = database.load_profile()
+        if profile is not None:
+            database.save_score(job.id, score_job(job, profile))
+        return {"ok": True, "id": job.id, "title": job.title, "company": job.company}
+
+    @app.delete("/api/filtered")
+    def clear_filtered():
+        """Empty the filtered list. The ads come back on the next search."""
+        database.clear_filtered()
+        return {"ok": True}
 
     @app.get("/api/rates")
     def rates():

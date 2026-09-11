@@ -105,11 +105,37 @@ CREATE TABLE IF NOT EXISTS runs (
     id      INTEGER PRIMARY KEY AUTOINCREMENT,
     payload TEXT NOT NULL
 );
+
+-- Jobs a filter rejected. Kept, not discarded: a filter one notch too strict
+-- is invisible when its victims vanish, and "the board is empty" and "the
+-- salary floor is eating everything" look identical from the outside. The
+-- whole job is stored so it can be read, judged and restored.
+CREATE TABLE IF NOT EXISTS filtered_jobs (
+    id          TEXT PRIMARY KEY,
+    company     TEXT,
+    title       TEXT,
+    source      TEXT,
+    posted_at   TEXT,
+    reason      TEXT NOT NULL,
+    reason_shape TEXT NOT NULL,
+    category    TEXT NOT NULL DEFAULT 'other',
+    filtered_at TEXT NOT NULL,
+    payload     TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_filtered_category ON filtered_jobs(category);
 """
 
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _shape_of(reason: str) -> str:
+    """Reason with its numbers blanked, for grouping. Imported late to avoid a
+    circular import between storage and the pipeline."""
+    from .pipeline.filters import shape
+
+    return shape(reason)
 
 
 def _json(value: Any) -> str:
@@ -293,6 +319,102 @@ class Database:
     def closed_job_ids(self) -> set[str]:
         """Ids that must never be re-added by a later search run."""
         return {r["job_id"] for r in self.connection.execute("SELECT job_id FROM closed_jobs")}
+
+    # -- filtered-out jobs --------------------------------------------------
+
+    def save_filtered(self, entries: Iterable[tuple[Job, str, str]]) -> int:
+        """Record jobs a filter rejected, with the reason and its shape.
+
+        Re-running a search re-rejects the same ads, so this is an upsert
+        keyed on the job id: the list is "what the current configuration is
+        costing you", not a log that grows forever.
+        """
+        rows = 0
+        with self.transaction() as cursor:
+            for job, reason, category in entries:
+                cursor.execute(
+                    "INSERT INTO filtered_jobs(id, company, title, source, posted_at, "
+                    "reason, reason_shape, category, filtered_at, payload) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?) "
+                    "ON CONFLICT(id) DO UPDATE SET reason = excluded.reason, "
+                    "reason_shape = excluded.reason_shape, category = excluded.category, "
+                    "filtered_at = excluded.filtered_at, payload = excluded.payload",
+                    (
+                        job.id, job.company, job.title, job.source,
+                        job.posted_at.isoformat() if job.posted_at else None,
+                        reason, _shape_of(reason), category, _now(),
+                        _json(job.model_dump(mode="json")),
+                    ),
+                )
+                rows += 1
+        return rows
+
+    def list_filtered(self, limit: int = 500) -> list[dict[str, Any]]:
+        """Everything a filter rejected, most recent first."""
+        return [
+            {
+                "id": r["id"], "company": r["company"], "title": r["title"],
+                "source": r["source"], "posted_at": r["posted_at"],
+                "reason": r["reason"], "reason_shape": r["reason_shape"],
+                "category": r["category"], "filtered_at": r["filtered_at"],
+                "url": json.loads(r["payload"]).get("url", ""),
+            }
+            for r in self.connection.execute(
+                "SELECT * FROM filtered_jobs ORDER BY filtered_at DESC, company LIMIT ?",
+                (limit,),
+            )
+        ]
+
+    def filtered_tally(self) -> dict[str, list[tuple[str, int]]]:
+        """Counts by coarse category and by the exact shape of the reason.
+
+        The categories say which filter to reach for; the shapes say what it is
+        actually rejecting. One without the other is half an answer.
+        """
+        by_category = [
+            (r["category"], r["n"])
+            for r in self.connection.execute(
+                "SELECT category, COUNT(*) AS n FROM filtered_jobs "
+                "GROUP BY category ORDER BY n DESC"
+            )
+        ]
+        by_shape = [
+            (r["reason_shape"], r["n"])
+            for r in self.connection.execute(
+                "SELECT reason_shape, COUNT(*) AS n FROM filtered_jobs "
+                "GROUP BY reason_shape ORDER BY n DESC LIMIT 12"
+            )
+        ]
+        return {"by_category": by_category, "by_shape": by_shape}
+
+    def get_filtered_job(self, job_id: str) -> Job | None:
+        row = self.connection.execute(
+            "SELECT payload FROM filtered_jobs WHERE id = ?", (job_id,)
+        ).fetchone()
+        return Job.model_validate(json.loads(row["payload"])) if row else None
+
+    def restore_filtered(self, job_id: str) -> Job | None:
+        """Move one rejected job back onto the board.
+
+        The filter that rejected it still exists, so a later run would reject
+        it again; the point is that the decision is now the user's and visible,
+        not a silent drop.
+        """
+        job = self.get_filtered_job(job_id)
+        if job is None:
+            return None
+        self.upsert_jobs([job])
+        self.drop_filtered([job_id])
+        return job
+
+    def drop_filtered(self, job_ids: Iterable[str]) -> None:
+        with self.transaction() as cursor:
+            for job_id in job_ids:
+                cursor.execute("DELETE FROM filtered_jobs WHERE id = ?", (job_id,))
+
+    def clear_filtered(self) -> None:
+        with self.transaction() as cursor:
+            cursor.execute("DELETE FROM filtered_jobs")
 
     # -- match scores -------------------------------------------------------
 

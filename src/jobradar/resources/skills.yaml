@@ -131,3 +131,118 @@ spanish: {label: Spanish, group: language, aliases: [spanish, espanol, español,
 french: {label: French, group: language, aliases: [french, frances, francés]}
 german: {label: German, group: language, aliases: [german, aleman, alemán, deutsch]}
 portuguese: {label: Portuguese, group: language, aliases: [portuguese, portugues, português]}
+
+# ---------------------------------------------------------------------------
+# Learning difficulty.
+#
+# For a requirement the candidate cannot evidence, this says whether it is
+# worth reading up on between sending the application and sitting an
+# interview. It does NOT decide what counts as a gap — the profile's evidence
+# does that — and it never puts anything on a CV. A "fast" gap goes on the CV
+# when it has actually been learnt, not before.
+#
+#   fast    days to a week on top of an existing base: a library, a tool
+#   medium  several weeks of real work to discuss it with authority
+#   slow    not realistic inside one hiring process: a deep discipline, a
+#           heavy certification, a degree, a new language, or years of
+#           experience. Here the honest answer beats the crash course.
+#
+# Resolution order: a skill's own `difficulty:` field, then `overrides`, then
+# `by_group`, then `default`. Editing this costs nothing downstream.
+# ---------------------------------------------------------------------------
+_learning_difficulty:
+  default: medium
+  by_group:
+    languages: medium
+    frontend: medium
+    backend: fast
+    databases: fast
+    devops: fast
+    cloud: medium
+    data: medium
+    ai: medium
+    architecture: slow
+    engineering: fast
+    process: fast
+    design: medium
+    marketing: medium
+    sales: medium
+    business: slow
+    domain: slow
+    operations: medium
+    product: medium
+    soft: slow
+    language: slow
+  overrides:
+    # Tools and frameworks on top of a base you already have.
+    fastapi: fast
+    flask: fast
+    django: fast
+    node: fast
+    rest_apis: fast
+    graphql: fast
+    docker: fast
+    git: fast
+    cicd: fast
+    bash: fast
+    linux: fast
+    monitoring: fast
+    pandas: fast
+    sklearn: fast
+    huggingface: fast
+    langchain: fast
+    data_viz: fast
+    redis: fast
+    postgres: fast
+    mysql: fast
+    testing: fast
+    code_review: fast
+    documentation: fast
+    debugging: fast
+    agile: fast
+    # Real depth, weeks of work.
+    kubernetes: medium
+    terraform: medium
+    spark: medium
+    etl: medium
+    warehouse: medium
+    rag: medium
+    llm: medium
+    genai: medium
+    nlp: medium
+    computer_vision: medium
+    pytorch_tf: medium
+    mlops: medium
+    microservices: medium
+    react: medium
+    angular: medium
+    vue: medium
+    nextjs: medium
+    aws: medium
+    azure: medium
+    gcp: medium
+    # Not in one hiring process.
+    deep_learning: slow
+    machine_learning: slow
+    statistics: slow
+    distributed_systems: slow
+    architecture: slow
+    performance: slow
+    security: slow
+    oracle_db: slow
+    scala: slow
+    cpp: slow
+    rust: slow
+    leadership: slow
+    product_management: slow
+    ux_research: slow
+    finance: slow
+    legal: slow
+    hr: slow
+    healthcare: slow
+    supply_chain: slow
+    english: slow
+    spanish: slow
+    french: slow
+    german: slow
+    portuguese: slow

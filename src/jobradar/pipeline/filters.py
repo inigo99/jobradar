@@ -129,14 +129,47 @@ def _check_salary(job: Job, filters: Filters, rates: ExchangeRates | None) -> Fi
     return None
 
 
-def _check_experience(job: Job, filters: Filters) -> FilterOutcome | None:
-    if filters.max_years_experience is None or job.min_years_experience is None:
-        return None
-    if job.min_years_experience > filters.max_years_experience:
-        return FilterOutcome(
-            False, f"asks for {job.min_years_experience}+ years (limit {filters.max_years_experience})"
-        )
+def _experience_ceiling(filters: Filters, profile_years: float | None) -> float | None:
+    """How many years the candidate can defend.
+
+    An explicit ``max_years_experience`` wins, because a user who typed a
+    number meant it. Otherwise the profile's own dates are used, which is the
+    only version of this number that stays true without anyone maintaining it.
+    """
+    if filters.max_years_experience is not None:
+        return float(filters.max_years_experience)
+    if filters.use_profile_years and profile_years is not None:
+        return float(profile_years)
     return None
+
+
+def _check_experience(
+    job: Job, filters: Filters, profile_years: float | None = None
+) -> FilterOutcome | None:
+    """Years asked for against years held — with a band for "just short".
+
+    An ad that states no minimum is never dropped here. Most ads state none,
+    and treating silence as a rejection would throw away the majority of the
+    board to save the reader a sentence.
+    """
+    ceiling = _experience_ceiling(filters, profile_years)
+    if ceiling is None or job.min_years_experience is None:
+        return None
+    short_by = job.min_years_experience - ceiling
+    if short_by <= 0.001:
+        return None
+    held = f"{ceiling:g}"
+    if short_by <= filters.years_margin + 0.001:
+        return FilterOutcome(
+            False,
+            f"asks for {job.min_years_experience} years, you have {held} — "
+            f"just short by {short_by:g}",
+        )
+    return FilterOutcome(
+        False,
+        f"asks for {job.min_years_experience} years, you have {held} "
+        f"(short by {short_by:g})",
+    )
 
 
 def _check_keywords(job: Job, filters: Filters) -> FilterOutcome | None:
@@ -158,6 +191,7 @@ def apply_filters(
     filters: Filters,
     rates: ExchangeRates | None = None,
     today: date | None = None,
+    profile_years: float | None = None,
 ) -> FilterOutcome:
     """Run every rule against ``job`` and return the first rejection, if any."""
     today = today or date.today()
@@ -167,7 +201,7 @@ def apply_filters(
         _check_work_mode(job, filters),
         _check_geography(job, filters),
         _check_salary(job, filters, rates),
-        _check_experience(job, filters),
+        _check_experience(job, filters, profile_years),
         _check_keywords(job, filters),
     )
     for outcome in checks:
@@ -187,8 +221,36 @@ def explain(rejections: dict[str, str]) -> list[tuple[str, int]]:
     """
     tally: dict[str, int] = {}
     for reason in rejections.values():
-        # Group by the shape of the reason, not its specifics: "published 9
-        # days ago" and "published 12 days ago" are one problem, not two.
-        key = re.sub(r"\d[\d,.]*", "N", reason.split(" (")[0]).strip()
+        key = shape(reason)
         tally[key] = tally.get(key, 0) + 1
     return sorted(tally.items(), key=lambda item: -item[1])
+
+
+def shape(reason: str) -> str:
+    """The reason with its specifics removed, for grouping.
+
+    "published 9 days ago" and "published 12 days ago" are one problem, not
+    two. Stored alongside every rejection so the tally survives the run that
+    produced it.
+    """
+    return re.sub(r"\d[\d,.]*", "N", (reason or "").split(" (")[0]).strip() or "unknown"
+
+
+def category(reason: str) -> str:
+    """A coarse bucket for the dashboard's filter tally."""
+    text = (reason or "").lower()
+    if "salary" in text:
+        return "salary"
+    if "years" in text:
+        return "experience"
+    if "work mode" in text:
+        return "work mode"
+    if "remote" in text or "on-site" in text or "outside your areas" in text:
+        return "geography"
+    if "keyword" in text or "excluded company" in text:
+        return "keywords"
+    if "published" in text or "publication date" in text:
+        return "freshness"
+    if "duplicate" in text:
+        return "duplicate"
+    return "other"
