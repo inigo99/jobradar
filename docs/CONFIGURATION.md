@@ -40,13 +40,14 @@ filters:
   use_profile_years: true        # …which is what this does, and it rises on its own
   years_margin: 1.0              # years past yours that still count as "just short"
   required_keywords: []
-  excluded_keywords: [unpaid, commission only]
+  excluded_keywords: [unpaid, commission only]   # whole words; end with * for a prefix
   excluded_companies: []
   max_age_days: 7
   keep_undated: true
 
 weekly_goal: 10                  # applications a week; drives the Today queue
 today_queue_size: 6              # how many jobs that queue shows at once
+prune_after_days: 45             # close untouched jobs older than this; empty = off
 
 sources:
   enabled: []                    # empty == every non-restricted source
@@ -96,18 +97,44 @@ restriction allows:
 |---|---|
 | worldwide | yes |
 | region (EMEA, EU, …) | yes if your country falls inside it |
-| country | yes only if that country is one of yours |
+| country, and the ad names it | yes only if that country is one of yours |
+| country, but the ad names none ("must be eligible to work in the country") | yes, with an alert quoting the sentence |
 | unknown | yes, with an alert telling you to confirm |
+
+The countries are read out of the ad's own residency sentence ("must reside in
+Spain", "eligible to work in the EU"), and they win over the board's metadata.
+The same sentence can restrict or open up, so when it names no place the job is
+kept rather than dropped on a guess.
+
+**Work mode.** Decided from the ad's own words, with negations understood ("not
+a remote position") and office days counted wherever they are mentioned ("work
+from home 2 days per week" is hybrid). When the text says nothing, the board's
+tag is kept and flagged — silence is not a contradiction. The sentences the
+decision came from are stored with the job.
 
 That last row matters. A "remote" job in London usually means remote *within
 the UK*, and ads very often do not say. Dropping them would lose real
 opportunities; keeping them silently would waste your time. So they are kept
 and flagged, and the generated application email asks the question.
 
-**Salary.** The floor is applied to the midpoint after conversion at ECB
-reference rates. A job with no salary at all is **not** dropped — it is kept
-with a warning — unless `require_published_salary` is on. Around two thirds of
-ads publish nothing, so a floor that dropped them would drop most of the market.
+**Salary.** Only a salary the ad publishes can drop a job, and a published band
+is judged by its top after conversion at ECB reference rates: a 36–45k band may
+well pay 40k, and rejecting it for its lower end punishes the ads that are
+transparent. An *estimate* below your floor is kept with a warning — it comes
+from a reference band, not from the ad. A job with no salary at all is kept too,
+unless `require_published_salary` is on. Around two thirds of ads publish
+nothing, so a floor that dropped them would drop most of the market.
+
+**Keyword and company lists.** Matched as whole words, never as substrings:
+`java` does not exclude "JavaScript", and `Alan` does not exclude "Talan". End
+an entry with `*` to match a prefix (`practic*` matches "prácticas" and
+"practicante"). `local_areas` follow the same rule and are read from the job's
+location only.
+
+**Old jobs.** `prune_after_days` closes jobs published longer ago than that
+which you have not touched (applied, discarded, annotated), before each search
+and without fetching anything. They stay readable as closed, and a repost of
+one under a new id is recognised as a duplicate rather than shown as new.
 
 **Freshness.** `keep_undated: true` matters more than it looks: most aggregators
 omit the publication date entirely, and a strict reading would discard them all.
@@ -120,6 +147,7 @@ included in an export.
 | Variable | For |
 |---|---|
 | `JOBRADAR_HOME` | Where the data lives (default `./data`) |
+| `JOBRADAR_ALLOWED_HOSTS` | Extra host names the dashboard answers to, comma-separated (see the README's privacy section) |
 | `JOBRADAR_LLM_PROVIDER`, `JOBRADAR_LLM_MODEL`, `JOBRADAR_LLM_BASE_URL` | Language model |
 | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` | Model keys |
 | `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` | Adzuna |

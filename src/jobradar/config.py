@@ -260,6 +260,12 @@ class Settings(BaseModel):
     weekly_goal: int = 10
     #: How many jobs the "Today" queue shows at once. Short on purpose.
     today_queue_size: int = 6
+    #: Close untouched jobs published more than this many days ago, without
+    #: fetching them. The sweep only retires ads that say they are closed, and
+    #: plenty of dead ones never do; checking each one costs a request (a real
+    #: browser for the restricted sources). A job you applied to, discarded or
+    #: annotated is never touched. ``None`` switches it off.
+    prune_after_days: int | None = 45
 
     #: CV template used to render the tailored CV, see documents/templates.
     cv_template: str = "classic"

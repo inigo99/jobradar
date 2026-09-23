@@ -11,9 +11,18 @@ if you get them wrong:
   fetch and possibly a model call per job. Collapsing the three copies of the
   same opening first cuts that bill by roughly the duplication rate, which on a
   multi-source run is substantial.
-* **Filter what can be filtered before enriching too.** Age and keyword rules
-  need no ad body, so they run early; work mode, geography and salary need the
-  ad, so they run after. This is why :func:`_prefilter` exists separately.
+* **Filter what can be filtered before enriching too.** Age needs no ad body,
+  so it runs early; work mode, geography and salary need the ad, so they run
+  after. This is why :func:`_prefilter` exists separately.
+* **Never read the same ad twice.** A job already on file (active, or rejected
+  by a filter) keeps its stored reading: the listing is matched to it and the
+  filters and the score are re-applied — both cheap, and both can change when
+  the settings or the profile do — but the ad is not fetched and the model is
+  not asked again. ``refresh=True`` (``jobradar search --refresh``) forces a
+  full re-read, e.g. after upgrading the extraction rules.
+* **A new id is not necessarily a new job.** Reposts and the same opening on
+  another board are matched against everything on file, closed and aged-out
+  jobs included, and set aside with the job they duplicate.
 """
 
 from __future__ import annotations
@@ -28,10 +37,11 @@ from ..models import Job, MatchScore, Profile, SearchRun
 from ..sources import SearchQuery, build_sources
 from ..sources.base import JobSource
 from ..storage import Database
-from .dedupe import deduplicate
+from .dedupe import deduplicate, split_known
 from .enrich import enrich_job
 from .filters import apply_filters
 from .filters import category as filter_category
+from .prune import prune_stale
 from .salary import ExchangeRates
 from .scoring import score_job
 
@@ -71,6 +81,7 @@ class SearchPipeline:
         llm: LLMClient | None = None,
         rates: ExchangeRates | None = None,
         today: date | None = None,
+        refresh: bool = False,
     ):
         self.settings = settings
         self.profile = profile
@@ -78,6 +89,7 @@ class SearchPipeline:
         self.llm = llm
         self.rates = rates
         self.today = today or date.today()
+        self.refresh = refresh
         self._sources = sources
         self._fetcher = None
 
@@ -148,43 +160,74 @@ class SearchPipeline:
     def _source_for(self, job: Job) -> JobSource | None:
         return next((source for source in self.sources() if source.id == job.source), None)
 
+    def _stored_reading(self, listed: Job) -> Job | None:
+        """The enriched record already on file for this id, if there is one."""
+        if self.refresh:
+            return None
+        stored = self.database.get_job(listed.id) or self.database.get_filtered_job(listed.id)
+        if stored is None or not stored.raw.get("enriched_by"):
+            return None
+        # What the listing knows that the stored record may not.
+        stored.posted_at = stored.posted_at or listed.posted_at
+        stored.apply_url = stored.apply_url or listed.apply_url
+        return stored
+
     # -- run ---------------------------------------------------------------
 
     def run(self, enrich: bool = True) -> SearchResult:
         started = datetime.now(timezone.utc)
+        pruned = prune_stale(self.database, self.settings.prune_after_days, self.today)
         query = self.query()
 
         collected, used, errors = self.collect(query)
         deduped = deduplicate(collected)
-        candidates, rejected, prefiltered = self._prefilter(deduped)
+        known_on_file = self.database.list_jobs(include_closed=True)
+        fresh, known_duplicates = split_known(deduped, known_on_file)
+        candidates, rejected, prefiltered = self._prefilter(fresh)
 
         known_ids = self.database.known_job_ids()
+        by_source: dict[str, dict[str, int]] = {}
+        for job in collected:
+            counts = by_source.setdefault(job.source, {"fetched": 0, "kept": 0})
+            counts["fetched"] += 1
         result = SearchResult(
             run=SearchRun(
                 started_at=started,
                 sources=used,
                 fetched=len(collected),
                 after_dedupe=len(deduped),
+                known_duplicates=len(known_duplicates),
+                pruned=len(pruned),
                 errors=errors,
             ),
             rejected=rejected,
             filtered=list(prefiltered),
         )
+        for job, twin in known_duplicates:
+            reason = f"duplicate of a job already on file ({twin.company} — {twin.title})"
+            result.rejected[job.id] = reason
+            result.filtered.append((job, reason))
 
         # The years ceiling comes from the profile's own dates unless the user
         # typed a number, so it rises on its own instead of ageing quietly.
         profile_years = self.profile.years_of_experience(self.today) if self.profile else None
 
-        for job in candidates:
+        for listed in candidates:
+            job = listed
             if enrich:
-                source = self._source_for(job)
-                enrich_job(
-                    job,
-                    self.settings,
-                    llm=self.llm,
-                    rates=self.rates,
-                    fetch_description=source.fetch_description if source else None,
-                )
+                stored = self._stored_reading(listed)
+                if stored is not None:
+                    job = stored
+                    result.run.reused += 1
+                else:
+                    source = self._source_for(job)
+                    enrich_job(
+                        job,
+                        self.settings,
+                        llm=self.llm,
+                        rates=self.rates,
+                        fetch_description=source.fetch_description if source else None,
+                    )
 
             outcome = apply_filters(
                 job, self.settings.filters, self.rates, self.today, profile_years
@@ -200,6 +243,7 @@ class SearchPipeline:
                         job.alerts.append(warning)
 
             result.kept.append(job)
+            by_source.setdefault(job.source, {"fetched": 0, "kept": 0})["kept"] += 1
             if job.id not in known_ids:
                 result.new_jobs.append(job)
 
@@ -223,6 +267,7 @@ class SearchPipeline:
 
         result.run.kept = len(result.kept)
         result.run.new = new
+        result.run.by_source = by_source
         result.run.finished_at = datetime.now(timezone.utc)
         self.database.log_run(result.run)
 
@@ -236,6 +281,7 @@ def run_search(
     paths: Paths | None = None,
     database: Database | None = None,
     enrich: bool = True,
+    refresh: bool = False,
 ) -> SearchResult:
     """Convenience entry point used by the CLI, the API and scheduled runs."""
     paths = paths or Paths.resolve()
@@ -250,6 +296,7 @@ def run_search(
         database=database,
         llm=build_client(settings.llm),
         rates=ExchangeRates.load(paths.cache_dir),
+        refresh=refresh,
     )
     try:
         return pipeline.run(enrich=enrich)

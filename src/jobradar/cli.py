@@ -185,11 +185,16 @@ def cmd_search(args: argparse.Namespace) -> int:
 
     out("Searching…")
     result = run_search(settings=settings, paths=database.paths, database=database,
-                        enrich=not args.no_enrich)
+                        enrich=not args.no_enrich, refresh=args.refresh)
     run = result.run
     out(f"\n[bold]{run.kept}[/bold] jobs kept — {run.new} new — "
         f"{run.fetched} fetched from {len(run.sources)} sources "
         f"({run.after_dedupe} after deduplication).")
+    out(f"  {run.reused} already on file (not re-read) · "
+        f"{run.known_duplicates} reposts or duplicates of a job on file · "
+        f"{run.pruned} old untouched jobs retired.")
+    for source_id, counts in sorted(run.by_source.items()):
+        out(f"  {source_id}: {counts.get('fetched', 0)} fetched, {counts.get('kept', 0)} kept")
     for error in run.errors:
         out(f"  [red]![/red] {error}")
 
@@ -553,6 +558,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     search = sub.add_parser("search", help="Run the search pipeline")
     search.add_argument("--no-enrich", action="store_true", help="Skip fetching full ad text")
+    search.add_argument(
+        "--refresh", action="store_true",
+        help="Re-read every ad, including ones already on file (slower; use after upgrading)",
+    )
     search.add_argument("--no-llm", action="store_true", help="Force the deterministic path")
     search.add_argument("--explain", action="store_true", help="Show why jobs were dropped")
     search.add_argument("--notify", action="store_true", help="Send the digest afterwards")

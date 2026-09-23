@@ -21,7 +21,7 @@ JobRadar work for people whose job search does not look like the maintainers'.
 ## Setting up
 
 ```bash
-git clone https://github.com/your-username/jobradar.git
+git clone https://github.com/inigo99/jobradar.git
 cd jobradar
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev,all]"

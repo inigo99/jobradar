@@ -7,15 +7,28 @@ those packages, which is what makes the same operations available from the CLI.
 The server binds to ``127.0.0.1`` by default. The database contains the user's
 CV, contact details and job-search history; putting that on a public interface
 would be a poor default, so exposing it takes an explicit ``--host``.
+
+Binding to loopback is not enough on its own. Any web page open in the same
+browser can send a form POST to ``http://127.0.0.1:8000`` (no CORS preflight is
+involved for a form), and a DNS-rebinding page can make the browser treat the
+server as its own origin. Two checks close both:
+
+* the ``Host`` header must be one of the names the server was started for
+  (loopback by default), which defeats rebinding;
+* requests that change something must not come from another origin: a
+  cross-origin ``Origin`` header or ``Sec-Fetch-Site: cross-site`` is refused.
+  Requests without either header (the CLI, curl, scripts) are unaffected.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Iterable
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
@@ -92,8 +105,41 @@ def _job_view(job: Job, score: MatchScore | None, application: Application,
     )
 
 
-def create_app(paths: Paths | None = None) -> FastAPI:
-    """Build the application. ``paths`` is injectable so tests get a temp home."""
+#: Host names the dashboard answers to unless told otherwise.
+LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+_UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+
+
+def _hostname(host_header: str) -> str:
+    """``[::1]:8000`` -> ``::1``, ``localhost:8000`` -> ``localhost``."""
+    value = (host_header or "").strip().lower()
+    if value.startswith("["):
+        return value[1:].split("]", 1)[0]
+    return value.rsplit(":", 1)[0] if value.count(":") == 1 else value
+
+
+def request_refusal(method: str, headers, allowed_hosts: frozenset[str] | None) -> str | None:
+    """Why a request must be refused, or ``None``. Pure, so it is testable."""
+    host = headers.get("host", "")
+    if allowed_hosts is not None and _hostname(host) not in allowed_hosts:
+        return "Host not allowed"
+    if method.upper() not in _UNSAFE_METHODS:
+        return None
+    if (headers.get("sec-fetch-site") or "").lower() == "cross-site":
+        return "Cross-site request refused"
+    origin = headers.get("origin")
+    if origin is not None:
+        if origin == "null" or urlsplit(origin).netloc.lower() != host.lower():
+            return "Cross-origin request refused"
+    return None
+
+
+def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None = LOOPBACK_HOSTS) -> FastAPI:
+    """Build the application. ``paths`` is injectable so tests get a temp home.
+
+    ``allowed_hosts`` are the host names accepted in the ``Host`` header;
+    ``None`` disables that check (only sensible behind a proxy that does it).
+    """
     load_dotenv()
     paths = (paths or Paths.resolve()).ensure()
     # A single connection is reused: SQLite handles this fine for one local
@@ -106,6 +152,15 @@ def create_app(paths: Paths | None = None) -> FastAPI:
         database.close()
 
     app = FastAPI(title="JobRadar", version=__version__, docs_url="/api/docs", lifespan=lifespan)
+    hosts = None if allowed_hosts is None else frozenset(h.lower() for h in allowed_hosts)
+
+    @app.middleware("http")
+    async def refuse_foreign_requests(request: Request, call_next):
+        refusal = request_refusal(request.method, request.headers, hosts)
+        if refusal:
+            return JSONResponse({"detail": refusal}, status_code=403)
+        return await call_next(request)
+
     templates = Jinja2Templates(directory=str(TEMPLATES))
     if STATIC.exists():
         app.mount("/static", StaticFiles(directory=str(STATIC)), name="static")
@@ -500,6 +555,17 @@ def create_app(paths: Paths | None = None) -> FastAPI:
 def serve(host: str = "127.0.0.1", port: int = 8000, paths: Paths | None = None,
           reload: bool = False) -> None:
     """Run the dashboard with uvicorn."""
+    import os
+
     import uvicorn
 
-    uvicorn.run(create_app(paths), host=host, port=port, reload=reload, log_level="info")
+    extra = {h.strip() for h in os.environ.get("JOBRADAR_ALLOWED_HOSTS", "").split(",") if h.strip()}
+    if host in ("0.0.0.0", "::") and not extra:
+        # Listening on every interface: the names it will be reached by are
+        # unknown here, so the Host check is off and the Origin check remains.
+        # Set JOBRADAR_ALLOWED_HOSTS to turn it back on.
+        allowed: Iterable[str] | None = None
+    else:
+        allowed = LOOPBACK_HOSTS | {host.lower()} | extra
+    uvicorn.run(create_app(paths, allowed_hosts=allowed), host=host, port=port, reload=reload,
+                log_level="info")

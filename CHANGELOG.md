@@ -4,6 +4,75 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/).
 
+## 1.3.0 — 2026-09-23
+
+Most of these fixes come from a personal radar that shares its rules with
+JobRadar and runs them against real ads every day; each one is a sentence or a
+situation that gave a wrong answer, and each has a regression test in
+`tests/test_hardening.py`.
+
+### Fixed
+
+- **Work mode read negations and office days wrong.** "This is not a remote
+  position" came out remote, "work from home (2 days per week)" came out remote
+  and "Fully remote. No hybrid" came out hybrid. Detection now matches whole
+  words, understands negations and looks for office days anywhere in the text.
+- **LinkedIn wiped the board's remote tag.** `detect_work_mode(...) or
+  job.work_mode` never fell back, because `WorkMode.UNKNOWN` is truthy. Cards
+  found through LinkedIn's remote filter are now tagged remote, and when the ad
+  text says nothing about it the tag is kept with an alert instead of lost.
+- **Residency sentences dropped jobs they allowed.** "Must be eligible to work
+  in the EU" and "Must reside in Spain" were read as "restricted to some other
+  country" and rejected. The countries or region the sentence names are now
+  read out of it; a sentence that names none keeps the job, with an alert
+  quoting it.
+- **Years of experience.** "Más de 5 años" was not recognised and "entre 6 y 9
+  años" was read as 9. Ranges now count by their lower bound, and when an ad
+  states several figures the overall one (the largest) wins.
+- **Keyword and company lists matched substrings.** An excluded `java` dropped
+  "JavaScript Engineer" and an excluded `Alan` dropped "Talan". They now match
+  whole words; end an entry with `*` for a prefix. `local_areas` follow the
+  same rule and no longer look at the company name.
+- **An estimated salary could reject a job.** Only a published figure can now;
+  an estimate below the floor is kept with a warning. A published band is
+  judged by its top, so a 36–45k band is not dropped for a 40k floor.
+- **CI never ran on push**: the workflow listened to `main`, the branch is
+  `master`.
+
+### Added
+
+- **Ads already on file are not read again.** Each run used to fetch the full
+  ad (a real browser for LinkedIn/InfoJobs/Tecnoempleo) and, with a model
+  configured, pay for a new reading of every job still listed. The stored
+  reading is now reused; filters and score are re-applied. `jobradar search
+  --refresh` forces a full re-read — run it once after upgrading so existing
+  jobs get the new rules.
+- **Reposts and cross-board copies of a job on file** are recognised, closed
+  and aged-out jobs included, and filed under *Filtered out → duplicate* with
+  the job they match. Company names lose their legal form ("Talan España,
+  S.L.U." = "Talan") and titles the tags boards add ("(m/f/d)", "100% remoto",
+  "Senior"); a shared URL counts only within one company.
+- **`prune_after_days`** (default 45): untouched jobs older than that are
+  closed before each search, without fetching anything. Jobs you applied to,
+  discarded or annotated are never touched.
+- **Per-run counters** in the run log and the CLI: reused, duplicates of jobs
+  on file, pruned, and fetched/kept per source.
+- **The dashboard refuses cross-site requests.** A `Host` allowlist (loopback
+  by default, `JOBRADAR_ALLOWED_HOSTS` to extend) and an `Origin` /
+  `Sec-Fetch-Site` check on every request that changes something. Before, any
+  page open in the same browser could post the onboarding form and overwrite
+  the profile, or start a search.
+- The literal sentences behind the work-mode and residency decisions are kept
+  on the job (`raw.work_mode_evidence`, `raw.remote_scope_evidence`).
+
+### Changed
+
+- `create_app()` takes `allowed_hosts`; `SearchPipeline` and `run_search()`
+  take `refresh`; `SearchRun` gained `reused`, `known_duplicates`, `pruned` and
+  `by_source`; `Settings` gained `prune_after_days`. All additive: old
+  databases load unchanged.
+- `__version__` now matches the package version (it had stayed at 1.1.0).
+
 ## 1.2.0 — 2026-09-23
 
 ### Added

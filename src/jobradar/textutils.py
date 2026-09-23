@@ -53,6 +53,23 @@ def normalise(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", stripped.lower()).strip()
 
 
+def contains_phrase(text: str, phrase: str) -> bool:
+    """Whether ``phrase`` appears in ``text`` as whole words.
+
+    Never a raw substring: "java" is inside "javascript" and "alan" inside
+    "talan", and a filter that matches those drops good jobs in silence. A
+    trailing ``*`` asks for a prefix instead ("practic*" matches "practicas"
+    and "practicante").
+    """
+    wanted = (phrase or "").strip()
+    prefix = wanted.endswith("*")
+    needle = normalise(wanted.rstrip("*"))
+    if not needle:
+        return False
+    haystack = f" {normalise(text)} "
+    return f" {needle}" in haystack if prefix else f" {needle} " in haystack
+
+
 def slugify(value: str, max_length: int = 48) -> str:
     """Filesystem-safe slug, used for generated CV filenames."""
     text = normalise(value).replace(" ", "_")
@@ -98,32 +115,106 @@ def detect_language(text: str, default: str = "en") -> str:
 # ---------------------------------------------------------------------------
 # Work mode
 # ---------------------------------------------------------------------------
+#
+# Ported from a personal radar that ran these patterns against real ads every
+# day, with the bugs it hit written down next to the fix. Three lessons shape
+# them, and each one cost real jobs before it was learnt:
+#
+# * Match whole words. "remote" as a bare word is the commonest way an ad says
+#   it ("This is a remote position"), so it has to be in; but as a substring it
+#   also fires inside words that mean something else.
+# * Read negations. "This is not a remote position" contains "remote".
+# * Look at the whole text, not the first few hits. An ad that says "remote"
+#   three times in the header and "2 days a week in the office" further down is
+#   hybrid, and so is "work from home (2 days per week)".
+#
+# Everything is matched against folded text (lower case, no accents), so the
+# patterns are written without accents.
 
-_REMOTE_HINTS = (
-    "100% remote", "fully remote", "remote-first", "work from home", "teletrabajo",
-    "totalmente remoto", "en remoto", "télétravail", "homeoffice", "home office",
-    "remote position", "remote role", "trabajo remoto", "remoto",
+_RE_REMOTE = re.compile(
+    r"(100\s*%?\s*remot|fully remote|full[- ]remote|remote[- ]first|"
+    r"totalmente remot|completamente remot|en remoto|teletrabajo|teletravail|"
+    r"trabajo remot|remote work|work from home|work remotely|homeoffice|home office|"
+    r"\bremote\b|\bremoto\b|\bremota\b)"
 )
-_HYBRID_HINTS = ("hybrid", "híbrido", "hibrido", "hybride", "hybrid working", "2 days in office",
-                 "3 days in the office", "modelo híbrido")
-_ONSITE_HINTS = ("on-site", "onsite", "presencial", "in office", "in-office", "vor ort")
+_RE_HYBRID = re.compile(
+    r"(hibrid|hybrid|\d\s*dias? (en|de|a la) (oficina|casa|semana)|"
+    r"days? (in|at|per week in) (the )?office|"
+    r"office[^.]{0,40}\d+\s*days?\s*(a|per)\s*week|"
+    r"\d+\s*days?\s*(a|per)\s*week[^.]{0,40}office|"
+    r"dias? (de )?presencialidad|modelo hibrido|parcialmente remot|"
+    r"remoto parcial|combinacion de (teletrabajo|remoto)|"
+    r"flexib\w* .{0,25}remot|some days? (a week )?(in|at) (the )?office|"
+    r"office[- ]based .{0,25}(flexib|remot)|"
+    # "work from home (2 days per week)": how many days at HOME, the inverse
+    # of "N days in the office". Limited to 1-4 on purpose — "remote 5 days a
+    # week" is a full remote week, not hybrid.
+    r"(work(ing)? from home|remote(ly)?)[^.]{0,40}[1-4]\s*days?\s*(a|per)\s*week|"
+    r"[1-4]\s*days?\s*(a|per)\s*week[^.]{0,40}(work(ing)? from home|remote(ly)?))"
+)
+_RE_ONSITE = re.compile(
+    r"(presencial|on-?site|in-?person|en la oficina|nuestras? oficinas?|vor ort|"
+    r"not remote|no remote|not a remote|no es (un puesto )?remoto|"
+    r"no (se admite|se permite|admite|permite) (el )?teletrabajo|"
+    r"sin opcion de teletrabajo|acudir a (la )?oficina|"
+    r"asistencia (a|diaria) (la )?oficina|desde (la|nuestra) oficina|"
+    r"from (our|the) office|based in (our|the) office|office[- ]based role\b)"
+)
+_RE_NOT_REMOTE = re.compile(
+    r"(not remote|no remote|not a remote|no es (un puesto )?remoto|"
+    r"no (se admite|se permite|admite|permite) (el )?teletrabajo|"
+    r"sin opcion de teletrabajo)"
+)
+#: "No hybrid, no office" is a remote ad saying so twice.
+_RE_NOT_HYBRID = re.compile(r"\b(?:no|not|non|sin|nada de)[- ](?:hybrid|hibrid)\w*")
+_RE_ANY_MODE = re.compile(
+    _RE_REMOTE.pattern + "|" + _RE_HYBRID.pattern + "|" + _RE_ONSITE.pattern
+)
+
+
+def fold(text: str) -> str:
+    """Lower case without accents, punctuation kept (patterns rely on '.')."""
+    decomposed = unicodedata.normalize("NFKD", text or "")
+    return "".join(c for c in decomposed if not unicodedata.combining(c)).lower()
 
 
 def detect_work_mode(text: str, location: str = "") -> WorkMode:
     """Classify a posting as remote / hybrid / on-site from its own words.
 
-    Hybrid is checked first on purpose: ads that mean hybrid almost always also
-    contain the word "remote", and taking "remote" at face value is the single
-    most common way a job radar wastes its owner's time.
+    Returns ``UNKNOWN`` when the text says nothing about it — silence is not a
+    contradiction, and the caller decides whether to trust the board's tag.
     """
-    blob = f"{text} {location}".lower()
-    if any(hint in blob for hint in _HYBRID_HINTS):
-        return WorkMode.HYBRID
-    if any(hint in blob for hint in _REMOTE_HINTS):
+    blob = _RE_NOT_HYBRID.sub(" ", fold(f"{text} . {location}"))
+    remote = bool(_RE_REMOTE.search(blob))
+    hybrid = bool(_RE_HYBRID.search(blob))
+    onsite = bool(_RE_ONSITE.search(blob))
+    if _RE_NOT_REMOTE.search(blob) and not hybrid:
+        return WorkMode.ONSITE
+    if remote and not hybrid and not onsite:
         return WorkMode.REMOTE
-    if any(hint in blob for hint in _ONSITE_HINTS):
+    if remote or hybrid:
+        # "remote" next to office days is a perk, not the mode.
+        return WorkMode.HYBRID
+    if onsite:
         return WorkMode.ONSITE
     return WorkMode.UNKNOWN
+
+
+def work_mode_evidence(text: str, limit: int = 3) -> list[str]:
+    """Up to ``limit`` literal snippets where the ad talks about work mode.
+
+    Kept next to the verdict so the user can check the sentence the decision
+    came from instead of trusting the label.
+    """
+    blob = re.sub(r"\s+", " ", fold(text))
+    snippets: list[str] = []
+    for match in _RE_ANY_MODE.finditer(blob):
+        snippet = blob[max(0, match.start() - 55): match.start() + 80].strip()
+        if snippet not in snippets:
+            snippets.append(snippet)
+        if len(snippets) >= limit:
+            break
+    return snippets
 
 
 # ---------------------------------------------------------------------------
@@ -135,58 +226,125 @@ _WORLDWIDE = ("anywhere in the world", "work from anywhere", "worldwide", "globa
 _REGIONS = {
     "EMEA": ("emea",),
     "EU": ("european union", "eu-based", "within the eu", "eu only", "europe only",
-           "anywhere in europe", "european timezones", "cet timezone", "cet +/-"),
+           "anywhere in europe", "european timezones", "cet timezone", "cet +/-",
+           "union europea"),
     "LATAM": ("latam", "latin america"),
     "APAC": ("apac", "asia pacific"),
     "NORAM": ("north america", "us or canada"),
 }
-_COUNTRY_LOCK = (
-    "us only", "usa only", "united states only", "must be based in the us",
-    "us-based only", "authorized to work in the us", "authorised to work in the uk",
-    "uk only", "must reside in", "must be located in", "residents of",
-    "eligible to work in", "work authorization in",
+#: A residency or work-permit condition, and what follows it. The phrase is the
+#: same grammatical shape whether it restricts ("must reside in the US") or
+#: opens up ("eligible to work anywhere in the EU"), so the countries it names
+#: are read out of it rather than guessed from the phrase alone.
+_COUNTRY_LOCK = re.compile(
+    r"(must (?:be )?(?:located|based|resident|reside)|must reside|eligible to work|"
+    r"authori[sz]ed to work|work authori[sz]ation|right to work|residents? of|"
+    r"only accepting|us[- ]only|usa only|united states only|uk only|us[- ]based only|"
+    r"residir en|imprescindible residir|residencia en|resident in)[^.;\n]{0,70}"
 )
+_EUROPE_IN_LOCK = re.compile(r"\b(eu|e\.u\.|european union|europe|emea|union europea|europa)\b")
+_US_IN_LOCK = re.compile(r"(\bthe us\b|\bus[- ](?:only|based)\b|\bu\.s\.a?\.?|\busa\b|united states)")
+_UK_IN_LOCK = re.compile(r"(\bthe uk\b|\buk[- ](?:only|based)\b|\buk\b|united kingdom|great britain)")
+#: Names ads use that the country registry (English names only) does not.
+_EXTRA_COUNTRY_NAMES = {
+    "espana": "ES", "francia": "FR", "alemania": "DE", "italia": "IT", "portugal": "PT",
+    "paises bajos": "NL", "holanda": "NL", "irlanda": "IE", "belgica": "BE",
+    "suiza": "CH", "polonia": "PL", "reino unido": "GB", "estados unidos": "US",
+    "mexico": "MX", "deutschland": "DE", "espagne": "ES", "allemagne": "DE",
+}
+
+
+def _country_names() -> dict[str, str]:
+    from .config import countries  # local import: config imports models too
+
+    names = dict(_EXTRA_COUNTRY_NAMES)
+    for code, info in (countries() or {}).items():
+        name = fold(str((info or {}).get("name") or ""))
+        if name:
+            names[name] = str(code).upper()
+    return names
+
+
+def _countries_in(snippet: str) -> list[str]:
+    codes: list[str] = []
+    if _US_IN_LOCK.search(snippet):
+        codes.append("US")
+    if _UK_IN_LOCK.search(snippet):
+        codes.append("GB")
+    for name, code in _country_names().items():
+        if re.search(rf"\b{re.escape(name)}\b", snippet) and code not in codes:
+            codes.append(code)
+    return codes
 
 
 def detect_remote_scope(text: str) -> tuple[RemoteScope, list[str]]:
     """Infer where a remote job may be performed from.
 
-    Returns the scope plus any named regions. ``UNKNOWN`` is a legitimate and
-    common answer; the pipeline turns it into an alert on the job rather than
-    silently guessing, so the user asks in the first call instead of finding
-    out after three interviews.
+    Returns the scope plus what it is limited to: region names for ``REGION``,
+    ISO country codes for ``COUNTRY`` (empty when the ad states a residency
+    condition without naming where — the filter keeps those and flags them,
+    because a rule that guesses which way that sentence goes throws away good
+    jobs). ``UNKNOWN`` is a legitimate and common answer.
     """
-    blob = (text or "").lower()
+    blob = fold(text)
     if any(hint in blob for hint in _WORLDWIDE):
         return RemoteScope.WORLDWIDE, []
     regions = [name for name, hints in _REGIONS.items() if any(h in blob for h in hints)]
+    lock = _COUNTRY_LOCK.search(blob)
+    if lock and not regions and _EUROPE_IN_LOCK.search(lock.group(0)):
+        regions = ["EU"]
     if regions:
         return RemoteScope.REGION, regions
-    if any(hint in blob for hint in _COUNTRY_LOCK):
-        return RemoteScope.COUNTRY, []
+    if lock:
+        return RemoteScope.COUNTRY, _countries_in(lock.group(0))
     return RemoteScope.UNKNOWN, []
+
+
+def remote_scope_evidence(text: str) -> str:
+    """The literal residency/work-permit sentence, if the ad has one."""
+    lock = _COUNTRY_LOCK.search(fold(text))
+    return lock.group(0).strip() if lock else ""
 
 
 # ---------------------------------------------------------------------------
 # Experience requirement
 # ---------------------------------------------------------------------------
 
-_YEARS_PATTERNS = (
-    r"(?:at least|minimum(?: of)?|min\.?|more than|over)\s*(\d{1,2})\+?\s*(?:years|yrs|años|ans|jahre)",
-    r"(\d{1,2})\+?\s*(?:years|yrs|años|ans|jahre)[^.\n]{0,30}(?:experience|experiencia|expérience|erfahrung)",
-    r"al menos\s*(\d{1,2})\s*años",
-    r"(\d{1,2})\s*[-–]\s*\d{1,2}\s*(?:years|años)",
+_YEARS_UNIT = r"(?:years?|yrs|anos|ans|jahre)"
+#: Ranges are collapsed to their lower bound first: "between 6 and 9 years of
+#: experience" asks for 6, and without this the "9 years of experience" inside
+#: it would be read as the requirement.
+_YEAR_RANGES = (
+    re.compile(r"(?:entre|between|zwischen)\s*(\d{1,2})\s*(?:y|and|und|-|–|to|a)\s*\d{1,2}"),
+    re.compile(rf"(\d{{1,2}})\s*(?:-|–|to)\s*\d{{1,2}}(?=\s*\+?\s*{_YEARS_UNIT})"),
 )
+_YEARS_PATTERNS = tuple(re.compile(p) for p in (
+    rf"(?:at least|minimum(?: of)?|a minimum of|min\.?|more than|over)\s*(\d{{1,2}})\s*\+?\s*{_YEARS_UNIT}",
+    r"(?:mas de|al menos|minim[oa](?:\s+de)?|desde|a partir de)\s*(\d{1,2})\s*anos",
+    rf"(\d{{1,2}})\s*\+\s*{_YEARS_UNIT}",
+    rf"(\d{{1,2}})\s*(?:or more|o mas|ou plus|oder mehr)\s*{_YEARS_UNIT}",
+    rf"(\d{{1,2}})\s*{_YEARS_UNIT}\s+(?:of\s+)?(?:professional\s+|relevant\s+|hands-on\s+|total\s+|proven\s+)?"
+    r"(?:experience|experiencia|d'experience|erfahrung)",
+    r"(\d{1,2})\s*anos\s+de\s+experiencia",
+    r"experiencia\s+minima[^0-9]{0,20}(\d{1,2})",
+))
 
 
 def extract_min_years(text: str) -> int | None:
-    """Smallest number of years of experience the ad demands, if it says."""
-    blob = (text or "").lower()
+    """Years of experience the ad demands, if it says.
+
+    When the ad states several, the largest wins: "2 years with Python and 5
+    years of experience overall" asks for 5 — the overall figure is the one
+    that ends an application. Ranges count by their lower bound.
+    """
+    blob = fold(text)
+    for pattern in _YEAR_RANGES:
+        blob = pattern.sub(r"\1+", blob)
     found: list[int] = []
     for pattern in _YEARS_PATTERNS:
-        found.extend(int(m) for m in re.findall(pattern, blob) if m.isdigit())
+        found.extend(int(m) for m in pattern.findall(blob) if m.isdigit())
     sane = [y for y in found if 0 < y <= 25]
-    return min(sane) if sane else None
+    return max(sane) if sane else None
 
 
 # ---------------------------------------------------------------------------

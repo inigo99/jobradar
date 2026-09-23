@@ -449,4 +449,14 @@ class SearchRun(BaseModel):
     after_dedupe: int = 0
     kept: int = 0
     new: int = 0
+    #: Already-known jobs whose stored reading was reused instead of fetching
+    #: and re-reading the ad.
+    reused: int = 0
+    #: New ids that turned out to be a job already on file (a repost, or the
+    #: same opening on another board).
+    known_duplicates: int = 0
+    #: Untouched jobs closed for age before the run (see ``prune_after_days``).
+    pruned: int = 0
+    #: Per-source counts: {"source": {"fetched": n, "kept": n}}.
+    by_source: dict[str, dict[str, int]] = Field(default_factory=dict)
     errors: list[str] = Field(default_factory=list)

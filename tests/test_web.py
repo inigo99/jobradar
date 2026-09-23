@@ -13,7 +13,7 @@ fastapi_testclient = pytest.importorskip("fastapi.testclient")
 def client(paths):
     from fastapi.testclient import TestClient
 
-    with TestClient(create_app(paths)) as test_client:
+    with TestClient(create_app(paths, allowed_hosts={"testserver"})) as test_client:
         yield test_client
 
 

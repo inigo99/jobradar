@@ -20,7 +20,7 @@ from datetime import date
 
 from ..config import Filters
 from ..models import Job, RemoteScope, SalaryOrigin, WorkMode
-from ..textutils import normalise
+from ..textutils import contains_phrase
 from .salary import ExchangeRates
 
 
@@ -35,8 +35,12 @@ class FilterOutcome:
 
 
 def _in_local_area(job: Job, areas: list[str]) -> bool:
-    haystack = normalise(f"{job.location} {job.company}")
-    return any(normalise(area) and normalise(area) in haystack for area in areas)
+    """Is the job's location one of the user's areas? Whole words only.
+
+    Only the location is read: a company called "Madrid Tech" hiring in Berlin
+    is not a Madrid job.
+    """
+    return any(contains_phrase(job.location, area) for area in areas)
 
 
 def _check_freshness(job: Job, filters: Filters, today: date) -> FilterOutcome | None:
@@ -84,17 +88,30 @@ def _check_geography(job: Job, filters: Filters) -> FilterOutcome | None:
     if job.remote_scope == RemoteScope.WORLDWIDE:
         return None
     if job.remote_scope == RemoteScope.COUNTRY:
-        if job.country and job.country.upper() in eligible:
-            return None
-        restrictions = ", ".join(job.remote_regions) or job.country or job.location
-        return FilterOutcome(False, f"remote but restricted to {restrictions or 'another country'}")
+        # Countries the ad's own residency sentence names beat the listing's
+        # metadata; with neither, the sentence is ambiguous ("must be eligible
+        # to work in the country") and the job is kept and flagged rather
+        # than dropped on a guess.
+        named = {code.upper() for code in job.remote_regions if len(code) == 2}
+        if named:
+            if named & eligible:
+                return None
+            return FilterOutcome(False, f"remote but restricted to {', '.join(sorted(named))}")
+        if job.country:
+            if job.country.upper() in eligible:
+                return None
+            return FilterOutcome(False, f"remote but restricted to {job.country}")
+        return FilterOutcome(
+            True,
+            warnings=("Remote with a residency condition that names no country — confirm it covers yours.",),
+        )
     if job.remote_scope == RemoteScope.REGION:
-        blob = normalise(" ".join(job.remote_regions))
-        if any(normalise(code) in blob for code in eligible):
+        regions = {region.upper() for region in job.remote_regions}
+        if regions & eligible:
             return None
         # Continental shorthands the candidate's country may fall under.
         european = {"ES", "PT", "FR", "DE", "IT", "NL", "BE", "IE", "PL", "AT", "CH", "GB"}
-        if eligible & european and any(tag in blob for tag in ("emea", "eu", "europe")):
+        if eligible & european and regions & {"EMEA", "EU", "EUROPE"}:
             return None
         if not filters.allow_international_remote:
             return FilterOutcome(False, "international remote is switched off")
@@ -107,26 +124,44 @@ def _check_geography(job: Job, filters: Filters) -> FilterOutcome | None:
 
 
 def _check_salary(job: Job, filters: Filters, rates: ExchangeRates | None) -> FilterOutcome | None:
-    if filters.require_published_salary and job.salary.origin != SalaryOrigin.PUBLISHED:
+    """Salary against the user's minimum — only a published figure can reject.
+
+    An estimate comes from a reference band, not from the ad; letting it drop
+    a job means discarding a real opening on a guess. It is kept and flagged.
+    A published band is compared by its top: a 36-45k band may well pay 40k,
+    and rejecting it for its lower end punishes the ads that are transparent.
+    """
+    published = job.salary.origin == SalaryOrigin.PUBLISHED
+    if filters.require_published_salary and not published:
         return FilterOutcome(False, "no published salary")
     if filters.min_salary is None:
         return None
-    midpoint = job.salary.midpoint
-    if midpoint is None:
+    figure = job.salary.maximum if published else job.salary.midpoint
+    if figure is None:
+        figure = job.salary.midpoint
+    if figure is None:
         return FilterOutcome(True, warnings=("No salary information at all.",))
-    amount = midpoint
+    amount: float = figure
     if job.salary.currency != filters.salary_currency and rates is not None:
-        converted = rates.convert(midpoint, job.salary.currency, filters.salary_currency)
+        converted = rates.convert(figure, job.salary.currency, filters.salary_currency)
         if converted is None:
             return FilterOutcome(True, warnings=(f"Could not convert {job.salary.currency}.",))
         amount = converted
-    if amount < filters.min_salary:
+    if amount >= filters.min_salary:
+        return None
+    if not published:
         return FilterOutcome(
-            False,
-            f"salary ≈ {amount:,.0f} {filters.salary_currency} "
-            f"(below {filters.min_salary:,} {filters.salary_currency})",
+            True,
+            warnings=(
+                f"Estimated salary ≈ {amount:,.0f} {filters.salary_currency}, below your minimum "
+                "— an estimate, not the ad's figure.",
+            ),
         )
-    return None
+    return FilterOutcome(
+        False,
+        f"salary ≈ {amount:,.0f} {filters.salary_currency} "
+        f"(below {filters.min_salary:,} {filters.salary_currency})",
+    )
 
 
 def _experience_ceiling(filters: Filters, profile_years: float | None) -> float | None:
@@ -173,15 +208,20 @@ def _check_experience(
 
 
 def _check_keywords(job: Job, filters: Filters) -> FilterOutcome | None:
-    haystack = normalise(f"{job.title} {job.company} {job.description}")
+    """Exclusion and required-keyword lists, matched as whole words.
+
+    Substring matching dropped "JavaScript Engineer" for an excluded "java" and
+    "Talan" for an excluded "Alan". End an entry with ``*`` to match a prefix.
+    """
+    haystack = f"{job.title} {job.company} {job.description}"
     for company in filters.excluded_companies:
-        if normalise(company) and normalise(company) in normalise(job.company):
+        if contains_phrase(job.company, company):
             return FilterOutcome(False, f"excluded company ({job.company})")
     for word in filters.excluded_keywords:
-        if normalise(word) and normalise(word) in haystack:
+        if contains_phrase(haystack, word):
             return FilterOutcome(False, f"excluded keyword '{word}'")
     if filters.required_keywords:
-        if not any(normalise(word) in haystack for word in filters.required_keywords):
+        if not any(contains_phrase(haystack, word) for word in filters.required_keywords):
             return FilterOutcome(False, "none of the required keywords present")
     return None
 
@@ -239,6 +279,10 @@ def shape(reason: str) -> str:
 def category(reason: str) -> str:
     """A coarse bucket for the dashboard's filter tally."""
     text = (reason or "").lower()
+    # First: a duplicate's reason quotes the other job's title, which can
+    # contain any of the words below.
+    if text.startswith("duplicate"):
+        return "duplicate"
     if "salary" in text:
         return "salary"
     if "years" in text:

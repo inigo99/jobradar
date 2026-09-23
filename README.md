@@ -141,7 +141,7 @@ Every template is a single column of real, selectable text, in a standard font, 
 Requires Python 3.10 or newer.
 
 ```bash
-git clone https://github.com/your-username/jobradar.git
+git clone https://github.com/inigo99/jobradar.git
 cd jobradar
 python -m venv .venv && source .venv/bin/activate    # Windows: .venv\Scripts\activate
 pip install -e ".[all]"
@@ -221,7 +221,7 @@ jobradar serve
 |---|---|
 | `jobradar init [--cv FILE] [--config FILE]` | Set up, interactively or from YAML |
 | `jobradar demo` | Load the synthetic dataset |
-| `jobradar search [--explain] [--no-llm] [--notify]` | Run the pipeline |
+| `jobradar search [--explain] [--no-llm] [--notify] [--refresh]` | Run the pipeline. Ads already on file are not fetched or re-read; `--refresh` forces it |
 | `jobradar sweep [--limit N]` | Retire ads that have closed |
 | `jobradar tailor [JOB_ID] [--top N]` | Generate tailored CVs |
 | `jobradar lint` | Run the red-flag check on your profile |
@@ -249,13 +249,14 @@ The filters, briefly:
 | `local_areas` | Places where hybrid and on-site are fine anyway — this is how "remote anywhere, plus an office job in my own city" is expressed |
 | `home_country`, `eligible_countries` | Where you may legally be employed |
 | `allow_international_remote` | Accept remote roles from abroad when the ad actually permits it |
-| `min_salary`, `salary_currency` | The floor, applied after conversion at ECB rates |
+| `min_salary`, `salary_currency` | The floor, applied to the published figure (top of the band) after conversion at ECB rates; an estimate never drops a job |
 | `require_published_salary` | Drop anything whose salary is only an estimate |
 | `max_years_experience` | A fixed ceiling. Leave it empty and let the next one work |
 | `use_profile_years`, `years_margin` | Take the ceiling from your CV's dates instead, and how far past it still counts as "just short" |
 | `weekly_goal` | Applications a week — drives the Today queue |
-| `required_keywords`, `excluded_keywords`, `excluded_companies` | The usual |
+| `required_keywords`, `excluded_keywords`, `excluded_companies` | Whole words (`java` ≠ "JavaScript"); end with `*` for a prefix |
 | `max_age_days`, `keep_undated` | Freshness |
+| `prune_after_days` | Close untouched jobs older than this before each search (default 45) |
 
 Two data files are meant to be edited:
 
@@ -364,7 +365,8 @@ src/jobradar/
 ## Privacy and data
 
 - Everything lives in `data/`, which is git-ignored. Your CV, contact details and job-search history never leave your machine.
-- The dashboard binds to `127.0.0.1`. Exposing it takes an explicit `--host`, and you should think before doing so.
+- The dashboard binds to `127.0.0.1`. Exposing it takes an explicit `--host`, and you should think before doing so: there is no login.
+- Binding to loopback does not stop a web page open in the same browser from posting to it, so the server also refuses requests whose `Host` is not a name it was started for (defeats DNS rebinding) and any change coming from another origin. The CLI and scripts, which send no `Origin`, are unaffected. With `--host 0.0.0.0` the host check is off unless you set `JOBRADAR_ALLOWED_HOSTS`.
 - The page loads no external assets — no CDN, no fonts, no analytics. It works offline.
 - Outbound requests go to the job boards you enabled, the ECB (for exchange rates) and your language-model provider if you configured one. Nothing else.
 - API keys are read from the environment and are never written to the database or included in an export.

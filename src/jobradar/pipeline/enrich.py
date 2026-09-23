@@ -27,6 +27,8 @@ from ..textutils import (
     detect_work_mode,
     extract_min_years,
     extract_salary,
+    remote_scope_evidence,
+    work_mode_evidence,
 )
 from .salary import ExchangeRates, normalise_salary
 
@@ -113,12 +115,23 @@ def derive_fields(job: Job) -> Job:
     if text:
         job.language = detect_language(text, job.language)
         detected_mode = detect_work_mode(text, job.location)
-        # A source that positively identified the mode is trusted only when the
-        # text agrees; boards mislabel hybrid roles as remote constantly.
+        # The ad's own words beat the board's tag; boards mislabel hybrid roles
+        # as remote constantly. But silence is not a contradiction: when the
+        # text says nothing, a remote tag stays and is flagged, instead of the
+        # job being demoted to "unknown" or dropped.
         if detected_mode != WorkMode.UNKNOWN:
             job.work_mode = detected_mode
+            job.raw.pop("remote_unconfirmed", None)
+        elif job.work_mode == WorkMode.REMOTE:
+            job.raw["remote_unconfirmed"] = True
+        evidence = work_mode_evidence(text)
+        if evidence:
+            job.raw["work_mode_evidence"] = evidence
         if job.remote_scope == RemoteScope.UNKNOWN:
             job.remote_scope, job.remote_regions = detect_remote_scope(text)
+        scope_sentence = remote_scope_evidence(text)
+        if scope_sentence:
+            job.raw["remote_scope_evidence"] = scope_sentence
         if job.min_years_experience is None:
             job.min_years_experience = extract_min_years(text)
         if job.salary.origin != SalaryOrigin.PUBLISHED:
@@ -133,6 +146,19 @@ def derive_alerts(job: Job) -> list[str]:
     alerts: list[str] = []
     lowered = f"{job.company} {job.description}".lower()
 
+    if job.raw.get("remote_unconfirmed"):
+        alerts.append(
+            "Listed as remote by the board, but the ad text never says so — confirm the work mode."
+        )
+    if (
+        job.remote_scope == RemoteScope.COUNTRY
+        and not job.remote_regions
+        and job.raw.get("remote_scope_evidence")
+    ):
+        alerts.append(
+            "Residency condition that names no country: "
+            f"\u201c{job.raw['remote_scope_evidence']}\u201d — confirm it covers yours."
+        )
     if job.work_mode == WorkMode.REMOTE and job.remote_scope == RemoteScope.UNKNOWN:
         alerts.append("Remote, but the ad does not say from which countries — confirm before applying.")
     if any(marker in lowered for marker in AGENCY_MARKERS):

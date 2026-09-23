@@ -19,16 +19,8 @@ from __future__ import annotations
 
 import re
 
-from ...models import Job, Salary, WorkMode
-from ...textutils import (
-    detect_language,
-    detect_remote_scope,
-    detect_work_mode,
-    extract_min_years,
-    extract_salary,
-    parse_date,
-    strip_html,
-)
+from ...models import Job, WorkMode
+from ...textutils import detect_language, parse_date, strip_html
 from ..base import JobSource, SearchQuery
 
 SEARCH = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
@@ -80,7 +72,7 @@ class LinkedInGuestSource(JobSource):
                     body = self.fetcher.get(SEARCH, params=params, browser="dynamic")
                     if not body:
                         break
-                    found = self._parse_cards(body)
+                    found = self._parse_cards(body, remote_filtered=remote)
                     if not found:
                         break
                     for job in found:
@@ -107,7 +99,14 @@ class LinkedInGuestSource(JobSource):
             pairs.append((area, False))
         return pairs
 
-    def _parse_cards(self, html: str) -> list[Job]:
+    def _parse_cards(self, html: str, remote_filtered: bool = False) -> list[Job]:
+        """Cards from one results page.
+
+        A card found through LinkedIn's own remote filter is tagged remote.
+        That tag is the board's claim, not the ad's: enrichment re-reads the
+        ad and overrides it when the text says otherwise, and keeps it — with
+        an alert — when the text says nothing.
+        """
         jobs: list[Job] = []
         for job_id, card in CARD.findall(html):
             title = self._first(TITLE, card)
@@ -120,7 +119,11 @@ class LinkedInGuestSource(JobSource):
                     title=title,
                     company=self._first(COMPANY, card),
                     location=location,
-                    work_mode=WorkMode.REMOTE if "remote" in location.lower() else WorkMode.UNKNOWN,
+                    work_mode=(
+                        WorkMode.REMOTE
+                        if remote_filtered or "remote" in location.lower()
+                        else WorkMode.UNKNOWN
+                    ),
                     url=f"https://www.linkedin.com/jobs/view/{job_id}/",
                     posted_at=parse_date(self._first(POSTED, card)),
                 )
@@ -135,19 +138,17 @@ class LinkedInGuestSource(JobSource):
     def fetch_description(self, job: Job) -> str:
         """Pull the full ad text, which is where the truth about remote lives.
 
-        LinkedIn's remote tag is wrong often enough that the pipeline always
-        re-derives work mode from this text.
+        Only the text is returned; work mode, scope, years and salary are
+        derived from it in one place (``pipeline.enrich.derive_fields``). This
+        used to derive them here too, and ``detect_work_mode(...) or
+        job.work_mode`` never fell back — ``WorkMode.UNKNOWN`` is a non-empty
+        string, so it is truthy — which silently wiped the board's remote tag.
         """
         body = self.fetcher.get(DETAIL.format(job_id=job.native_id), browser="dynamic")
         if not body:
             return job.description
         text = strip_html(body)
-        job.description = text
         job.language = detect_language(text)
-        job.work_mode = detect_work_mode(text, job.location) or job.work_mode
-        job.remote_scope, job.remote_regions = detect_remote_scope(text)
-        job.min_years_experience = extract_min_years(text)
-        job.salary = extract_salary(text) or job.salary or Salary()
         return text
 
     def check_open(self, job: Job) -> tuple[bool, str]:
