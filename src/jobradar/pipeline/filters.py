@@ -35,12 +35,8 @@ class FilterOutcome:
 
 
 def _in_local_area(job: Job, areas: list[str]) -> bool:
-    """Is the job's location one of the user's areas? Whole words only.
-
-    Only the location is read: a company called "Madrid Tech" hiring in Berlin
-    is not a Madrid job.
-    """
-    return any(contains_phrase(job.location, area) for area in areas)
+    """Is the job's location one of the user's areas? Whole words only."""
+    return any(contains_phrase(job.location or "", area) for area in areas)
 
 
 def _check_freshness(job: Job, filters: Filters, today: date) -> FilterOutcome | None:
@@ -55,12 +51,7 @@ def _check_freshness(job: Job, filters: Filters, today: date) -> FilterOutcome |
 
 
 def _check_work_mode(job: Job, filters: Filters) -> FilterOutcome | None:
-    """Work mode, with the local-area exception.
-
-    "Remote anywhere, but I would also take an office job in my own city" is
-    the most common real-world preference, and it is expressed as a remote-only
-    ``work_modes`` list plus a list of ``local_areas``.
-    """
+    """Work mode, with the local-area exception."""
     if job.work_mode == WorkMode.UNKNOWN:
         return None  # unknown is resolved by enrichment, not by dropping the job
     if job.work_mode in filters.work_modes:
@@ -88,11 +79,7 @@ def _check_geography(job: Job, filters: Filters) -> FilterOutcome | None:
     if job.remote_scope == RemoteScope.WORLDWIDE:
         return None
     if job.remote_scope == RemoteScope.COUNTRY:
-        # Countries the ad's own residency sentence names beat the listing's
-        # metadata; with neither, the sentence is ambiguous ("must be eligible
-        # to work in the country") and the job is kept and flagged rather
-        # than dropped on a guess.
-        named = {code.upper() for code in job.remote_regions if len(code) == 2}
+        named = {code.upper() for code in (job.remote_regions or []) if len(code) == 2}
         if named:
             if named & eligible:
                 return None
@@ -106,7 +93,7 @@ def _check_geography(job: Job, filters: Filters) -> FilterOutcome | None:
             warnings=("Remote with a residency condition that names no country — confirm it covers yours.",),
         )
     if job.remote_scope == RemoteScope.REGION:
-        regions = {region.upper() for region in job.remote_regions}
+        regions = {region.upper() for region in (job.remote_regions or [])}
         if regions & eligible:
             return None
         # Continental shorthands the candidate's country may fall under.
@@ -115,7 +102,7 @@ def _check_geography(job: Job, filters: Filters) -> FilterOutcome | None:
             return None
         if not filters.allow_international_remote:
             return FilterOutcome(False, "international remote is switched off")
-        return FilterOutcome(False, f"remote limited to {', '.join(job.remote_regions)}")
+        return FilterOutcome(False, f"remote limited to {', '.join(job.remote_regions or [])}")
 
     # Scope unknown: keep it, but say so loudly.
     if not filters.allow_international_remote and job.country and job.country.upper() not in eligible:
@@ -124,28 +111,30 @@ def _check_geography(job: Job, filters: Filters) -> FilterOutcome | None:
 
 
 def _check_salary(job: Job, filters: Filters, rates: ExchangeRates | None) -> FilterOutcome | None:
-    """Salary against the user's minimum — only a published figure can reject.
+    """Salary against the user's minimum — only a published figure can reject."""
+    salary_obj = getattr(job, "salary", None)
+    if not salary_obj:
+        if filters.require_published_salary:
+            return FilterOutcome(False, "no published salary")
+        return FilterOutcome(True, warnings=("No salary information at all.",))
 
-    An estimate comes from a reference band, not from the ad; letting it drop
-    a job means discarding a real opening on a guess. It is kept and flagged.
-    A published band is compared by its top: a 36-45k band may well pay 40k,
-    and rejecting it for its lower end punishes the ads that are transparent.
-    """
-    published = job.salary.origin == SalaryOrigin.PUBLISHED
+    published = salary_obj.origin == SalaryOrigin.PUBLISHED
     if filters.require_published_salary and not published:
         return FilterOutcome(False, "no published salary")
     if filters.min_salary is None:
         return None
-    figure = job.salary.maximum if published else job.salary.midpoint
+        
+    figure = salary_obj.maximum if published else getattr(salary_obj, "midpoint", None)
     if figure is None:
-        figure = job.salary.midpoint
+        figure = getattr(salary_obj, "midpoint", None)
     if figure is None:
         return FilterOutcome(True, warnings=("No salary information at all.",))
+        
     amount: float = figure
-    if job.salary.currency != filters.salary_currency and rates is not None:
-        converted = rates.convert(figure, job.salary.currency, filters.salary_currency)
+    if salary_obj.currency != filters.salary_currency and rates is not None:
+        converted = rates.convert(figure, salary_obj.currency, filters.salary_currency)
         if converted is None:
-            return FilterOutcome(True, warnings=(f"Could not convert {job.salary.currency}.",))
+            return FilterOutcome(True, warnings=(f"Could not convert {salary_obj.currency}.",))
         amount = converted
     if amount >= filters.min_salary:
         return None
@@ -165,12 +154,7 @@ def _check_salary(job: Job, filters: Filters, rates: ExchangeRates | None) -> Fi
 
 
 def _experience_ceiling(filters: Filters, profile_years: float | None) -> float | None:
-    """How many years the candidate can defend.
-
-    An explicit ``max_years_experience`` wins, because a user who typed a
-    number meant it. Otherwise the profile's own dates are used, which is the
-    only version of this number that stays true without anyone maintaining it.
-    """
+    """How many years the candidate can defend."""
     if filters.max_years_experience is not None:
         return float(filters.max_years_experience)
     if filters.use_profile_years and profile_years is not None:
@@ -181,12 +165,7 @@ def _experience_ceiling(filters: Filters, profile_years: float | None) -> float 
 def _check_experience(
     job: Job, filters: Filters, profile_years: float | None = None
 ) -> FilterOutcome | None:
-    """Years asked for against years held — with a band for "just short".
-
-    An ad that states no minimum is never dropped here. Most ads state none,
-    and treating silence as a rejection would throw away the majority of the
-    board to save the reader a sentence.
-    """
+    """Years asked for against years held — with a band for "just short"."""
     ceiling = _experience_ceiling(filters, profile_years)
     if ceiling is None or job.min_years_experience is None:
         return None
@@ -208,14 +187,10 @@ def _check_experience(
 
 
 def _check_keywords(job: Job, filters: Filters) -> FilterOutcome | None:
-    """Exclusion and required-keyword lists, matched as whole words.
-
-    Substring matching dropped "JavaScript Engineer" for an excluded "java" and
-    "Talan" for an excluded "Alan". End an entry with ``*`` to match a prefix.
-    """
-    haystack = f"{job.title} {job.company} {job.description}"
+    """Exclusion and required-keyword lists, matched as whole words."""
+    haystack = f"{job.title or ''} {job.company or ''} {job.description or ''}"
     for company in filters.excluded_companies:
-        if contains_phrase(job.company, company):
+        if contains_phrase(job.company or "", company):
             return FilterOutcome(False, f"excluded company ({job.company})")
     for word in filters.excluded_keywords:
         if contains_phrase(haystack, word):
@@ -254,11 +229,6 @@ def apply_filters(
 
 
 def explain(rejections: dict[str, str]) -> list[tuple[str, int]]:
-    """Summarise why jobs were dropped, commonest reason first.
-
-    Shown after every run so a filter that is quietly eating everything is
-    immediately visible instead of looking like "there were no jobs today".
-    """
     tally: dict[str, int] = {}
     for reason in rejections.values():
         key = shape(reason)
@@ -267,20 +237,11 @@ def explain(rejections: dict[str, str]) -> list[tuple[str, int]]:
 
 
 def shape(reason: str) -> str:
-    """The reason with its specifics removed, for grouping.
-
-    "published 9 days ago" and "published 12 days ago" are one problem, not
-    two. Stored alongside every rejection so the tally survives the run that
-    produced it.
-    """
     return re.sub(r"\d[\d,.]*", "N", (reason or "").split(" (")[0]).strip() or "unknown"
 
 
 def category(reason: str) -> str:
-    """A coarse bucket for the dashboard's filter tally."""
     text = (reason or "").lower()
-    # First: a duplicate's reason quotes the other job's title, which can
-    # contain any of the words below.
     if text.startswith("duplicate"):
         return "duplicate"
     if "salary" in text:

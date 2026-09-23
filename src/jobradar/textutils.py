@@ -35,7 +35,7 @@ def strip_html(html: str) -> str:
     """
     if not html:
         return ""
-    text = re.sub(r"(?is)<(script|style)[^>]*>.*?</\1>", " ", html)
+    text = re.sub(r"(?is)<(script|style)[^>]*>.*?</\1>", " ", str(html))
     text = re.sub(r"(?i)<(br|/p|/li|/div|/h[1-6])[^>]*>", "\n", text)
     text = re.sub(r"(?i)<li[^>]*>", "• ", text)
     text = _TAG.sub(" ", text)
@@ -48,7 +48,7 @@ def strip_html(html: str) -> str:
 
 def normalise(value: str) -> str:
     """Lowercase, de-accent and squash punctuation — for fuzzy comparison."""
-    decomposed = unicodedata.normalize("NFKD", value or "")
+    decomposed = unicodedata.normalize("NFKD", str(value or ""))
     stripped = "".join(c for c in decomposed if not unicodedata.combining(c))
     return re.sub(r"[^a-z0-9]+", " ", stripped.lower()).strip()
 
@@ -61,7 +61,7 @@ def contains_phrase(text: str, phrase: str) -> bool:
     trailing ``*`` asks for a prefix instead ("practic*" matches "practicas"
     and "practicante").
     """
-    wanted = (phrase or "").strip()
+    wanted = str(phrase or "").strip()
     prefix = wanted.endswith("*")
     needle = normalise(wanted.rstrip("*"))
     if not needle:
@@ -72,7 +72,7 @@ def contains_phrase(text: str, phrase: str) -> bool:
 
 def slugify(value: str, max_length: int = 48) -> str:
     """Filesystem-safe slug, used for generated CV filenames."""
-    text = normalise(value).replace(" ", "_")
+    text = normalise(str(value or "")).replace(" ", "_")
     return re.sub(r"_+", "_", text).strip("_")[:max_length] or "untitled"
 
 
@@ -104,7 +104,7 @@ def detect_language(text: str, default: str = "en") -> str:
     is a plain stop-word count: the winner is whichever language contributes
     most function words.
     """
-    tokens = normalise(text).split()
+    tokens = normalise(str(text or "")).split()
     if len(tokens) < 12:
         return default
     counts = {lang: sum(1 for t in tokens if t in words) for lang, words in _STOPWORDS.items()}
@@ -174,7 +174,7 @@ _RE_ANY_MODE = re.compile(
 
 def fold(text: str) -> str:
     """Lower case without accents, punctuation kept (patterns rely on '.')."""
-    decomposed = unicodedata.normalize("NFKD", text or "")
+    decomposed = unicodedata.normalize("NFKD", str(text or ""))
     return "".join(c for c in decomposed if not unicodedata.combining(c)).lower()
 
 
@@ -361,7 +361,7 @@ _RANGE = re.compile(rf"{_AMOUNT}\s*(?:-|–|—|to|a|hasta|bis)\s*{_AMOUNT}")
 
 def _to_int(raw: str) -> int | None:
     """Parse '45.000', '45,000', '45k' or '45000' into an integer."""
-    token = raw.strip().replace(" ", "")
+    token = str(raw).strip().replace(" ", "")
     multiplier = 1
     if token.lower().endswith("k"):
         multiplier = 1000
@@ -374,7 +374,7 @@ def _to_int(raw: str) -> int | None:
 
 
 def detect_currency(text: str, default: str = "EUR") -> str:
-    blob = text or ""
+    blob = str(text or "")
     for code in _CURRENCY_CODES:
         if re.search(rf"\b{code}\b", blob, re.IGNORECASE):
             return code
@@ -393,7 +393,7 @@ def extract_salary(text: str, default_currency: str = "EUR") -> Salary | None:
     """
     if not text:
         return None
-    blob = text.replace(" ", " ")
+    blob = str(text).replace(" ", " ")
     currency = detect_currency(blob, default_currency)
     lowered = blob.lower()
     per_month = any(w in lowered for w in ("per month", "/month", "mensual", "al mes", "monatlich", "brutto/monat"))
@@ -468,3 +468,16 @@ def parse_date(value: object) -> date | None:
         days = amount * (7 if unit.startswith("w") else (1 / 24 if unit.startswith("h") else 1))
         return (datetime.now(timezone.utc) - timedelta(days=days)).date()
     return None
+
+
+def annual_from_text(text: str) -> int | None:
+    """Best-effort annual figure from a phrase like '3.500 € / month'."""
+    match = re.search(r"(\d[\d.,]{2,})", str(text or ""))
+    if not match:
+        return None
+    digits = match.group(1).replace(".", "").replace(",", "")
+    try:
+        value = int(digits)
+    except ValueError:
+        return None
+    return value * 12 if value < 12_000 else value

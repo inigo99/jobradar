@@ -138,7 +138,7 @@ JUNIOR_HINTS = ("junior", "jr.", "trainee", "intern", "becario", "prácticas", "
 
 
 def infer_family(title: str, description: str = "") -> str:
-    blob = f"{title} {description[:400]}".lower()
+    blob = f"{title or ''} {(description or '')[:400]}".lower()
     for family, hints in FAMILY_HINTS:
         if any(hint in blob for hint in hints):
             return family
@@ -146,7 +146,7 @@ def infer_family(title: str, description: str = "") -> str:
 
 
 def infer_seniority(title: str, min_years: int | None) -> str:
-    lowered = title.lower()
+    lowered = (title or "").lower()
     if any(hint in lowered for hint in LEAD_HINTS):
         return "lead"
     if any(hint in lowered for hint in JUNIOR_HINTS):
@@ -164,12 +164,7 @@ def infer_seniority(title: str, min_years: int | None) -> str:
 
 
 def estimate_salary(job: Job, target_currency: str = "EUR", rates: ExchangeRates | None = None) -> Salary:
-    """Estimate an annual gross band for a job that publishes none.
-
-    The result is always marked as an estimate and carries the reasoning, so
-    the user can see a guess for what it is — and override it if they know the
-    market better, which they usually do.
-    """
+    """Estimate an annual gross band for a job that publishes none."""
     config = salary_bands()
     families = config.get("families", {})
     multipliers = config.get("country_multipliers", {})
@@ -203,7 +198,8 @@ def estimate_salary(job: Job, target_currency: str = "EUR", rates: ExchangeRates
 
 def normalise_salary(job: Job, target_currency: str, rates: ExchangeRates | None) -> Salary:
     """Ensure every job carries a usable band, published or estimated."""
-    if job.salary.origin == SalaryOrigin.PUBLISHED and job.salary.midpoint:
+    salary_obj = getattr(job, "salary", None)
+    if salary_obj and salary_obj.origin == SalaryOrigin.PUBLISHED and salary_obj.midpoint:
         return job.salary
     return estimate_salary(job, target_currency, rates)
 

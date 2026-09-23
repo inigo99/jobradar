@@ -21,6 +21,8 @@ def export_excel(database: Database, path: Path) -> Path:
 
     workbook = Workbook()
     sheet = workbook.active
+    if sheet is None:
+        sheet = workbook.create_sheet()
     sheet.title = "Jobs"
     sheet.append([column.replace("_", " ").title() for column in COLUMNS])
 
@@ -46,10 +48,10 @@ def export_excel(database: Database, path: Path) -> Path:
         cell.font = Font(bold=True)
     for run in database.recent_runs(100):
         history.append([
-            run.started_at.isoformat(timespec="minutes"),
+            run.started_at.isoformat(timespec="minutes") if run.started_at else "",
             run.finished_at.isoformat(timespec="minutes") if run.finished_at else "",
-            ", ".join(run.sources), run.fetched, run.after_dedupe, run.kept, run.new,
-            "; ".join(run.errors),
+            ", ".join(run.sources or []), run.fetched, run.after_dedupe, run.kept, run.new,
+            "; ".join(run.errors or []),
         ])
     for index, width in enumerate([20, 20, 40, 10, 14, 8, 8, 50], start=1):
         history.column_dimensions[get_column_letter(index)].width = width

@@ -169,7 +169,7 @@ def _parse_contact(header: list[str], language: str = "en") -> Contact:
     email = EMAIL.search(blob)
     if email:
         contact.email = email.group(0)
-    phone = PHONE.search(blob.replace(contact.email, " "))
+    phone = PHONE.search(blob.replace(contact.email or "", " "))
     if phone and len(re.sub(r"\D", "", phone.group(0))) >= 8:
         contact.phone = phone.group(0).strip()
     for match in URL.finditer(blob):
@@ -295,8 +295,9 @@ def _organisation_from(line: str) -> str:
 def _parse_education(lines: list[str], language: str) -> list[Education]:
     education: list[Education] = []
     for index, line in enumerate(lines):
-        if BULLET_LINE.match(line) and education:
-            education[-1].note = {language: BULLET_LINE.match(line).group(1)}
+        bullet = BULLET_LINE.match(line)
+        if bullet and education:
+            education[-1].note = {language: bullet.group(1)}
             continue
         dates = DATE_RANGE.search(line)
         degree = re.split(r"\s+[—–|]\s+", line.strip())[0].strip()
@@ -316,7 +317,8 @@ def _parse_education(lines: list[str], language: str) -> list[Education]:
 def _parse_skills(lines: list[str], language: str) -> list[SkillGroup]:
     groups: list[SkillGroup] = []
     for index, line in enumerate(lines):
-        text = BULLET_LINE.match(line).group(1) if BULLET_LINE.match(line) else line.strip()
+        bullet = BULLET_LINE.match(line)
+        text = bullet.group(1) if bullet else line.strip()
         label, separator, items = text.partition(":")
         if not separator:
             label, items = f"Skills {index + 1}", text
@@ -341,7 +343,8 @@ def heuristic_profile(text: str) -> Profile:
     profile.education = _parse_education(sections.get("education", []), language)
     profile.skills = _parse_skills(sections.get("skills", []), language)
     for line in sections.get("certifications", []):
-        clean = BULLET_LINE.match(line).group(1) if BULLET_LINE.match(line) else line.strip()
+        bullet = BULLET_LINE.match(line)
+        clean = bullet.group(1) if bullet else line.strip()
         year = re.search(r"(19|20)\d{2}", clean)
         profile.certifications.append(
             Certification(name={language: clean}, year=year.group(0) if year else "")
@@ -492,14 +495,15 @@ def import_profile(source: str | Path, llm: LLMClient | None = None) -> tuple[Pr
         profile = vocabulary.refresh(profile)
     # Labels always come from the taxonomy so the dashboard shows "PyTorch /
     # TensorFlow" rather than the raw key.
-    profile.skill_labels = {key: label_for(key) for key in profile.evidence}
+    profile.skill_labels = {key: label_for(key) for key in (profile.evidence or {})}
 
-    if not profile.contact.full_name:
+    contact = profile.contact
+    if not contact or not contact.full_name:
         notes.append("Could not find your name in the CV — add it in settings.")
     if not profile.experience:
         notes.append("No work experience was recognised — add at least one position.")
-    for experience in profile.experience:
-        if not experience.bullets:
+    for experience in (profile.experience or []):
+        if not (experience.bullets or []):
             notes.append(f"'{experience.organization or experience.id}' has no achievements yet.")
     return profile, notes
 

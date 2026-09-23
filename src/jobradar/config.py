@@ -196,7 +196,7 @@ class LLMSettings(BaseModel):
     with keyword matching instead of reading the ad.
     """
 
-    provider: str = "none"  # none | anthropic | openai | openai-compatible | ollama
+    provider: str = "none"  # none | anthropic | openai | gemini | openai-compatible | ollama
     model: str = ""
     base_url: str = ""
     #: Cap on requests per pipeline run, so an unattended cron job cannot burn

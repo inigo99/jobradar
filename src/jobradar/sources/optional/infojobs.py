@@ -61,13 +61,13 @@ class InfoJobsSource(JobSource):
             for city, slug, offer_hash in OFFER_URL.findall(body):
                 # Filter on the slug before paying for a detail request.
                 if wanted and not any(
-                    any(word in normalise(slug) for word in term.split()) for term in wanted
+                    any(word in normalise(str(slug)) for word in term.split()) for term in wanted
                 ):
                     continue
                 url = f"https://www.infojobs.net/{city}/{slug}/of-i{offer_hash}"
                 if offer_hash in jobs:
                     continue
-                job = self._detail(offer_hash, url, slug, city)
+                job = self._detail(offer_hash, url, str(slug), str(city))
                 if job:
                     jobs[offer_hash] = job
                 if len(jobs) >= query.limit:
@@ -86,16 +86,16 @@ class InfoJobsSource(JobSource):
         body = self.fetcher.get(url, browser="stealthy")
         if not body:
             return None
-        text = strip_html(body)
+        text = strip_html(str(body))
         company_match = COMPANY_META.search(body)
-        title = slug.replace("-", " ").strip().title()
+        title = str(slug).replace("-", " ").strip().title()
         remote = "solo teletrabajo" in text.lower()
         salary = extract_salary(text, "EUR") or Salary()
         return self.make_job(
             offer_hash,
             title=title,
-            company=company_match.group(1).strip() if company_match else "",
-            location=city.replace("-", " ").title(),
+            company=str(company_match.group(1)).strip() if company_match else "",
+            location=str(city).replace("-", " ").title(),
             country="ES",
             work_mode=WorkMode.REMOTE if remote else WorkMode.UNKNOWN,
             url=url,
@@ -119,7 +119,7 @@ class InfoJobsSource(JobSource):
         if not match:
             return []
         chunk = match.group(1)
-        return [s.strip(" •-") for s in re.split(r"[•\n]", chunk) if 2 < len(s.strip()) < 40][:15]
+        return [str(s).strip(" •-") for s in re.split(r"[•\n]", chunk) if 2 < len(str(s).strip()) < 40][:15]
 
     def check_open(self, job: Job) -> tuple[bool, str]:
         """A closed InfoJobs ad redirects; the visible title stays the same.

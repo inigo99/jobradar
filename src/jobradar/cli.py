@@ -70,7 +70,7 @@ try:
 
 except ImportError:  # pragma: no cover - cosmetic fallback
     def out(message: str = "") -> None:
-        print(_strip_markup(message))
+        print(_strip_markup(str(message)))
 
     def table(title: str, columns: list[str], rows: list[list[str]]) -> None:
         print(f"\n{title}")
@@ -81,7 +81,7 @@ except ImportError:  # pragma: no cover - cosmetic fallback
     def _strip_markup(text: str) -> str:
         import re
 
-        return re.sub(r"\[/?[a-z0-9 #]+\]", "", text)
+        return re.sub(r"\[/?[a-z0-9 #]+\]", "", str(text or ""))
 
 
 def _database(args: argparse.Namespace) -> Database:
@@ -205,11 +205,11 @@ def cmd_search(args: argparse.Namespace) -> int:
             [
                 [
                     f"{result.scores[job.id].tailored:.0f}%" if job.id in result.scores else "—",
-                    job.company[:26],
-                    job.title[:44],
+                    (job.company or "")[:26],
+                    (job.title or "")[:44],
                     (job.location or "")[:24],
-                    f"{job.salary.minimum:,}–{job.salary.maximum:,} {job.salary.currency}"
-                    if job.salary.minimum else "—",
+                    f"{job.salary.minimum:,}–{job.salary.maximum or job.salary.minimum:,} {job.salary.currency}"
+                    if getattr(job, "salary", None) and job.salary.minimum else "—",
                 ]
                 for job in sorted(
                     result.new_jobs,
@@ -220,7 +220,7 @@ def cmd_search(args: argparse.Namespace) -> int:
 
     if args.explain and result.rejected:
         table("Why jobs were dropped", ["Reason", "Count"],
-              [[reason, count] for reason, count in explain(result.rejected)])
+              [[reason, str(count)] for reason, count in explain(result.rejected)])
         out("Nothing was thrown away: see them with [bold]jobradar filtered[/bold].")
 
     if args.notify:
@@ -267,7 +267,7 @@ def cmd_tailor(args: argparse.Namespace) -> int:
         applications = database.all_applications()
         candidates = [
             job for job in database.list_jobs()
-            if (applications.get(job.id).status if job.id in applications else ApplicationStatus.ACTIVE)
+            if (applications[job.id].status if job.id in applications else ApplicationStatus.ACTIVE)
             != ApplicationStatus.DISCARDED
         ]
         candidates.sort(key=lambda job: -(scores[job.id].tailored if job.id in scores else 0))
@@ -280,7 +280,7 @@ def cmd_tailor(args: argparse.Namespace) -> int:
             tailored = tailor(profile, job, score, settings, llm)
             result = render_cv(profile, tailored, job, database.paths, settings)
             lint = lint_tailored(profile, tailored, result.pages, settings.cv_max_pages)
-            out(f"\n[bold]{job.company} — {job.title}[/bold]")
+            out(f"\n[bold]{job.company or 'Unnamed'} — {job.title}[/bold]")
             out(f"  {result.pdf_path or result.html_path}")
             out(f"  {result.pages or '?'} page(s), type scale {result.scale}, "
                 f"written by {tailored.generated_by}")
@@ -345,10 +345,10 @@ def cmd_jobs(args: argparse.Namespace) -> int:
             f"{focus:.0f}",
             f"{score.tailored:.0f}%" if score else "—",
             status,
-            job.company[:24],
-            job.title[:40],
+            (job.company or "")[:24],
+            (job.title or "")[:40],
             (job.location or "")[:22],
-            f"{job.salary.minimum:,}" if job.salary.minimum else "—",
+            f"{job.salary.minimum:,}" if getattr(job, "salary", None) and job.salary.minimum else "—",
             job.id,
         ])
     rows.sort(key=lambda row: -row[0])
@@ -375,7 +375,7 @@ def cmd_filtered(args: argparse.Namespace) -> int:
         profile = database.load_profile()
         if profile is not None:
             database.save_score(job.id, score_job(job, profile))
-        out(f"Restored [bold]{job.company} — {job.title}[/bold]. "
+        out(f"Restored [bold]{job.company or 'Unnamed'} — {job.title}[/bold]. "
             "The filter that rejected it is still on; change it in Settings if you meant to.")
         database.close()
         return 0
@@ -395,11 +395,12 @@ def cmd_filtered(args: argparse.Namespace) -> int:
 
     total = sum(count for _, count in tally["by_category"])
     table("What each filter is rejecting", ["Filter", "Jobs", "Share"],
-          [[name, count, f"{100 * count / total:.0f}%"] for name, count in tally["by_category"]])
+          [[str(name), str(count), f"{100 * count / total:.0f}%"] for name, count in tally["by_category"]])
     table("The commonest reasons, verbatim", ["Reason (numbers as N)", "Count"],
-          [[shape, count] for shape, count in tally["by_shape"]])
+          [[str(shape), str(count)] for shape, count in tally["by_shape"]])
     table(f"{len(entries)} filtered ads", ["Company", "Title", "Reason", "Id"],
-          [[e["company"][:24], e["title"][:38], e["reason"][:52], e["id"]] for e in entries])
+                    [[str(e.get("company") or "")[:24], str(e.get("title") or "")[:38],
+                        str(e.get("reason") or "")[:52], str(e.get("id") or "")] for e in entries])
     out("Put one back with [bold]jobradar filtered --restore <id>[/bold].")
     database.close()
     return 0

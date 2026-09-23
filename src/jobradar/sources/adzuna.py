@@ -64,34 +64,37 @@ class AdzunaSource(JobSource):
         return jobs
 
     def _parse(self, entry: dict, country: str) -> Job | None:
-        description = strip_html(entry.get("description", ""))
-        title = entry.get("title", "")
-        location = (entry.get("location") or {}).get("display_name", "")
+        description = strip_html(str(entry.get("description") or ""))
+        title = str(entry.get("title") or "")
+        location = str((entry.get("location") or {}).get("display_name") or "")
         salary = Salary()
         if entry.get("salary_min"):
-            salary = Salary(
-                minimum=int(entry["salary_min"]),
-                maximum=int(entry.get("salary_max") or entry["salary_min"]),
-                currency=country_info(country).get("currency", "EUR"),
-                origin=SalaryOrigin.PUBLISHED
-                if entry.get("salary_is_predicted") not in ("1", 1, True)
-                else SalaryOrigin.ESTIMATED,
-                basis="From Adzuna; flagged as predicted when Adzuna estimated it.",
-            )
+            try:
+                is_predicted = str(entry.get("salary_is_predicted")).lower() in ("1", "true") or entry.get("salary_is_predicted") is True
+                salary = Salary(
+                    minimum=int(float(entry["salary_min"])),
+                    maximum=int(float(entry.get("salary_max") or entry["salary_min"])),
+                    currency=country_info(country).get("currency", "EUR"),
+                    origin=SalaryOrigin.ESTIMATED if is_predicted else SalaryOrigin.PUBLISHED,
+                    basis="From Adzuna; flagged as predicted when Adzuna estimated it.",
+                )
+            except (ValueError, TypeError):
+                pass
+                
         scope, regions = detect_remote_scope(description)
         return self.make_job(
-            entry.get("id", ""),
+            str(entry.get("id") or ""),
             title=title,
-            company=(entry.get("company") or {}).get("display_name", ""),
+            company=str((entry.get("company") or {}).get("display_name") or ""),
             location=location,
             country=country,
             work_mode=detect_work_mode(description, location) or WorkMode.UNKNOWN,
             remote_scope=scope,
             remote_regions=regions,
-            url=entry.get("redirect_url", ""),
+            url=str(entry.get("redirect_url") or ""),
             posted_at=parse_date(entry.get("created")),
             description=description,
             language=detect_language(description),
             salary=salary,
-            raw={"category": (entry.get("category") or {}).get("label", "")},
+            raw={"category": str((entry.get("category") or {}).get("label") or "")},
         )

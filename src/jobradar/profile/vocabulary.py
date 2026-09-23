@@ -39,33 +39,34 @@ def derive_evidence(profile: Profile, languages: tuple[str, ...] = ("en", "es"))
     listed_text: list[str] = []
 
     for language in languages:
-        demonstrated_text.append(localized(profile.summary, language))
-        for experience in profile.experience:
-            demonstrated_text.append(localized(experience.title, language))
-            for bullet in experience.bullets:
-                demonstrated_text.append(localized(bullet.text, language))
-        for education in profile.education:
-            demonstrated_text.append(localized(education.degree, language))
-            demonstrated_text.append(localized(education.note, language))
-        for certification in profile.certifications:
-            listed_text.append(localized(certification.name, language))
-        for group in profile.skills:
-            listed_text.append(" , ".join(group.items))
+        demonstrated_text.append(str(localized(profile.summary, language) or ""))
+        for experience in (profile.experience or []):
+            demonstrated_text.append(str(localized(experience.title, language) or ""))
+            for bullet in (experience.bullets or []):
+                demonstrated_text.append(str(localized(bullet.text, language) or ""))
+        for education in (profile.education or []):
+            demonstrated_text.append(str(localized(education.degree, language) or ""))
+            demonstrated_text.append(str(localized(education.note, language) or ""))
+        for certification in (profile.certifications or []):
+            listed_text.append(str(localized(certification.name, language) or ""))
+        for group in (profile.skills or []):
+            listed_text.append(" , ".join(group.items or []))
 
     evidence: dict[str, float] = {}
-    for key in find_skills("\n".join(listed_text)):
+    for key in find_skills("\n".join(t for t in listed_text if t)):
         evidence[key] = LISTED
-    for key in find_skills("\n".join(demonstrated_text)):
+    for key in find_skills("\n".join(t for t in demonstrated_text if t)):
         evidence[key] = DEMONSTRATED
 
     # Bullets may declare their skills explicitly; an explicit tag always wins
     # over keyword detection, because the candidate knows what a bullet proves.
     for bullet in profile.all_bullets():
-        for key in bullet.skills:
+        for key in (bullet.skills or []):
             evidence[key] = DEMONSTRATED
 
-    for language_skill in profile.languages:
-        key = localized(language_skill.name, "en").strip().lower()
+    for language_skill in (profile.languages or []):
+        label_val = localized(language_skill.name, "en") or ""
+        key = label_val.strip().lower()
         for detected in find_skills(key):
             evidence[detected] = DEMONSTRATED
 
@@ -81,7 +82,7 @@ def suggest_ceilings(evidence: dict[str, float]) -> dict[str, float]:
     with no evidence gets no ceiling at all — that is the lock.
     """
     ceilings: dict[str, float] = {}
-    for key, value in evidence.items():
+    for key, value in (evidence or {}).items():
         if value <= 0.0:
             continue
         ceilings[key] = round(min(1.0, value + (DEFAULT_CEILING_LIFT if value < 1.0 else 0.0)), 2)
@@ -92,7 +93,7 @@ def refresh(profile: Profile) -> Profile:
     """Recompute evidence, keep any ceilings the user has hand-tuned."""
     evidence = derive_evidence(profile)
     suggested = suggest_ceilings(evidence)
-    for key, value in profile.ceiling.items():
+    for key, value in (profile.ceiling or {}).items():
         if key in evidence:  # keep the user's judgement where it still applies
             suggested[key] = max(evidence[key], min(1.0, value))
     profile.evidence = evidence
@@ -107,30 +108,32 @@ def allowed_terms(profile: Profile) -> set[str]:
     Anything outside this set in a generated CV is, by definition, something
     the candidate's profile does not support.
     """
-    return {key for key, value in profile.evidence.items() if value > 0.0}
+    return {key for key, value in (profile.evidence or {}).items() if value > 0.0}
 
 
 def profile_text(profile: Profile, languages: tuple[str, ...] = ("en", "es")) -> str:
     """Everything the profile says, as one blob — the validator's haystack."""
     chunks: list[str] = []
     for language in languages:
-        chunks.append(localized(profile.summary, language))
-        chunks.append(profile.contact.name_for(language))
-        for experience in profile.experience:
-            chunks.append(localized(experience.title, language))
-            chunks.append(experience.organization)
-            chunks.append(localized(experience.location, language))
-            chunks.append(f"{experience.start} {experience.end or ''}")
-            chunks.extend(localized(bullet.text, language) for bullet in experience.bullets)
-        for education in profile.education:
-            chunks.append(localized(education.degree, language))
-            chunks.append(localized(education.institution, language))
-            chunks.append(localized(education.note, language))
-            chunks.append(f"{education.start} {education.end}")
-        for certification in profile.certifications:
-            chunks.append(f"{localized(certification.name, language)} {certification.issuer} {certification.year}")
-        for group in profile.skills:
-            chunks.append(" ".join(group.items))
-        for language_skill in profile.languages:
-            chunks.append(f"{localized(language_skill.name, language)} {language_skill.level}")
-    return "\n".join(chunk for chunk in chunks if chunk)
+        chunks.append(str(localized(profile.summary, language) or ""))
+        contact = profile.contact
+        if contact:
+            chunks.append(str(contact.name_for(language) or ""))
+        for experience in (profile.experience or []):
+            chunks.append(str(localized(experience.title, language) or ""))
+            chunks.append(str(experience.organization or ""))
+            chunks.append(str(localized(experience.location, language) or ""))
+            chunks.append(f"{experience.start or ''} {experience.end or ''}")
+            chunks.extend(str(localized(bullet.text, language) or "") for bullet in (experience.bullets or []))
+        for education in (profile.education or []):
+            chunks.append(str(localized(education.degree, language) or ""))
+            chunks.append(str(localized(education.institution, language) or ""))
+            chunks.append(str(localized(education.note, language) or ""))
+            chunks.append(f"{education.start or ''} {education.end or ''}")
+        for certification in (profile.certifications or []):
+            chunks.append(f"{localized(certification.name, language) or ''} {certification.issuer or ''} {certification.year or ''}")
+        for group in (profile.skills or []):
+            chunks.append(" ".join(group.items or []))
+        for language_skill in (profile.languages or []):
+            chunks.append(f"{localized(language_skill.name, language) or ''} {language_skill.level or ''}")
+    return "\n".join(chunk for chunk in chunks if chunk and chunk.strip())

@@ -109,15 +109,15 @@ class LinkedInGuestSource(JobSource):
         """
         jobs: list[Job] = []
         for job_id, card in CARD.findall(html):
-            title = self._first(TITLE, card)
+            title = self._first(TITLE, str(card))
             if not title:
                 continue
-            location = self._first(LOCATION, card)
+            location = self._first(LOCATION, str(card))
             jobs.append(
                 self.make_job(
-                    job_id,
+                    str(job_id),
                     title=title,
-                    company=self._first(COMPANY, card),
+                    company=self._first(COMPANY, str(card)),
                     location=location,
                     work_mode=(
                         WorkMode.REMOTE
@@ -125,15 +125,15 @@ class LinkedInGuestSource(JobSource):
                         else WorkMode.UNKNOWN
                     ),
                     url=f"https://www.linkedin.com/jobs/view/{job_id}/",
-                    posted_at=parse_date(self._first(POSTED, card)),
+                    posted_at=parse_date(self._first(POSTED, str(card))),
                 )
             )
         return jobs
 
     @staticmethod
     def _first(pattern: re.Pattern[str], text: str) -> str:
-        match = pattern.search(text)
-        return strip_html(match.group(1)).strip() if match else ""
+        match = pattern.search(str(text))
+        return strip_html(str(match.group(1))).strip() if match else ""
 
     def fetch_description(self, job: Job) -> str:
         """Pull the full ad text, which is where the truth about remote lives.
@@ -146,8 +146,8 @@ class LinkedInGuestSource(JobSource):
         """
         body = self.fetcher.get(DETAIL.format(job_id=job.native_id), browser="dynamic")
         if not body:
-            return job.description
-        text = strip_html(body)
+            return str(job.description or "")
+        text = strip_html(str(body))
         job.language = detect_language(text)
         return text
 
@@ -156,6 +156,6 @@ class LinkedInGuestSource(JobSource):
         if body is None:
             status = self.fetcher.head_status(job.link)
             return (False, "HTTP 404") if status == 404 else (True, "")
-        if CLOSED_MARKERS.search(body):
+        if CLOSED_MARKERS.search(str(body)):
             return False, "No longer accepting applications"
         return True, ""

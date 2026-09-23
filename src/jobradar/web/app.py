@@ -154,6 +154,11 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
     app = FastAPI(title="JobRadar", version=__version__, docs_url="/api/docs", lifespan=lifespan)
     hosts = None if allowed_hosts is None else frozenset(h.lower() for h in allowed_hosts)
 
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception):
+        log.exception(f"Error en {request.method} {request.url}")
+        return JSONResponse(status_code=500, content={"detail": str(exc)})
+
     @app.middleware("http")
     async def refuse_foreign_requests(request: Request, call_next):
         refusal = request_refusal(request.method, request.headers, hosts)
@@ -355,6 +360,8 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
         if patch.evidence is not None:
             profile.evidence.update({k: max(0.0, min(1.0, v)) for k, v in patch.evidence.items()})
         if patch.ceiling is not None:
+            if profile.ceiling is None:
+                profile.ceiling = {}
             for key, value in patch.ceiling.items():
                 base = profile.evidence.get(key, 0.0)
                 if base > 0.0:  # a skill with no evidence can never gain a ceiling
@@ -365,6 +372,8 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
     @app.post("/api/profile/reimport")
     async def reimport(cv_file: UploadFile = File(...)):
         """Replace the profile from a new CV file."""
+        if not cv_file.filename:
+            raise HTTPException(status_code=400, detail="No file provided")
         settings = database.load_settings()
         target = paths.uploads_dir / cv_file.filename
         target.write_bytes(await cv_file.read())

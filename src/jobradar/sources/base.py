@@ -76,10 +76,12 @@ class SearchQuery:
         seen: set[str] = set()
         result: list[str] = []
         for term in [*self.titles, *self.keywords]:
-            key = term.strip().lower()
+            if not term:
+                continue
+            key = str(term).strip().lower()
             if key and key not in seen:
                 seen.add(key)
-                result.append(term.strip())
+                result.append(str(term).strip())
         return result
 
 
@@ -177,21 +179,7 @@ class Fetcher:
         )
 
     def _browser_get(self, url: str, *, headers: dict | None, mode: str) -> str | None:
-        """Fetch ``url`` through Scrapling's browser engines instead of ``httpx``.
-
-        Only called by :meth:`get` when a ``restricted`` source passes
-        ``browser=``. ``mode`` is ``"dynamic"`` — a plain headless browser,
-        enough to get past a check for a real browser fingerprint, such as
-        LinkedIn's guest endpoints — or ``"stealthy"`` — fingerprint spoofing
-        plus Cloudflare-style challenge solving, for a page that answers a
-        plain browser with a block instead of the content, such as
-        InfoJobs' ad pages (they return HTTP 405 behind a CAPTCHA challenge
-        to ``"dynamic"``, and load normally under ``"stealthy"``).
-
-        Returns ``None`` — same contract as :meth:`get` itself — if the
-        ``scrapling`` package's browsers are not installed
-        (``scrapling install``, once) or the fetch fails for any reason.
-        """
+        """Fetch ``url`` through Scrapling's browser engines instead of ``httpx``."""
         try:
             from scrapling.fetchers import DynamicFetcher, StealthyFetcher
         except ImportError:
@@ -205,8 +193,6 @@ class Fetcher:
             "headless": True,
             "real_chrome": self.settings.scrapling_real_chrome,
             "extra_headers": headers or None,
-            # Fetcher.get() already retries whole attempts with backoff below;
-            # a nested retry here would just double the wait on a dead page.
             "retries": 0,
         }
         if mode == "stealthy":
@@ -226,17 +212,7 @@ class Fetcher:
     def get(self, url: str, *, params: dict | None = None, retries: int = 2,
             use_cache: bool = True, headers: dict | None = None,
             browser: str | None = None) -> str | None:
-        """GET ``url``, returning the body or None if it could not be fetched.
-
-        Sources are expected to treat None as "this query yielded nothing" and
-        carry on: one dead board must never abort a whole run.
-
-        ``browser`` routes the request through a real browser instead of a
-        plain HTTP request — pass ``"dynamic"`` or ``"stealthy"``, see
-        :meth:`_browser_get`. Leave it ``None`` (the default) for every
-        ``open``/``credentials`` source: plain HTTP is faster and all of them
-        answer it correctly.
-        """
+        """GET ``url``, returning the body or None if it could not be fetched."""
         full = str(httpx.URL(url, params=params or {}))
         cache_path = self._cache_path(full) if use_cache else None
         cached = self._read_cache(cache_path)
@@ -339,7 +315,7 @@ class JobSource(ABC):
 
     def fetch_description(self, job: Job) -> str:
         """Full ad text for ``job``. Defaults to whatever ``search`` collected."""
-        return job.description
+        return job.description or ""
 
     def check_open(self, job: Job) -> tuple[bool, str]:
         """Is the ad still accepting applications?

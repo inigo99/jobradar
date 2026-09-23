@@ -19,12 +19,16 @@ following German convention is worse than no linter.
 
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
+from datetime import date
 
 from ..models import Bullet, LintFinding, Profile, Severity, _parse_month, localized
 from ..taxonomy import find_skills
+
+log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Thresholds — all in one place so they are easy to argue with and to tune.
@@ -181,10 +185,12 @@ def rule_gaps(profile: Profile, language: str) -> Iterator[LintFinding]:
         for experience in profile.experience
     ]
     spans = [item for item in spans if item[1]]
-    spans.sort(key=lambda item: item[1], reverse=True)
+    spans.sort(key=lambda item: item[1] or date.min, reverse=True)
     for (newer, newer_start, _), (older, _, older_end) in zip(spans, spans[1:], strict=False):
         if not older_end:
             continue
+        assert newer_start is not None
+        assert older_end is not None
         gap = (newer_start.year - older_end.year) * MONTHS_IN_YEAR + (newer_start.month - older_end.month)
         if gap > MAX_GAP_MONTHS:
             yield finding(
@@ -319,8 +325,9 @@ def rule_summary(profile: Profile, language: str) -> Iterator[LintFinding]:
 
 def rule_empty_phrases(profile: Profile, language: str) -> Iterator[LintFinding]:
     """Filler that signals a template rather than a person."""
+    summary_text = localized(profile.summary, language) or ""
     haystack = " ".join(
-        [localized(profile.summary, language)] + [text for _, _, text in _bullets(profile, language)]
+        [summary_text] + [text for _, _, text in _bullets(profile, language)]
     ).lower()
     for phrase in EMPTY_PHRASES:
         if phrase in haystack:
@@ -355,7 +362,8 @@ def rule_skill_stuffing(profile: Profile, language: str) -> Iterator[LintFinding
 def rule_orphan_skills(profile: Profile, language: str) -> Iterator[LintFinding]:
     """Skills listed but never demonstrated anywhere in the CV."""
     demonstrated = set(find_skills(" ".join(text for _, _, text in _bullets(profile, language))))
-    demonstrated |= set(find_skills(localized(profile.summary, language)))
+    summary_text = localized(profile.summary, language) or ""
+    demonstrated |= set(find_skills(summary_text))
     listed = {key for key, value in profile.evidence.items() if value > 0.0}
     orphans = sorted(listed - demonstrated)
     if len(orphans) > 8:
@@ -368,7 +376,7 @@ def rule_orphan_skills(profile: Profile, language: str) -> Iterator[LintFinding]
 
 
 def rule_acronyms(profile: Profile, language: str) -> Iterator[LintFinding]:
-    summary = localized(profile.summary, language)
+    summary = localized(profile.summary, language) or ""
     tokens = [token for token in re.findall(r"[A-Za-z/+#.]{2,}", summary)]
     if len(tokens) < 15:
         return
@@ -409,7 +417,18 @@ def lint_profile(profile: Profile, language: str | None = None) -> LintResult:
     language = language or profile.default_language
     findings: list[LintFinding] = []
     for rule in PROFILE_RULES:
-        findings.extend(rule(profile, language))
+        try:
+            findings.extend(rule(profile, language))
+        except Exception as exc:
+            log.exception(f"Linter rule failed: {rule.__name__}")
+            findings.append(
+                finding(
+                    "linter-crash",
+                    Severity.WARNING,
+                    f"The rule '{rule.__name__}' encountered an error and could not finish.",
+                    hint=f"Error detail: {exc}",
+                )
+            )
     return LintResult(findings)
 
 

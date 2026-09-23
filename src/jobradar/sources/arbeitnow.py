@@ -35,23 +35,23 @@ class ArbeitnowSource(JobSource):
             if not entries:
                 break
             for entry in entries:
-                title = entry.get("title", "")
-                description = strip_html(entry.get("description", ""))
-                tags = " ".join(entry.get("tags") or [])
+                title = str(entry.get("title") or "")
+                description = strip_html(str(entry.get("description") or ""))
+                tags = " ".join(str(t) for t in (entry.get("tags") or []) if t)
                 if terms and not any(t in f"{title} {tags} {description}".lower() for t in terms):
                     continue
                 scope, regions = detect_remote_scope(description)
                 salary = extract_salary(description, "EUR") or Salary()
                 jobs.append(
                     self.make_job(
-                        entry.get("slug", ""),
+                        str(entry.get("slug") or ""),
                         title=title,
-                        company=entry.get("company_name", ""),
-                        location=entry.get("location", ""),
+                        company=str(entry.get("company_name") or ""),
+                        location=str(entry.get("location") or ""),
                         work_mode=WorkMode.REMOTE if entry.get("remote") else WorkMode.UNKNOWN,
                         remote_scope=scope,
                         remote_regions=regions,
-                        url=entry.get("url", ""),
+                        url=str(entry.get("url") or ""),
                         posted_at=parse_date(entry.get("created_at")),
                         description=description,
                         language=detect_language(description),

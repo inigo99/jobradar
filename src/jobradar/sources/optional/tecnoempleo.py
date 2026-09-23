@@ -58,17 +58,17 @@ class TecnoempleoSource(JobSource):
                 found = False
                 for url, native_id, title_html, tail in CARD.findall(body):
                     found = True
-                    title = strip_html(title_html).strip()
+                    title = strip_html(str(title_html)).strip()
                     if not title or native_id in jobs:
                         continue
                     if wanted and not any(
                         any(word in normalise(title) for word in t.split()) for t in wanted
                     ):
                         continue
-                    context = strip_html(tail)
+                    context = strip_html(str(tail))
                     if query.remote_only and "100% remoto" not in context.lower():
                         continue
-                    job = self._detail(native_id, url, title, context)
+                    job = self._detail(str(native_id), str(url), title, context)
                     if job:
                         jobs[native_id] = job
                     if len(jobs) >= query.limit:
@@ -79,7 +79,7 @@ class TecnoempleoSource(JobSource):
 
     def _detail(self, native_id: str, url: str, title: str, context: str) -> Job | None:
         body = self.fetcher.get(url, browser="dynamic")
-        text = strip_html(body) if body else context
+        text = strip_html(str(body)) if body else str(context)
         lowered = f"{context} {text}".lower()
         if "100% remoto" in lowered:
             mode = WorkMode.REMOTE
@@ -105,25 +105,25 @@ class TecnoempleoSource(JobSource):
 
     @staticmethod
     def _company(context: str) -> str:
-        match = re.search(r"^\s*([A-ZÁÉÍÓÚÑ][^\n|]{2,60})", context.strip())
-        return match.group(1).strip() if match else ""
+        match = re.search(r"^\s*([A-ZÁÉÍÓÚÑ][^\n|]{2,60})", str(context).strip())
+        return str(match.group(1)).strip() if match else ""
 
     @staticmethod
     def _location(context: str) -> str:
         match = re.search(r"(Madrid|Barcelona|Valencia|Sevilla|Bilbao|Zaragoza|M[áa]laga|"
                           r"Navarra|Pamplona|Gipuzkoa|San Sebasti[áa]n|A Coru[ñn]a|Murcia|"
-                          r"Alicante|Valladolid|Granada|Vigo|Santander|Oviedo|Toledo)", context, re.I)
-        return match.group(1) if match else "España"
+                          r"Alicante|Valladolid|Granada|Vigo|Santander|Oviedo|Toledo)", str(context), re.I)
+        return str(match.group(1)) if match else "España"
 
     @staticmethod
     def _posted(context: str) -> str:
-        match = re.search(r"(\d{1,2})/(\d{1,2})/(\d{4})", context)
+        match = re.search(r"(\d{1,2})/(\d{1,2})/(\d{4})", str(context))
         return f"{match.group(3)}-{match.group(2)}-{match.group(1)}" if match else ""
 
     def check_open(self, job: Job) -> tuple[bool, str]:
         body = self.fetcher.get(job.link, use_cache=False, browser="dynamic")
         if body is None:
             return False, "Offer page unreachable"
-        if EXPIRED.search(strip_html(body)):
+        if EXPIRED.search(strip_html(str(body))):
             return False, "Ad expired"
         return True, ""

@@ -144,8 +144,6 @@ class SearchPipeline:
         survivors: list[Job] = []
         for job in jobs:
             if job.id in known_closed:
-                # Not a filter decision: the ad is gone, and it is already
-                # recorded in closed_jobs. Nothing to reconsider.
                 rejected[job.id] = "previously recorded as closed"
                 continue
             age = job.age_days(self.today)
@@ -167,7 +165,6 @@ class SearchPipeline:
         stored = self.database.get_job(listed.id) or self.database.get_filtered_job(listed.id)
         if stored is None or not stored.raw.get("enriched_by"):
             return None
-        # What the listing knows that the stored record may not.
         stored.posted_at = stored.posted_at or listed.posted_at
         stored.apply_url = stored.apply_url or listed.apply_url
         return stored
@@ -188,7 +185,7 @@ class SearchPipeline:
         known_ids = self.database.known_job_ids()
         by_source: dict[str, dict[str, int]] = {}
         for job in collected:
-            counts = by_source.setdefault(job.source, {"fetched": 0, "kept": 0})
+            counts = by_source.setdefault(job.source or "unknown", {"fetched": 0, "kept": 0})
             counts["fetched"] += 1
         result = SearchResult(
             run=SearchRun(
@@ -208,8 +205,6 @@ class SearchPipeline:
             result.rejected[job.id] = reason
             result.filtered.append((job, reason))
 
-        # The years ceiling comes from the profile's own dates unless the user
-        # typed a number, so it rises on its own instead of ageing quietly.
         profile_years = self.profile.years_of_experience(self.today) if self.profile else None
 
         for listed in candidates:
@@ -238,21 +233,20 @@ class SearchPipeline:
                 continue
             if outcome.warnings:
                 result.warnings[job.id] = list(outcome.warnings)
+                if job.alerts is None:
+                    job.alerts = []
                 for warning in outcome.warnings:
                     if warning not in job.alerts:
                         job.alerts.append(warning)
 
             result.kept.append(job)
-            by_source.setdefault(job.source, {"fetched": 0, "kept": 0})["kept"] += 1
+            by_source.setdefault(job.source or "unknown", {"fetched": 0, "kept": 0})["kept"] += 1
             if job.id not in known_ids:
                 result.new_jobs.append(job)
 
             if self.profile:
                 result.scores[job.id] = score_job(job, self.profile)
 
-        # Nothing rejected is thrown away: a filter one notch too strict is
-        # invisible while its victims vanish, and the symptom — an empty
-        # board — looks exactly like "there were no jobs today".
         kept_ids = {job.id for job in result.kept}
         self.database.save_filtered(
             (job, reason, filter_category(reason))

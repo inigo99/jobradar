@@ -80,7 +80,7 @@ def extract_requirements_by_keyword(job: Job) -> list[Requirement]:
     section is not. Crude and transparent beats clever and unexplainable — the
     user can see exactly why a requirement scored what it did.
     """
-    title_hits = find_skills(job.title)
+    title_hits = find_skills(job.title or "")
     body_hits = find_skills(job.description or "")
     lowered = (job.description or "").lower()
 
@@ -115,10 +115,6 @@ def derive_fields(job: Job) -> Job:
     if text:
         job.language = detect_language(text, job.language)
         detected_mode = detect_work_mode(text, job.location)
-        # The ad's own words beat the board's tag; boards mislabel hybrid roles
-        # as remote constantly. But silence is not a contradiction: when the
-        # text says nothing, a remote tag stays and is flagged, instead of the
-        # job being demoted to "unknown" or dropped.
         if detected_mode != WorkMode.UNKNOWN:
             job.work_mode = detected_mode
             job.raw.pop("remote_unconfirmed", None)
@@ -134,8 +130,11 @@ def derive_fields(job: Job) -> Job:
             job.raw["remote_scope_evidence"] = scope_sentence
         if job.min_years_experience is None:
             job.min_years_experience = extract_min_years(text)
-        if job.salary.origin != SalaryOrigin.PUBLISHED:
-            published = extract_salary(text, job.salary.currency or "EUR")
+        
+        salary_obj = getattr(job, "salary", None)
+        if not salary_obj or salary_obj.origin != SalaryOrigin.PUBLISHED:
+            currency = salary_obj.currency if salary_obj else "EUR"
+            published = extract_salary(text, currency)
             if published:
                 job.salary = published
     return job
@@ -144,7 +143,7 @@ def derive_fields(job: Job) -> Job:
 def derive_alerts(job: Job) -> list[str]:
     """Things the user must clarify before spending an hour on an application."""
     alerts: list[str] = []
-    lowered = f"{job.company} {job.description}".lower()
+    lowered = f"{job.company or ''} {job.description or ''}".lower()
 
     if job.raw.get("remote_unconfirmed"):
         alerts.append(
@@ -163,8 +162,11 @@ def derive_alerts(job: Job) -> list[str]:
         alerts.append("Remote, but the ad does not say from which countries — confirm before applying.")
     if any(marker in lowered for marker in AGENCY_MARKERS):
         alerts.append("The end client is not named — ask who the employer actually is.")
-    if job.salary.origin == SalaryOrigin.ESTIMATED:
+        
+    salary_obj = getattr(job, "salary", None)
+    if salary_obj and salary_obj.origin == SalaryOrigin.ESTIMATED:
         alerts.append("Salary is an estimate, not a published figure.")
+        
     if job.work_mode == WorkMode.UNKNOWN:
         alerts.append("Work mode unclear — check whether office days are expected.")
     if job.posted_at is None:
@@ -178,11 +180,7 @@ def derive_alerts(job: Job) -> list[str]:
 
 
 def _apply_model_reading(job: Job, data: dict) -> None:
-    """Merge the model's reading of an ad into the job, defensively.
-
-    Anything malformed is ignored rather than trusted: a model that returns a
-    salary of "competitive" must not be able to blank a published figure.
-    """
+    """Merge the model's reading of an ad into the job, defensively."""
     requirements: list[Requirement] = []
     for entry in data.get("requirements") or []:
         try:
@@ -231,6 +229,8 @@ def _apply_model_reading(job: Job, data: dict) -> None:
     if isinstance(language, str) and len(language) == 2:
         job.language = language
 
+    if job.alerts is None:
+        job.alerts = []
     for alert in data.get("alerts") or []:
         text = str(alert).strip()
         if text and text not in job.alerts:
@@ -249,15 +249,11 @@ def enrich_job(
     rates: ExchangeRates | None = None,
     fetch_description=None,
 ) -> Job:
-    """Bring one job up to the standard the rest of the pipeline expects.
-
-    ``fetch_description`` is the owning source's method, passed in rather than
-    looked up so this function stays testable without any network.
-    """
+    """Bring one job up to the standard the rest of the pipeline expects."""
     if fetch_description and len(job.description or "") < 400:
         try:
             job.description = fetch_description(job) or job.description
-        except Exception as exc:  # a source must never break a whole run
+        except Exception as exc:
             log.debug("Could not fetch the full ad for %s: %s", job.id, exc)
 
     derive_fields(job)
@@ -275,6 +271,8 @@ def enrich_job(
 
     job.salary = normalise_salary(job, settings.filters.salary_currency, rates)
 
+    if job.alerts is None:
+        job.alerts = []
     for alert in derive_alerts(job):
         if alert not in job.alerts:
             job.alerts.append(alert)

@@ -21,24 +21,30 @@ def build_digest(jobs: list[Job], scores: dict[str, MatchScore], limit: int = 15
                  min_score: float = 0.0) -> tuple[str, str]:
     """Return ``(subject, body)`` for the new jobs worth telling the user about."""
     ranked = sorted(
-        (job for job in jobs if (scores.get(job.id).tailored if scores.get(job.id) else 0) >= min_score),
-        key=lambda job: -(scores.get(job.id).tailored if scores.get(job.id) else 0),
+        (job for job in jobs
+         if (score := scores.get(job.id)) is not None and score.tailored >= min_score),
+        key=lambda job: -scores[job.id].tailored,
     )[:limit]
 
     subject = f"JobRadar: {len(ranked)} new job{'s' if len(ranked) != 1 else ''}"
     lines: list[str] = []
     for job in ranked:
         score = scores.get(job.id)
+        score_val = score.tailored if score else 0.0
         salary = ""
-        if job.salary.minimum:
+        
+        if getattr(job, "salary", None) and job.salary.minimum:
             salary = f" · {job.salary.minimum:,}–{job.salary.maximum:,} {job.salary.currency}"
-            if job.salary.origin.value == "estimated":
+            if getattr(job.salary.origin, "value", "") == "estimated":
                 salary += " (est.)"
+                
+        alerts_text = f"\n        ⚠ {job.alerts[0]}" if getattr(job, "alerts", None) else ""
+        
         lines.append(
-            f"{score.tailored:.0f}%  {job.company or 'unnamed'} — {job.title}\n"
+            f"{score_val:.0f}%  {job.company or 'unnamed'} — {job.title}\n"
             f"        {job.location or 'unspecified'}{salary}\n"
             f"        {job.link}"
-            + (f"\n        ⚠ {job.alerts[0]}" if job.alerts else "")
+            f"{alerts_text}"
         )
     body = "\n\n".join(lines) or "Nothing new today."
     return subject, body
@@ -65,7 +71,7 @@ def _send_email(subject: str, body: str) -> bool:
                 server.login(user, password)
             server.send_message(message)
         return True
-    except (OSError, smtplib.SMTPException) as exc:
+    except (OSError, smtplib.SMTPException, ValueError) as exc:
         log.warning("Could not send the email digest: %s", exc)
         return False
 

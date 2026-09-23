@@ -252,8 +252,8 @@ class Database:
                             job.source,
                             job.native_id,
                             job.fingerprint(),
-                            job.company,
-                            job.title,
+                            job.company or "",
+                            job.title or "",
                             job.posted_at.isoformat() if job.posted_at else None,
                             now,
                             now,
@@ -309,8 +309,8 @@ class Database:
                 "VALUES (?,?,?,?,?) ON CONFLICT(job_id) DO UPDATE SET reason = excluded.reason",
                 (
                     job_id,
-                    job.company if job else "",
-                    job.title if job else "",
+                    (job.company or "") if job else "",
+                    (job.title or "") if job else "",
                     reason,
                     _now(),
                 ),
@@ -340,7 +340,7 @@ class Database:
                     "reason_shape = excluded.reason_shape, category = excluded.category, "
                     "filtered_at = excluded.filtered_at, payload = excluded.payload",
                     (
-                        job.id, job.company, job.title, job.source,
+                        job.id, job.company or "", job.title or "", job.source or "",
                         job.posted_at.isoformat() if job.posted_at else None,
                         reason, _shape_of(reason), category, _now(),
                         _json(job.model_dump(mode="json")),

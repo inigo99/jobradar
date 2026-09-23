@@ -95,12 +95,7 @@ def company_key(name: str) -> str:
 
 
 def title_tokens(title: str) -> set[str]:
-    """The title words that actually tell one vacancy from another.
-
-    When nothing survives the noise list ("Software Engineer" is all generic
-    words), the plain words are returned: an empty set would match every other
-    empty set at the same company, which is exactly the false merge to avoid.
-    """
+    """The title words that actually tell one vacancy from another."""
     plain = _TITLE_TAIL.sub("", title or "")
     words = [w for w in normalise(plain).split() if len(w) > 1 and not w.isdigit()]
     useful = {w for w in words if w not in TITLE_NOISE}
@@ -113,23 +108,19 @@ def job_key(job: Job) -> str:
 
 
 def _url(job: Job) -> str:
-    """The ad URL as a dedupe signal, scoped to the employer.
-
-    The query string is kept (ATS boards tell jobs apart with it) and the
-    company is part of the key, so a generic careers page shared by many ads
-    cannot merge them.
-    """
+    """The ad URL as a dedupe signal, scoped to the employer."""
     url = (job.apply_url or job.url or "").strip().rstrip("/").lower()
     return f"{company_key(job.company)}@{url}" if url else ""
 
 
 def _informativeness(job: Job) -> tuple[int, int, int, int]:
     """Sort key: the higher, the better a record is worth keeping."""
+    salary_obj = getattr(job, "salary", None)
     return (
-        1 if job.salary.origin == SalaryOrigin.PUBLISHED else 0,
+        1 if salary_obj and salary_obj.origin == SalaryOrigin.PUBLISHED else 0,
         1 if job.posted_at else 0,
         len(job.description or ""),
-        len(job.requirements),
+        len(job.requirements or []),
     )
 
 
@@ -151,15 +142,23 @@ def _merge(winner: Job, loser: Job) -> Job:
         winner.apply_url = loser.link
     if not winner.description and loser.description:
         winner.description = loser.description
-    if winner.salary.origin != SalaryOrigin.PUBLISHED and loser.salary.origin == SalaryOrigin.PUBLISHED:
+        
+    winner_salary = getattr(winner, "salary", None)
+    loser_salary = getattr(loser, "salary", None)
+    if (not winner_salary or winner_salary.origin != SalaryOrigin.PUBLISHED) and (loser_salary and loser_salary.origin == SalaryOrigin.PUBLISHED):
         winner.salary = loser.salary
+        
     if not winner.posted_at and loser.posted_at:
         winner.posted_at = loser.posted_at
     if winner.min_years_experience is None:
         winner.min_years_experience = loser.min_years_experience
-    for alert in loser.alerts:
+        
+    if winner.alerts is None:
+        winner.alerts = []
+    for alert in (loser.alerts or []):
         if alert not in winner.alerts:
             winner.alerts.append(alert)
+            
     seen_also = winner.raw.setdefault("also_seen_on", [])
     if loser.source not in seen_also and loser.source != winner.source:
         seen_also.append(loser.source)
@@ -203,13 +202,7 @@ def deduplicate(jobs: list[Job]) -> list[Job]:
 
 
 def split_known(jobs: list[Job], known: Iterable[Job]) -> tuple[list[Job], list[tuple[Job, Job]]]:
-    """Separate new ids that are really a job already on file.
-
-    Returns ``(fresh, duplicates)`` where each duplicate is ``(job, known_job)``.
-    A job whose *id* is already known is not a duplicate — it is the same ad
-    seen again, and passes through. ``known`` should include closed and aged-out
-    jobs: a reposted ad that was retired must not come back as new.
-    """
+    """Separate new ids that are really a job already on file."""
     known = list(known)
     known_ids = {job.id for job in known}
     by_url: dict[str, Job] = {}

@@ -96,11 +96,7 @@ class CompanyBoardsSource(JobSource):
         return self._detect(entry)
 
     def _detect(self, domain: str) -> tuple[str | None, str | None]:
-        """Find which ATS ``domain`` uses by reading its careers page.
-
-        Cached by the fetcher, so this costs at most a couple of requests the
-        first time a company is added and nothing afterwards.
-        """
+        """Find which ATS ``domain`` uses by reading its careers page."""
         host = re.sub(r"^https?://", "", domain).strip("/").split("/")[0]
         if not host:
             return None, None
@@ -138,17 +134,17 @@ class CompanyBoardsSource(JobSource):
 
     @staticmethod
     def _company_from(slug: str, label: str) -> str:
-        pretty = re.sub(r"[-_]+", " ", slug).strip().title()
+        pretty = re.sub(r"[-_]+", " ", str(slug)).strip().title()
         return pretty or label
 
     def _parse_greenhouse(self, payload: dict, slug: str, label: str) -> list[Job]:
         jobs = []
         for entry in payload.get("jobs", []):
-            description = strip_html(entry.get("content", ""))
-            location = (entry.get("location") or {}).get("name", "")
+            description = strip_html(str(entry.get("content") or ""))
+            location = str((entry.get("location") or {}).get("name") or "")
             jobs.append(self._make(
-                "greenhouse", slug, entry.get("id"), entry.get("title", ""),
-                self._company_from(slug, label), location, entry.get("absolute_url", ""),
+                "greenhouse", slug, str(entry.get("id") or ""), str(entry.get("title") or ""),
+                self._company_from(slug, label), location, str(entry.get("absolute_url") or ""),
                 entry.get("updated_at") or entry.get("first_published"), description))
         return jobs
 
@@ -156,31 +152,32 @@ class CompanyBoardsSource(JobSource):
         jobs = []
         for entry in payload:
             categories = entry.get("categories") or {}
-            description = entry.get("descriptionPlain") or strip_html(entry.get("description", ""))
+            description = str(entry.get("descriptionPlain") or strip_html(str(entry.get("description") or "")))
             extra = " ".join(
-                strip_html(item.get("content", "")) for item in (entry.get("lists") or [])
+                strip_html(str(item.get("content") or "")) for item in (entry.get("lists") or []) if isinstance(item, dict)
             )
             jobs.append(self._make(
-                "lever", slug, entry.get("id"), entry.get("text", ""),
-                self._company_from(slug, label), categories.get("location", ""),
-                entry.get("hostedUrl", ""), entry.get("createdAt"),
+                "lever", slug, str(entry.get("id") or ""), str(entry.get("text") or ""),
+                self._company_from(slug, label), str(categories.get("location") or ""),
+                str(entry.get("hostedUrl") or ""), entry.get("createdAt"),
                 f"{description}\n\n{extra}".strip()))
         return jobs
 
     def _parse_ashby(self, payload: dict, slug: str, label: str) -> list[Job]:
         jobs = []
         for entry in payload.get("jobs", []):
+            desc_raw = str(entry.get("descriptionPlain") or strip_html(str(entry.get("descriptionHtml") or "")))
             job = self._make(
-                "ashby", slug, entry.get("id"), entry.get("title", ""),
-                self._company_from(slug, label), entry.get("location", ""),
-                entry.get("jobUrl", ""), entry.get("publishedAt"),
-                entry.get("descriptionPlain") or strip_html(entry.get("descriptionHtml", "")))
+                "ashby", slug, str(entry.get("id") or ""), str(entry.get("title") or ""),
+                self._company_from(slug, label), str(entry.get("location") or ""),
+                str(entry.get("jobUrl") or ""), entry.get("publishedAt"),
+                desc_raw)
             if entry.get("isRemote"):
                 job.work_mode = WorkMode.REMOTE
             compensation = entry.get("compensation") or {}
             summary = compensation.get("compensationTierSummary")
             if summary:
-                parsed = extract_salary(summary)
+                parsed = extract_salary(str(summary))
                 if parsed:
                     parsed.basis = f"Published on the Ashby board: {summary}"
                     job.salary = parsed
@@ -189,18 +186,18 @@ class CompanyBoardsSource(JobSource):
 
     def _parse_workable(self, payload: dict, slug: str, label: str) -> list[Job]:
         jobs = []
-        company = (payload.get("name") or self._company_from(slug, label))
+        company = str(payload.get("name") or self._company_from(slug, label))
         for entry in payload.get("jobs", []):
             location = ", ".join(
-                filter(None, [(entry.get("location") or {}).get("city"),
-                              (entry.get("location") or {}).get("country")])
+                filter(None, [str((entry.get("location") or {}).get("city") or ""),
+                              str((entry.get("location") or {}).get("country") or "")])
             )
             description = strip_html(
                 f"{entry.get('description', '')}\n{entry.get('requirements', '')}"
             )
             jobs.append(self._make(
-                "workable", slug, entry.get("shortcode"), entry.get("title", ""),
-                company, location, entry.get("url", ""),
+                "workable", slug, str(entry.get("shortcode") or ""), str(entry.get("title") or ""),
+                company, location, str(entry.get("url") or ""),
                 entry.get("published_on"), description))
         return jobs
 
@@ -211,9 +208,9 @@ class CompanyBoardsSource(JobSource):
                 f"{entry.get('description', '')}\n{entry.get('requirements', '')}"
             )
             jobs.append(self._make(
-                "recruitee", slug, entry.get("id"), entry.get("title", ""),
-                self._company_from(slug, label), entry.get("location", ""),
-                entry.get("careers_url") or entry.get("careers_apply_url", ""),
+                "recruitee", slug, str(entry.get("id") or ""), str(entry.get("title") or ""),
+                self._company_from(slug, label), str(entry.get("location") or ""),
+                str(entry.get("careers_url") or entry.get("careers_apply_url") or ""),
                 entry.get("published_at") or entry.get("created_at"), description))
         return jobs
 
@@ -221,11 +218,11 @@ class CompanyBoardsSource(JobSource):
         jobs = []
         for entry in payload.get("content", []):
             location = entry.get("location") or {}
-            place = ", ".join(filter(None, [location.get("city"), location.get("country")]))
+            place = ", ".join(filter(None, [str(location.get("city") or ""), str(location.get("country") or "")]))
             job = self._make(
-                "smartrecruiters", slug, entry.get("id"), entry.get("name", ""),
-                (entry.get("company") or {}).get("name") or self._company_from(slug, label),
-                place, entry.get("applyUrl") or entry.get("ref", ""),
+                "smartrecruiters", slug, str(entry.get("id") or ""), str(entry.get("name") or ""),
+                str((entry.get("company") or {}).get("name") or self._company_from(slug, label)),
+                place, str(entry.get("applyUrl") or entry.get("ref") or ""),
                 entry.get("releasedDate"), "")
             if location.get("remote"):
                 job.work_mode = WorkMode.REMOTE
@@ -236,10 +233,10 @@ class CompanyBoardsSource(JobSource):
         entries = payload if isinstance(payload, list) else payload.get("jobs", [])
         jobs = []
         for entry in entries:
-            description = strip_html(str(entry.get("description", "")))
+            description = strip_html(str(entry.get("description") or ""))
             jobs.append(self._make(
-                "personio", slug, entry.get("id"), entry.get("name", ""),
-                self._company_from(slug, label), entry.get("office", ""),
+                "personio", slug, str(entry.get("id") or ""), str(entry.get("name") or ""),
+                self._company_from(slug, label), str(entry.get("office") or ""),
                 f"https://{slug}.jobs.personio.de/job/{entry.get('id')}",
                 entry.get("createdAt"), description))
         return jobs

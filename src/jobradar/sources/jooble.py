@@ -47,19 +47,20 @@ class JoobleSource(JobSource):
         return jobs
 
     def _parse(self, entry: dict) -> Job | None:
-        description = strip_html(entry.get("snippet", ""))
-        location = entry.get("location", "")
+        description = strip_html(str(entry.get("snippet") or ""))
+        location = str(entry.get("location") or "")
         scope, regions = detect_remote_scope(description)
-        salary = extract_salary(entry.get("salary", "") or description) or Salary()
+        salary_str = str(entry.get("salary") or "") or description
+        salary = extract_salary(salary_str) or Salary()
         return self.make_job(
-            entry.get("id", ""),
-            title=entry.get("title", ""),
-            company=entry.get("company", ""),
+            str(entry.get("id") or ""),
+            title=str(entry.get("title") or ""),
+            company=str(entry.get("company") or ""),
             location=location,
             work_mode=detect_work_mode(description, location),
             remote_scope=scope,
             remote_regions=regions,
-            url=entry.get("link", ""),
+            url=str(entry.get("link") or ""),
             posted_at=parse_date(entry.get("updated")),
             description=description,
             language=detect_language(description),

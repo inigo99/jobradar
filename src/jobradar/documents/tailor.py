@@ -58,7 +58,7 @@ JUNIOR_CLAIMS: tuple[tuple[str, float], ...] = (
 
 #: Noise that job titles carry and CVs should not.
 TITLE_NOISE = re.compile(
-    r"\((?:m/f/d|m/w/d|h/f|f/m/x|remote|hybrid|[^)]{0,25}%[^)]*)\)|"
+    r"\((?:m/f/d\vert{}m/w/d\vert{}h/f\vert{}f/m/x\vert{}remote\vert{}hybrid\vert{}[^)]{0,25}\%[^)]*)\)|"
     r"\b(?:remote|100%\s*remote|teletrabajo|full[- ]time|part[- ]time)\b|"
     r"[–—-]\s*(?:remote|madrid|barcelona|berlin|london|spain|españa).*$",
     re.IGNORECASE,

@@ -62,11 +62,11 @@ class WeWorkRemotelySource(JobSource):
         return jobs
 
     def _parse_item(self, item: ElementTree.Element, terms: list[str]) -> Job | None:
-        title_raw = (item.findtext("title") or "").strip()
-        link = (item.findtext("link") or "").strip()
+        title_raw = str(item.findtext("title") or "").strip()
+        link = str(item.findtext("link") or "").strip()
         if not title_raw or not link:
             return None
-        description = strip_html(item.findtext("description") or "")
+        description = strip_html(str(item.findtext("description") or ""))
         if terms and not any(term in f"{title_raw} {description}".lower() for term in terms):
             return None
 
@@ -74,7 +74,7 @@ class WeWorkRemotelySource(JobSource):
         company, _, title = title_raw.partition(":")
         if not title:
             company, title = "", title_raw
-        region = (item.findtext("region") or "").strip()
+        region = str(item.findtext("region") or "").strip()
 
         # The body always wins over the region tag; see the module docstring.
         scope, regions = detect_remote_scope(description)

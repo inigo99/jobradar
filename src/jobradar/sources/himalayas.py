@@ -45,13 +45,13 @@ class HimalayasSource(JobSource):
         return jobs
 
     def _parse(self, entry: dict, terms: list[str]) -> Job | None:
-        title = entry.get("title", "")
-        description = strip_html(entry.get("description") or entry.get("excerpt") or "")
+        title = str(entry.get("title") or "")
+        description = strip_html(str(entry.get("description") or entry.get("excerpt") or ""))
         if terms and not any(t in f"{title} {description}".lower() for t in terms):
             return None
 
-        restrictions = [str(r) for r in (entry.get("locationRestrictions") or [])]
-        timezones = [str(t) for t in (entry.get("timezoneRestrictions") or [])]
+        restrictions = [str(r) for r in (entry.get("locationRestrictions") or []) if r]
+        timezones = [str(t) for t in (entry.get("timezoneRestrictions") or []) if t]
         if not restrictions:
             scope, regions = RemoteScope.WORLDWIDE, []
         elif len(restrictions) > 6:
@@ -61,24 +61,27 @@ class HimalayasSource(JobSource):
 
         salary = Salary()
         if entry.get("minSalary") and entry.get("maxSalary"):
-            salary = Salary(
-                minimum=int(entry["minSalary"]),
-                maximum=int(entry["maxSalary"]),
-                currency=(entry.get("salaryCurrency") or "USD").upper(),
-                origin=SalaryOrigin.PUBLISHED,
-                basis="Published on Himalayas.",
-            )
+            try:
+                salary = Salary(
+                    minimum=int(float(entry["minSalary"])),
+                    maximum=int(float(entry["maxSalary"])),
+                    currency=str(entry.get("salaryCurrency") or "USD").upper(),
+                    origin=SalaryOrigin.PUBLISHED,
+                    basis="Published on Himalayas.",
+                )
+            except (ValueError, TypeError):
+                pass
 
         native_id = str(entry.get("guid") or entry.get("id") or entry.get("applicationLink", ""))[:80]
         return self.make_job(
             native_id,
             title=title,
-            company=entry.get("companyName", ""),
+            company=str(entry.get("companyName") or ""),
             location=", ".join(restrictions) or "Remote",
             work_mode=WorkMode.REMOTE,
             remote_scope=scope,
             remote_regions=regions or timezones,
-            url=entry.get("applicationLink") or entry.get("url", ""),
+            url=str(entry.get("applicationLink") or entry.get("url") or ""),
             posted_at=parse_date(entry.get("pubDate")),
             description=description,
             language=detect_language(description),

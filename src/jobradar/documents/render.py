@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+from jinja2.exceptions import TemplateNotFound
 
 from ..config import Paths, Settings
 from ..models import Job, Profile, localized
@@ -97,7 +98,10 @@ def format_period(start: str, end: str | None, language: str) -> str:
         if len(parts) < 2:
             return year
         try:
-            month = MONTHS.get(language, MONTHS["en"])[int(parts[1]) - 1]
+            month_index = int(parts[1]) - 1
+            if month_index < 0:
+                raise ValueError("El mes 00 es inválido")
+            month = MONTHS.get(language, MONTHS["en"])[month_index]
         except (ValueError, IndexError):
             return year
         return f"{month} {year}"
@@ -196,7 +200,12 @@ def _environment() -> Environment:
 
 def render_html(context: dict, template_name: str = "classic", scale: float = 1.0) -> str:
     """Render the CV to a standalone HTML document."""
-    template = _environment().get_template(f"{template_name}.html")
+    env = _environment()
+    try:
+        template = env.get_template(f"{template_name}.html")
+    except TemplateNotFound:
+        log.warning(f"La plantilla '{template_name}' no existe, usando 'classic.html' por defecto.")
+        template = env.get_template("classic.html")
     return template.render(**context, scale=scale)
 
 

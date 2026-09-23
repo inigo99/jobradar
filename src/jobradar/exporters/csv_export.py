@@ -44,9 +44,9 @@ def rows(database: Database) -> list[dict]:
                 "min_years_experience": job.min_years_experience or "",
                 "source": job.source,
                 "url": job.link,
-                "strengths": "; ".join(score.strengths) if score else "",
-                "gaps": "; ".join(score.gaps) if score else "",
-                "alerts": "; ".join(job.alerts),
+                "strengths": "; ".join(score.strengths or []) if score else "",
+                "gaps": "; ".join(score.gaps or []) if score else "",
+                "alerts": "; ".join(job.alerts or []),
                 "notes": application.notes if application else "",
                 "closed": "yes" if job.closed else "",
             }
