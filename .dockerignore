@@ -1,0 +1,14 @@
+.git/
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+data/
+*.sqlite3
+.env

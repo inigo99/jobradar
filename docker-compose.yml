@@ -1,0 +1,20 @@
+services:
+  jobradar:
+    build: .
+    container_name: jobradar_app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Map the ./data folder from your host to the /data folder in the container.
+      # All data generated or saved by JobRadar will persist here.
+      - ./data:/data
+    environment:
+      # Pass the environment variables here instead of using a .env file in the image
+      - JOBRADAR_ALLOWED_HOSTS=localhost,127.0.0.1
+      # - GEMINI_API_KEY=your_key_here
+      # - ANTHROPIC_API_KEY=your_key_here
+      # - OPENAI_API_KEY=your_key_here
+      # - ADZUNA_APP_ID=your_id_here
+      # - ADZUNA_APP_KEY=your_key_here
+      # - JOOBLE_API_KEY=your_key_here
