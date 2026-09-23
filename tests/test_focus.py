@@ -76,3 +76,11 @@ def test_is_senior_title_matches_other_languages():
     assert is_senior_title("Arquitecto de Software")
     assert is_senior_title("Head of Data")
     assert not is_senior_title("Data Engineer")
+
+
+def test_focus_survives_null_fields():
+    job = _job()
+    setattr(job, "title", None)
+    setattr(job, "salary", None)
+    focus, reason = focus_for(job, SCORE, TODAY)
+    assert focus is not None

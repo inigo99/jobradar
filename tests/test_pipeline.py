@@ -1,6 +1,7 @@
 """The pipeline end to end, against a fake source and a temporary database."""
 
 from datetime import date, timedelta
+from typing import Any, cast
 
 import pytest
 
@@ -21,7 +22,7 @@ class FakeSource(JobSource):
     name = "Fake board"
 
     def __init__(self, jobs, closed=()):
-        super().__init__(fetcher=None, options={})
+        super().__init__(fetcher=cast(Any, None), options={})
         self._jobs = jobs
         self._closed = set(closed)
 

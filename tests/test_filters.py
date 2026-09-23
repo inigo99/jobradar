@@ -78,3 +78,14 @@ def test_excluded_keyword():
 
 def test_explain_groups_reasons():
     assert explain({"a": "published 9 days ago", "b": "published 12 days ago"})[0][1] == 2
+
+
+def test_filters_survive_null_fields():
+    job = make_job()
+    setattr(job, "title", None)
+    setattr(job, "company", None)
+    setattr(job, "description", None)
+    setattr(job, "location", None)
+    setattr(job, "salary", None)
+    outcome = apply_filters(job, Filters(), today=TODAY)
+    assert outcome is not None

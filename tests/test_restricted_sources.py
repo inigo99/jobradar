@@ -12,6 +12,8 @@ the network or a real browser.
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 from jobradar.sources.base import SearchQuery
 from jobradar.sources.optional.infojobs import InfoJobsSource
 from jobradar.sources.optional.linkedin import LinkedInGuestSource
@@ -51,7 +53,7 @@ def _query(**overrides):
 
 def test_linkedin_search_uses_dynamic_browser():
     fetcher = RecordingFetcher({"https://www.linkedin.com/jobs-guest": ""})
-    source = LinkedInGuestSource(fetcher)
+    source = LinkedInGuestSource(cast(Any, fetcher))
     source.search(_query())
     assert fetcher.calls, "search() must call fetcher.get at least once"
     assert all(c["browser"] == "dynamic" for c in fetcher.calls)
@@ -59,7 +61,7 @@ def test_linkedin_search_uses_dynamic_browser():
 
 def test_linkedin_fetch_description_uses_dynamic_browser():
     fetcher = RecordingFetcher({"https://www.linkedin.com/jobs-guest": "<html>desc</html>"})
-    source = LinkedInGuestSource(fetcher)
+    source = LinkedInGuestSource(cast(Any, fetcher))
     job = source.make_job("123", title="x", company="y", location="Remote")
     source.fetch_description(job)
     assert fetcher.calls[-1]["browser"] == "dynamic"
@@ -67,7 +69,7 @@ def test_linkedin_fetch_description_uses_dynamic_browser():
 
 def test_linkedin_check_open_uses_dynamic_browser():
     fetcher = RecordingFetcher({"https://www.linkedin.com/jobs-guest": "still open"})
-    source = LinkedInGuestSource(fetcher)
+    source = LinkedInGuestSource(cast(Any, fetcher))
     job = source.make_job("123", title="x", company="y", location="Remote",
                            url="https://www.linkedin.com/jobs/view/123/")
     source.check_open(job)
@@ -88,7 +90,7 @@ def test_infojobs_search_listing_is_dynamic_and_detail_is_stealthy():
         "https://www.infojobs.net/jobsearch": listing,
         "https://www.infojobs.net/pamplona/data-scientist/of-iabc123": "<html>ad body</html>",
     })
-    source = InfoJobsSource(fetcher)
+    source = InfoJobsSource(cast(Any, fetcher))
     source.search(_query(titles=["data scientist"]))
 
     listing_calls = [c for c in fetcher.calls if "jobsearch" in c["url"]]
@@ -99,7 +101,7 @@ def test_infojobs_search_listing_is_dynamic_and_detail_is_stealthy():
 
 def test_infojobs_check_open_uses_stealthy_browser():
     fetcher = RecordingFetcher({"https://www.infojobs.net/x/y/of-iabc": "still open"})
-    source = InfoJobsSource(fetcher)
+    source = InfoJobsSource(cast(Any, fetcher))
     job = source.make_job("abc", title="x", company="y", location="Pamplona",
                            url="https://www.infojobs.net/x/y/of-iabc")
     source.check_open(job)
@@ -120,7 +122,7 @@ def test_tecnoempleo_search_uses_dynamic_browser():
         "https://www.tecnoempleo.com/ofertas-trabajo/": card,
         "https://www.tecnoempleo.com/data-scientist/rf-abc123.html": "<html>ad</html>",
     })
-    source = TecnoempleoSource(fetcher)
+    source = TecnoempleoSource(cast(Any, fetcher))
     source.search(_query(titles=["data scientist"]))
     assert fetcher.calls, "search() must call fetcher.get at least once"
     assert all(c["browser"] == "dynamic" for c in fetcher.calls)
@@ -128,7 +130,7 @@ def test_tecnoempleo_search_uses_dynamic_browser():
 
 def test_tecnoempleo_check_open_uses_dynamic_browser():
     fetcher = RecordingFetcher({"https://www.tecnoempleo.com/x.html": "still open"})
-    source = TecnoempleoSource(fetcher)
+    source = TecnoempleoSource(cast(Any, fetcher))
     job = source.make_job("abc", title="x", company="y", location="Madrid",
                            url="https://www.tecnoempleo.com/x.html")
     source.check_open(job)

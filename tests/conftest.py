@@ -6,6 +6,8 @@ a real installation and can run in parallel.
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from jobradar.config import Paths, Settings
@@ -67,7 +69,7 @@ def settings():
 
 def make_job(**overrides) -> Job:
     """A plausible job, with everything the filters look at already set."""
-    defaults = dict(
+    defaults: dict[str, Any] = dict(
         source="test",
         native_id="1",
         title="Backend Engineer",

@@ -90,8 +90,8 @@ def _install_fake_scrapling(monkeypatch, *, dynamic_fetch=None, stealthy_fetch=N
     class _StealthyFetcher:
         fetch = staticmethod(stealthy_fetch) if stealthy_fetch else None
 
-    fake_module.DynamicFetcher = _DynamicFetcher
-    fake_module.StealthyFetcher = _StealthyFetcher
+    setattr(fake_module, "DynamicFetcher", _DynamicFetcher)
+    setattr(fake_module, "StealthyFetcher", _StealthyFetcher)
     monkeypatch.setitem(sys.modules, "scrapling.fetchers", fake_module)
 
 

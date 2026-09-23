@@ -34,10 +34,12 @@ def test_remote_scope_worldwide_and_country_lock():
 
 def test_salary_range_and_annualisation():
     salary = extract_salary("Salario: 40.000 - 50.000 € brutos/año")
+    assert salary is not None
     assert (salary.minimum, salary.maximum, salary.currency) == (40000, 50000, "EUR")
     assert salary.origin == SalaryOrigin.PUBLISHED
 
     monthly = extract_salary("3.000 € per month")
+    assert monthly is not None
     assert monthly.minimum == 36000
 
 

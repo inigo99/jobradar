@@ -6,6 +6,7 @@ its rules with. They are here so none of them comes back.
 """
 
 from datetime import date, timedelta
+from typing import Any, cast
 
 import pytest
 
@@ -35,6 +36,30 @@ from jobradar.web.app import request_refusal
 from tests.conftest import make_job
 
 TODAY = date(2026, 9, 23)
+
+
+# ---------------------------------------------------------------------------
+# Pipeline Resistance (Null Injection)
+# ---------------------------------------------------------------------------
+
+def test_pipeline_survives_null_fields(database, profile, configured):
+    """Verify that the pipeline does not crash when dealing with corrupt jobs where fields are None."""
+    malformed = make_job(native_id="null-test")
+    # Bypass Pydantic validation by mutating after creation
+    setattr(malformed, "title", None)
+    setattr(malformed, "company", None)
+    setattr(malformed, "description", None)
+    setattr(malformed, "location", None)
+    setattr(malformed, "salary", None)
+    setattr(malformed, "requirements", None)
+    setattr(malformed, "alerts", None)
+
+    source = CountingSource([malformed])
+    source.fetch_description = cast(Any, lambda job: None)
+    
+    result = SearchPipeline(configured, profile, database, sources=[source], today=TODAY).run()
+    assert result is not None
+    assert len(result.run.errors) == 0
 
 
 # ---------------------------------------------------------------------------
@@ -96,7 +121,7 @@ def test_linkedin_listing_from_remote_filter_is_tagged_remote():
         '<span class="job-search-card__location">Barcelona, Spain</span>'
         "</div></li>"
     )
-    source = LinkedInGuestSource(fetcher=None, options={})
+    source = LinkedInGuestSource(fetcher=cast(Any, None), options={})
     jobs = source._parse_cards(card, remote_filtered=True)
     if not jobs:  # markup assumptions live in the adapter's own tests
         pytest.skip("card markup not recognised by this fixture")
@@ -291,7 +316,7 @@ class CountingSource(JobSource):
     name = "Counting board"
 
     def __init__(self, jobs):
-        super().__init__(fetcher=None, options={})
+        super().__init__(fetcher=cast(Any, None), options={})
         self._jobs = jobs
         self.fetches = 0
 

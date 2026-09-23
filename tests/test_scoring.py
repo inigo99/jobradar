@@ -41,3 +41,13 @@ def test_tailored_score_beats_base_but_gaps_remain():
 
 def test_job_without_requirements_scores_zero_rather_than_raising():
     assert score_job(make_job(requirements=[]), build_profile()) == MatchScore()
+
+
+def test_scoring_survives_null_evidence():
+    profile = Profile()
+    # Bypass Pydantic validation
+    object.__setattr__(profile, "evidence", None)
+    object.__setattr__(profile, "ceiling", None)
+    job = make_job()
+    score = score_job(job, profile)
+    assert score.base == 0.0

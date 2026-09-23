@@ -41,3 +41,14 @@ def test_different_roles_at_one_company_are_not_merged():
     a = make_job(title="Backend Engineer", native_id="1")
     b = make_job(title="Marketing Manager", native_id="2")
     assert len(deduplicate([a, b])) == 2
+
+
+def test_dedupe_survives_null_fields():
+    a = make_job(native_id="1")
+    setattr(a, "title", None)
+    setattr(a, "company", None)
+    b = make_job(native_id="2")
+    setattr(b, "title", None)
+    setattr(b, "company", None)
+    # No debería crashear, ni debería combinarlos a ciegas
+    assert len(deduplicate([a, b])) == 2
