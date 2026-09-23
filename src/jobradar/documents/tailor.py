@@ -114,9 +114,10 @@ class TailoredCV:
 # ---------------------------------------------------------------------------
 
 
-def clean_title(title: str) -> str:
+def clean_title(title: str | None) -> str:
     """Strip the noise job boards add to titles."""
-    cleaned = TITLE_NOISE.sub(" ", title or "")
+    title_no_tags = re.sub(r"(?i)\([mfdwx/]+\)", "", title or "")
+    cleaned = TITLE_NOISE.sub(" ", title_no_tags)
     cleaned = re.sub(r"\s{2,}", " ", cleaned).strip(" -–—|,")
     return " ".join(cleaned.split()[:6])
 
@@ -153,7 +154,10 @@ def rank_bullets(profile: Profile, job: Job, surfaced: set[str]) -> dict[str, li
     CV is deliberately surfacing. Ties keep the profile's own order, so a CV
     does not reshuffle randomly between two similar jobs.
     """
-    weights = {requirement.key: requirement.weight for requirement in job.requirements}
+    weights = {
+        requirement.key: requirement.weight
+        for requirement in (job.requirements or [])
+    }
     order: dict[str, list[str]] = {}
     for experience in profile.experience:
         scored: list[tuple[float, int, str]] = []
@@ -171,7 +175,10 @@ def rank_bullets(profile: Profile, job: Job, surfaced: set[str]) -> dict[str, li
 
 def rank_skill_groups(profile: Profile, job: Job) -> list[str]:
     """Put the skill group that answers this ad first."""
-    weights = {requirement.key: requirement.weight for requirement in job.requirements}
+    weights = {
+        requirement.key: requirement.weight
+        for requirement in (job.requirements or [])
+    }
     scored: list[tuple[float, int, str]] = []
     for position, group in enumerate(profile.skills):
         keys = set(find_skills(" , ".join(group.items)))
@@ -183,7 +190,10 @@ def rank_skill_groups(profile: Profile, job: Job) -> list[str]:
 
 def _best_achievement(profile: Profile, job: Job, language: str) -> str:
     """The single achievement that best answers this ad, verbatim."""
-    weights = {requirement.key: requirement.weight for requirement in job.requirements}
+    weights = {
+        requirement.key: requirement.weight
+        for requirement in (job.requirements or [])
+    }
     best_text, best_score = "", -1.0
     for bullet in profile.all_bullets():
         keys = set(bullet.skills) | set(find_skills(localized(bullet.text, language)))

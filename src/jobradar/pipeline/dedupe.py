@@ -94,7 +94,7 @@ def company_key(name: str) -> str:
     return " ".join(words) or normalise(name)
 
 
-def title_tokens(title: str) -> set[str]:
+def title_tokens(title: str | None) -> set[str]:
     """The title words that actually tell one vacancy from another."""
     plain = _TITLE_TAIL.sub("", title or "")
     words = [w for w in normalise(plain).split() if len(w) > 1 and not w.isdigit()]
@@ -104,13 +104,13 @@ def title_tokens(title: str) -> set[str]:
 
 def job_key(job: Job) -> str:
     """Company + title, normalised. Two jobs with the same key are one job."""
-    return f"{company_key(job.company)}|{' '.join(sorted(title_tokens(job.title)))}"
+    return f"{company_key(job.company or '')}|{' '.join(sorted(title_tokens(job.title)))}"
 
 
 def _url(job: Job) -> str:
     """The ad URL as a dedupe signal, scoped to the employer."""
     url = (job.apply_url or job.url or "").strip().rstrip("/").lower()
-    return f"{company_key(job.company)}@{url}" if url else ""
+    return f"{company_key(job.company or '')}@{url}" if url else ""
 
 
 def _informativeness(job: Job) -> tuple[int, int, int, int]:
@@ -186,18 +186,33 @@ def deduplicate(jobs: list[Job]) -> list[Job]:
 
     by_key: dict[str, Job] = {}
     for job in by_url.values():
+        # Prevent jobs with null fields from generating identical keys
+        if job.title is None or job.company is None:
+            by_key[f"id:{job.id}"] = job
+            continue
+            
         key = job_key(job)
+        if not key:
+            by_key[f"id:{job.id}"] = job
+            continue
+            
         existing = by_key.get(key)
         by_key[key] = _merge(existing, job) if existing else job
 
     survivors: list[Job] = []
     for job in by_key.values():
+        # Skip similarity checks for records with insufficient data
+        if job.title is None or job.company is None:
+            survivors.append(job)
+            continue
+            
         for kept in survivors:
-            if _same_job(kept, job):
+            if kept.title is not None and kept.company is not None and _same_job(kept, job):
                 _merge(kept, job)
                 break
         else:
             survivors.append(job)
+            
     return survivors
 
 
@@ -213,7 +228,7 @@ def split_known(jobs: list[Job], known: Iterable[Job]) -> tuple[list[Job], list[
         if url:
             by_url.setdefault(url, job)
         by_key.setdefault(job_key(job), job)
-        by_company.setdefault(company_key(job.company), []).append(job)
+        by_company.setdefault(company_key(job.company or ""), []).append(job)
 
     fresh: list[Job] = []
     duplicates: list[tuple[Job, Job]] = []
