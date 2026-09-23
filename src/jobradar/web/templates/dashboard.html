@@ -250,6 +250,11 @@ function toast(message, ms = 3200) {
   setTimeout(() => node.remove(), ms);
 }
 
+const localDateString = (date = new Date()) => {
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+};
+
 async function api(path, options = {}) {
   const response = await fetch(path, {
     headers: options.body && !(options.body instanceof FormData)
@@ -354,7 +359,7 @@ function jobCard(job) {
   }
   if (job.status !== "applied") {
     actions.append(button("Mark as applied", () =>
-      track(job, { status: "applied", stage: "applied", applied_on: new Date().toISOString().slice(0, 10) })));
+      track(job, { status: "applied", stage: "applied", applied_on: localDateString() })));
   }
   card.append(actions);
 
@@ -523,7 +528,7 @@ function mondayOfThisWeek() {
   const now = new Date();
   const day = (now.getDay() + 6) % 7;          // Monday = 0
   const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day);
-  return monday.toISOString().slice(0, 10);
+  return localDateString(monday);
 }
 
 function appliedThisWeek() {
@@ -594,7 +599,7 @@ function renderFiltered() {
 
   const shapes = tally.by_shape || [];
   if (shapes.length) {
-    const top = shapes[0][1];
+    const top = shapes[0][1] || 1;
     panel.append(
       el("p", { className: "lede" }, "The commonest reasons, with the numbers blanked so they group:"),
       el("ul", { className: "bars" },
@@ -1048,6 +1053,7 @@ async function saveSettings() {
   f.require_published_salary = $("#s_published").checked;
 
   settings.sources.enabled = [...document.querySelectorAll(".s_source:checked")].map(n => n.value);
+  settings.sources.disabled = [...document.querySelectorAll(".s_source:not(:checked)")].map(n => n.value);
   settings.sources.company_domains = list("s_domains");
   settings.sources.request_delay = Number(value("s_delay") || 1);
   settings.sources.max_results_per_source = Number(value("s_limit") || 100);
