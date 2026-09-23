@@ -30,7 +30,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -142,8 +142,8 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
     """
     load_dotenv()
     paths = (paths or Paths.resolve()).ensure()
-    # A single connection is reused: SQLite handles this fine for one local
-    # user, and it keeps the settings the CLI wrote immediately visible.
+    # Connections are now isolated per-thread in the Database wrapper,
+    # ensuring safety for concurrent background tasks.
     database = Database(paths)
 
     @asynccontextmanager
@@ -210,15 +210,19 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
     # -- state ------------------------------------------------------------
 
     @app.get("/api/state")
-    def state():
-        """Everything the page needs in one request."""
+    def state(limit: int = Query(500, description="Max jobs to load"), offset: int = Query(0)):
+        """Everything the page needs in one request.
+        
+        A limit protects browser memory by dropping the oldest un-actioned jobs
+        from the initial payload once the database grows too large.
+        """
         settings = database.load_settings()
         profile = database.load_profile()
         scores = database.all_scores()
         applications = database.all_applications()
         profile_years = profile.years_of_experience() if profile else None
         jobs = []
-        for job in database.list_jobs(include_closed=True):
+        for job in database.list_jobs(include_closed=True, limit=limit, offset=offset):
             application = applications.get(job.id) or Application(job_id=job.id)
             documents = database.documents_for(job.id)
             jobs.append(

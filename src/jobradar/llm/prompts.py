@@ -36,6 +36,22 @@ Achievements follow the XYZ formula: accomplished X, as measured by Y, by doing 
 Keep the numbers that are already in the profile; never invent or round new ones."""
 
 
+def truncate_by_tokens(text: str, max_tokens: int) -> str:
+    """Safely truncate text based on token count instead of arbitrary characters."""
+    if not text:
+        return ""
+    try:
+        import tiktoken
+        enc = tiktoken.get_encoding("cl100k_base")
+        tokens = enc.encode(text)
+        if len(tokens) <= max_tokens:
+            return text
+        return enc.decode(tokens[:max_tokens])
+    except ImportError:
+        # Crude fallback when tiktoken is not installed (~4 chars per token)
+        return text[:max_tokens * 4]
+
+
 def _profile_digest(profile: Profile, language: str) -> str:
     """Compact, faithful rendering of the profile for a prompt.
 
@@ -85,7 +101,7 @@ def _profile_digest(profile: Profile, language: str) -> str:
     return json.dumps(payload, ensure_ascii=False, indent=1)
 
 
-def _job_digest(job: Job, description_limit: int = 6000) -> str:
+def _job_digest(job: Job, token_limit: int = 1500) -> str:
     return json.dumps(
         {
             "title": job.title,
@@ -93,7 +109,7 @@ def _job_digest(job: Job, description_limit: int = 6000) -> str:
             "location": job.location,
             "work_mode": job.work_mode.value if hasattr(job.work_mode, "value") else str(job.work_mode),
             "language": job.language,
-            "description": (job.description or "")[:description_limit],
+            "description": truncate_by_tokens(job.description or "", token_limit),
         },
         ensure_ascii=False,
         indent=1,
@@ -181,7 +197,7 @@ Never include a skill the CV does not mention at all.
 emphasise it — how well the person could defend it in an interview given what the CV
 shows. It is never lower than the evidence, and for a skill only listed once with no
 supporting work it should stay close to it."""
-    return system, f"Language of the CV: {language}\n\nCV text:\n{(text or '')[:20000]}"
+    return system, f"Language of the CV: {language}\n\nCV text:\n{truncate_by_tokens(text, 5000)}"
 
 
 # ---------------------------------------------------------------------------
@@ -258,7 +274,7 @@ Constraints:
 {_profile_digest(profile, language)}
 
 Job advertisement:
-{_job_digest(job, 4000)}
+{_job_digest(job, 1000)}
 
 The candidate's main gaps against this job: {", ".join(gaps or []) or "(none identified)"}"""
     return system, user
@@ -284,7 +300,7 @@ Write in {language}. Return plain text only."""
 {_profile_digest(profile, language)}
 
 Job advertisement:
-{_job_digest(job, 4000)}
+{_job_digest(job, 1000)}
 
 Things the advertisement leaves unclear, worth asking about:
 {", ".join(alerts or []) or "(nothing flagged)"}"""

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from datetime import date, datetime, timezone
@@ -143,18 +144,25 @@ def _json(value: Any) -> str:
 
 
 class Database:
-    """Thin, dependency-free wrapper around the SQLite file."""
+    """Dependency-free wrapper around the SQLite file, thread-safe."""
 
     def __init__(self, paths: Paths | None = None, path: str | Path | None = None):
         self.paths = paths or Paths.resolve()
         self.paths.ensure()
         self.path = Path(path) if path else self.paths.db
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.connection = sqlite3.connect(self.path, check_same_thread=False)
-        self.connection.row_factory = sqlite3.Row
-        self.connection.execute("PRAGMA foreign_keys = ON")
-        self.connection.execute("PRAGMA journal_mode = WAL")
+        self._local = threading.local()
         self._migrate()
+
+    def _get_conn(self) -> sqlite3.Connection:
+        """Returns a thread-local SQLite connection to avoid 'database is locked' errors."""
+        if not hasattr(self._local, "conn"):
+            conn = sqlite3.connect(self.path, timeout=20.0, check_same_thread=False)
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA foreign_keys = ON")
+            conn.execute("PRAGMA journal_mode = WAL")
+            self._local.conn = conn
+        return self._local.conn
 
     # -- lifecycle ---------------------------------------------------------
 
@@ -168,18 +176,21 @@ class Database:
 
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Cursor]:
-        cursor = self.connection.cursor()
+        conn = self._get_conn()
+        cursor = conn.cursor()
         try:
             yield cursor
-            self.connection.commit()
+            conn.commit()
         except Exception:
-            self.connection.rollback()
+            conn.rollback()
             raise
         finally:
             cursor.close()
 
     def close(self) -> None:
-        self.connection.close()
+        if hasattr(self._local, "conn"):
+            self._local.conn.close()
+            del self._local.conn
 
     def __enter__(self) -> Database:
         return self
@@ -190,7 +201,7 @@ class Database:
     # -- key/value documents (settings, profile) ---------------------------
 
     def _get_doc(self, key: str) -> dict | None:
-        row = self.connection.execute(
+        row = self._get_conn().execute(
             "SELECT value FROM documents_kv WHERE key = ?", (key,)
         ).fetchone()
         return json.loads(row["value"]) if row else None
@@ -264,17 +275,22 @@ class Database:
         return new, updated
 
     def get_job(self, job_id: str) -> Job | None:
-        row = self.connection.execute(
+        row = self._get_conn().execute(
             "SELECT payload, first_seen, last_seen, closed, closed_reason FROM jobs WHERE id = ?",
             (job_id,),
         ).fetchone()
         return self._row_to_job(row) if row else None
 
-    def list_jobs(self, include_closed: bool = False) -> list[Job]:
+    def list_jobs(self, include_closed: bool = False, limit: int | None = None, offset: int = 0) -> list[Job]:
         sql = "SELECT payload, first_seen, last_seen, closed, closed_reason FROM jobs"
+        params = []
         if not include_closed:
             sql += " WHERE closed = 0"
-        return [self._row_to_job(row) for row in self.connection.execute(sql)]
+        sql += " ORDER BY first_seen DESC"
+        if limit is not None:
+            sql += " LIMIT ? OFFSET ?"
+            params.extend([limit, offset])
+        return [self._row_to_job(row) for row in self._get_conn().execute(sql, params)]
 
     @staticmethod
     def _row_to_job(row: sqlite3.Row) -> Job:
@@ -284,13 +300,13 @@ class Database:
         return job
 
     def known_job_ids(self) -> set[str]:
-        return {r["id"] for r in self.connection.execute("SELECT id FROM jobs")}
+        return {r["id"] for r in self._get_conn().execute("SELECT id FROM jobs")}
 
     def known_fingerprints(self) -> dict[str, str]:
         """fingerprint -> job id, for cross-source duplicate detection."""
         return {
             r["fingerprint"]: r["id"]
-            for r in self.connection.execute("SELECT id, fingerprint FROM jobs")
+            for r in self._get_conn().execute("SELECT id, fingerprint FROM jobs")
         }
 
     def mark_closed(self, job_id: str, reason: str) -> None:
@@ -318,7 +334,7 @@ class Database:
 
     def closed_job_ids(self) -> set[str]:
         """Ids that must never be re-added by a later search run."""
-        return {r["job_id"] for r in self.connection.execute("SELECT job_id FROM closed_jobs")}
+        return {r["job_id"] for r in self._get_conn().execute("SELECT job_id FROM closed_jobs")}
 
     # -- filtered-out jobs --------------------------------------------------
 
@@ -359,7 +375,7 @@ class Database:
                 "category": r["category"], "filtered_at": r["filtered_at"],
                 "url": json.loads(r["payload"]).get("url", ""),
             }
-            for r in self.connection.execute(
+            for r in self._get_conn().execute(
                 "SELECT * FROM filtered_jobs ORDER BY filtered_at DESC, company LIMIT ?",
                 (limit,),
             )
@@ -373,14 +389,14 @@ class Database:
         """
         by_category = [
             (r["category"], r["n"])
-            for r in self.connection.execute(
+            for r in self._get_conn().execute(
                 "SELECT category, COUNT(*) AS n FROM filtered_jobs "
                 "GROUP BY category ORDER BY n DESC"
             )
         ]
         by_shape = [
             (r["reason_shape"], r["n"])
-            for r in self.connection.execute(
+            for r in self._get_conn().execute(
                 "SELECT reason_shape, COUNT(*) AS n FROM filtered_jobs "
                 "GROUP BY reason_shape ORDER BY n DESC LIMIT 12"
             )
@@ -388,18 +404,13 @@ class Database:
         return {"by_category": by_category, "by_shape": by_shape}
 
     def get_filtered_job(self, job_id: str) -> Job | None:
-        row = self.connection.execute(
+        row = self._get_conn().execute(
             "SELECT payload FROM filtered_jobs WHERE id = ?", (job_id,)
         ).fetchone()
         return Job.model_validate(json.loads(row["payload"])) if row else None
 
     def restore_filtered(self, job_id: str) -> Job | None:
-        """Move one rejected job back onto the board.
-
-        The filter that rejected it still exists, so a later run would reject
-        it again; the point is that the decision is now the user's and visible,
-        not a silent drop.
-        """
+        """Move one rejected job back onto the board."""
         job = self.get_filtered_job(job_id)
         if job is None:
             return None
@@ -428,7 +439,7 @@ class Database:
             )
 
     def get_score(self, job_id: str) -> MatchScore | None:
-        row = self.connection.execute(
+        row = self._get_conn().execute(
             "SELECT payload FROM matches WHERE job_id = ?", (job_id,)
         ).fetchone()
         return MatchScore.model_validate(json.loads(row["payload"])) if row else None
@@ -436,13 +447,13 @@ class Database:
     def all_scores(self) -> dict[str, MatchScore]:
         return {
             r["job_id"]: MatchScore.model_validate(json.loads(r["payload"]))
-            for r in self.connection.execute("SELECT job_id, payload FROM matches")
+            for r in self._get_conn().execute("SELECT job_id, payload FROM matches")
         }
 
     # -- applications (user-owned) -----------------------------------------
 
     def get_application(self, job_id: str) -> Application:
-        row = self.connection.execute(
+        row = self._get_conn().execute(
             "SELECT * FROM applications WHERE job_id = ?", (job_id,)
         ).fetchone()
         if not row:
@@ -458,7 +469,7 @@ class Database:
 
     def all_applications(self) -> dict[str, Application]:
         result: dict[str, Application] = {}
-        for row in self.connection.execute("SELECT job_id FROM applications"):
+        for row in self._get_conn().execute("SELECT job_id FROM applications"):
             result[row["job_id"]] = self.get_application(row["job_id"])
         return result
 
@@ -482,7 +493,7 @@ class Database:
 
     def tracked_job_ids(self) -> set[str]:
         """Jobs the user has touched — these are never removed automatically."""
-        return {r["job_id"] for r in self.connection.execute("SELECT job_id FROM applications")}
+        return {r["job_id"] for r in self._get_conn().execute("SELECT job_id FROM applications")}
 
     # -- generated documents ------------------------------------------------
 
@@ -495,14 +506,14 @@ class Database:
             )
 
     def get_document(self, job_id: str, kind: str) -> GeneratedDocument | None:
-        row = self.connection.execute(
+        row = self._get_conn().execute(
             "SELECT payload FROM generated_documents WHERE job_id = ? AND kind = ?",
             (job_id, kind),
         ).fetchone()
         return GeneratedDocument.model_validate(json.loads(row["payload"])) if row else None
 
     def documents_for(self, job_id: str) -> dict[str, GeneratedDocument]:
-        rows = self.connection.execute(
+        rows = self._get_conn().execute(
             "SELECT kind, payload FROM generated_documents WHERE job_id = ?", (job_id,)
         )
         return {
@@ -516,7 +527,7 @@ class Database:
             cursor.execute("INSERT INTO runs(payload) VALUES (?)", (_json(run.model_dump(mode="json")),))
 
     def recent_runs(self, limit: int = 20) -> list[SearchRun]:
-        rows = self.connection.execute(
+        rows = self._get_conn().execute(
             "SELECT payload FROM runs ORDER BY id DESC LIMIT ?", (limit,)
         )
         return [SearchRun.model_validate(json.loads(r["payload"])) for r in rows]
