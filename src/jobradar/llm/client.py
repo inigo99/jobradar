@@ -4,6 +4,7 @@ Supported providers, all over their HTTP APIs so no SDK is required:
 
 ``anthropic``          api.anthropic.com/v1/messages
 ``openai``             api.openai.com/v1/chat/completions
+``gemini``             generativelanguage.googleapis.com/v1beta/models/...
 ``openai-compatible``  any base URL with the same shape (vLLM, LM Studio,
                        OpenRouter, Together, Groq, ...)
 ``ollama``             a local Ollama server, which serves the OpenAI shape
@@ -30,6 +31,8 @@ log = logging.getLogger(__name__)
 DEFAULT_MODELS = {
     "anthropic": "claude-sonnet-4-5",
     "openai": "gpt-4o-mini",
+    "gemini": "gemini-2.5-flash",
+    "google": "gemini-2.5-flash",
     "openai-compatible": "",
     "ollama": "llama3.1",
 }
@@ -37,6 +40,8 @@ DEFAULT_MODELS = {
 DEFAULT_BASE_URLS = {
     "anthropic": "https://api.anthropic.com/v1",
     "openai": "https://api.openai.com/v1",
+    "gemini": "https://generativelanguage.googleapis.com/v1beta",
+    "google": "https://generativelanguage.googleapis.com/v1beta",
     "ollama": "http://localhost:11434/v1",
 }
 
@@ -55,7 +60,7 @@ class LLMClient:
 
     def __init__(self, settings: LLMSettings):
         self.settings = settings
-        self.provider = settings.provider
+        self.provider = settings.provider.lower()
         self.model = settings.model or DEFAULT_MODELS.get(self.provider, "")
         self.base_url = (settings.base_url or DEFAULT_BASE_URLS.get(self.provider, "")).rstrip("/")
         self.calls_made = 0
@@ -69,6 +74,8 @@ class LLMClient:
             return os.environ.get("ANTHROPIC_API_KEY", "")
         if self.provider in ("openai", "openai-compatible"):
             return os.environ.get("OPENAI_API_KEY", "")
+        if self.provider in ("gemini", "google"):
+            return os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY", "")
         return ""  # ollama needs none
 
     @property
@@ -78,7 +85,7 @@ class LLMClient:
     def usable(self) -> bool:
         if not self.settings.enabled or not self.model:
             return False
-        if self.provider in ("anthropic", "openai") and not self._api_key:
+        if self.provider in ("anthropic", "openai", "gemini", "google") and not self._api_key:
             return False
         return self.budget_left > 0
 
@@ -93,11 +100,13 @@ class LLMClient:
         try:
             if self.provider == "anthropic":
                 return self._anthropic(system, user, tokens)
+            if self.provider in ("gemini", "google"):
+                return self._gemini(system, user, tokens)
             return self._openai_shaped(system, user, tokens)
         except httpx.HTTPError as exc:
             log.warning("Language model request failed: %s", exc)
             return None
-        except (KeyError, IndexError, ValueError) as exc:
+        except (KeyError, IndexError, ValueError, TypeError) as exc:
             log.warning("Unexpected response from the language model: %s", exc)
             return None
 
@@ -129,6 +138,33 @@ class LLMClient:
         blocks = response.json().get("content", [])
         return "".join(block.get("text", "") for block in blocks if block.get("type") == "text")
 
+    def _gemini(self, system: str, user: str, max_tokens: int) -> str:
+        body: dict = {
+            "contents": [{"role": "user", "parts": [{"text": user}]}],
+            "generationConfig": {
+                "temperature": self.settings.temperature,
+                "maxOutputTokens": max_tokens,
+            },
+        }
+        if system:
+            body["systemInstruction"] = {"parts": [{"text": system}]}
+
+        response = self._client.post(
+            f"{self.base_url}/models/{self.model}:generateContent",
+            headers={
+                "x-goog-api-key": self._api_key,
+                "content-type": "application/json",
+            },
+            json=body,
+        )
+        response.raise_for_status()
+        data = response.json()
+        candidates = data.get("candidates", [])
+        if not candidates:
+            return ""
+        parts = candidates[0].get("content", {}).get("parts", [])
+        return "".join(part.get("text", "") for part in parts if "text" in part)
+
     def _openai_shaped(self, system: str, user: str, max_tokens: int) -> str:
         headers = {"content-type": "application/json"}
         if self._api_key:
@@ -147,7 +183,10 @@ class LLMClient:
             },
         )
         response.raise_for_status()
-        return response.json()["choices"][0]["message"]["content"]
+        choices = response.json().get("choices", [])
+        if not choices:
+            return ""
+        return choices[0].get("message", {}).get("content") or ""
 
     def close(self) -> None:
         self._client.close()
@@ -188,7 +227,9 @@ def extract_json(text: str) -> dict | list | None:
             candidates.append(text[start : end + 1])
     for candidate in candidates:
         try:
-            return json.loads(candidate)
+            parsed = json.loads(candidate)
+            if isinstance(parsed, (dict, list)):
+                return parsed
         except json.JSONDecodeError:
             continue
     return None

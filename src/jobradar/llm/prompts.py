@@ -51,34 +51,34 @@ def _profile_digest(profile: Profile, language: str) -> str:
                 "id": experience.id,
                 "title": localized(experience.title, language),
                 "organization": experience.organization,
-                "dates": f"{experience.start} – {experience.end or 'present'}",
+                "dates": f"{experience.start or ''} – {experience.end or 'present'}",
                 "achievements": [
                     {"id": bullet.id, "text": localized(bullet.text, language)}
-                    for bullet in experience.bullets
+                    for bullet in (experience.bullets or [])
                 ],
             }
-            for experience in profile.experience
+            for experience in (profile.experience or [])
         ],
         "education": [
             {
                 "degree": localized(education.degree, language),
                 "institution": localized(education.institution, language),
-                "dates": f"{education.start} – {education.end}",
+                "dates": f"{education.start or ''} – {education.end or ''}",
                 "note": localized(education.note, language),
             }
-            for education in profile.education
+            for education in (profile.education or [])
         ],
         "certifications": [
             {"name": localized(c.name, language), "issuer": c.issuer, "year": c.year}
-            for c in profile.certifications
+            for c in (profile.certifications or [])
         ],
         "skills": {
-            group.key: {"label": localized(group.label, language), "items": group.items}
-            for group in profile.skills
+            group.key: {"label": localized(group.label, language), "items": group.items or []}
+            for group in (profile.skills or [])
         },
         "languages": [
             {"language": localized(item.name, language), "level": item.level}
-            for item in profile.languages
+            for item in (profile.languages or [])
         ],
         "total_years_experience": profile.years_of_experience(),
     }
@@ -91,7 +91,7 @@ def _job_digest(job: Job, description_limit: int = 6000) -> str:
             "title": job.title,
             "company": job.company,
             "location": job.location,
-            "work_mode": job.work_mode.value,
+            "work_mode": job.work_mode.value if hasattr(job.work_mode, "value") else str(job.work_mode),
             "language": job.language,
             "description": (job.description or "")[:description_limit],
         },
@@ -181,7 +181,7 @@ Never include a skill the CV does not mention at all.
 emphasise it — how well the person could defend it in an interview given what the CV
 shows. It is never lower than the evidence, and for a skill only listed once with no
 supporting work it should stay close to it."""
-    return system, f"Language of the CV: {language}\n\nCV text:\n{text[:20000]}"
+    return system, f"Language of the CV: {language}\n\nCV text:\n{(text or '')[:20000]}"
 
 
 # ---------------------------------------------------------------------------
@@ -197,7 +197,7 @@ def tailor_cv(profile: Profile, job: Job, surfaced: list[str], language: str) ->
     output defensible in an interview: the CV that got them the call says
     exactly what their profile says.
     """
-    labels = [profile.label_for(key) for key in surfaced]
+    labels = [profile.label_for(key) for key in (surfaced or [])]
     system = f"""You adapt an existing CV to one specific job advertisement.
 
 {NO_FABRICATION}
@@ -260,7 +260,7 @@ Constraints:
 Job advertisement:
 {_job_digest(job, 4000)}
 
-The candidate's main gaps against this job: {", ".join(gaps) or "(none identified)"}"""
+The candidate's main gaps against this job: {", ".join(gaps or []) or "(none identified)"}"""
     return system, user
 
 
@@ -287,5 +287,5 @@ Job advertisement:
 {_job_digest(job, 4000)}
 
 Things the advertisement leaves unclear, worth asking about:
-{", ".join(alerts) or "(nothing flagged)"}"""
+{", ".join(alerts or []) or "(nothing flagged)"}"""
     return system, user
