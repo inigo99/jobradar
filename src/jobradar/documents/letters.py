@@ -134,7 +134,7 @@ def _generate(
         if kind == "cover_letter":
             system, user = cover_letter(profile, job, score.gaps, language)
         else:
-            system, user = recruiter_email(profile, job, job.alerts, language)
+            system, user = recruiter_email(profile, job, job.alerts or [], language)
         draft = llm.complete(system, user)
         if draft and len(draft.strip()) > 120:
             # Letters legitimately quote the advertisement, so figures are not

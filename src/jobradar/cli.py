@@ -208,8 +208,8 @@ def cmd_search(args: argparse.Namespace) -> int:
                     (job.company or "")[:26],
                     (job.title or "")[:44],
                     (job.location or "")[:24],
-                    f"{job.salary.minimum:,}–{job.salary.maximum or job.salary.minimum:,} {job.salary.currency}"
-                    if getattr(job, "salary", None) and job.salary.minimum else "—",
+                    f"{salary.minimum:,}–{salary.maximum or salary.minimum:,} {salary.currency}"
+                    if (salary := getattr(job, "salary", None)) and salary.minimum else "—",
                 ]
                 for job in sorted(
                     result.new_jobs,
@@ -348,7 +348,7 @@ def cmd_jobs(args: argparse.Namespace) -> int:
             (job.company or "")[:24],
             (job.title or "")[:40],
             (job.location or "")[:22],
-            f"{job.salary.minimum:,}" if getattr(job, "salary", None) and job.salary.minimum else "—",
+            f"{salary.minimum:,}" if (salary := getattr(job, "salary", None)) and salary.minimum else "—",
             job.id,
         ])
     rows.sort(key=lambda row: -row[0])

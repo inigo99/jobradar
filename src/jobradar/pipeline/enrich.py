@@ -114,7 +114,7 @@ def derive_fields(job: Job) -> Job:
     text = job.description or ""
     if text:
         job.language = detect_language(text, job.language)
-        detected_mode = detect_work_mode(text, job.location)
+        detected_mode = detect_work_mode(text, job.location or "")
         if detected_mode != WorkMode.UNKNOWN:
             job.work_mode = detected_mode
             job.raw.pop("remote_unconfirmed", None)

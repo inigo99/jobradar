@@ -66,7 +66,7 @@ def _freshness(age_days: int | None) -> tuple[float, str]:
     return FRESHNESS[-1][1], FRESHNESS[-1][2]
 
 
-def is_senior_title(title: str) -> bool:
+def is_senior_title(title: str | None) -> bool:
     return bool(SENIOR_TITLE.search(title or ""))
 
 
@@ -94,7 +94,8 @@ def focus_for(
             factor *= SENIOR_PENALTY
             reasons.append("the title is pitched at a senior or architect profile")
 
-    if getattr(job.salary, "origin", None) and job.salary.origin.value == "published":
+    salary_origin = getattr(job.salary, "origin", None)
+    if getattr(salary_origin, "value", None) == "published":
         factor *= PUBLISHED_SALARY_BONUS
         reasons.append("publishes a salary band")
 

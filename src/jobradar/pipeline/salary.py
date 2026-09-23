@@ -137,7 +137,7 @@ LEAD_HINTS = ("head of", "director", "vp ", "manager", "team lead", "tech lead",
 JUNIOR_HINTS = ("junior", "jr.", "trainee", "intern", "becario", "prácticas", "graduate", "entry level")
 
 
-def infer_family(title: str, description: str = "") -> str:
+def infer_family(title: str | None, description: str | None = "") -> str:
     blob = f"{title or ''} {(description or '')[:400]}".lower()
     for family, hints in FAMILY_HINTS:
         if any(hint in blob for hint in hints):
@@ -145,7 +145,7 @@ def infer_family(title: str, description: str = "") -> str:
     return "generic"
 
 
-def infer_seniority(title: str, min_years: int | None) -> str:
+def infer_seniority(title: str | None, min_years: int | None) -> str:
     lowered = (title or "").lower()
     if any(hint in lowered for hint in LEAD_HINTS):
         return "lead"
@@ -200,7 +200,7 @@ def normalise_salary(job: Job, target_currency: str, rates: ExchangeRates | None
     """Ensure every job carries a usable band, published or estimated."""
     salary_obj = getattr(job, "salary", None)
     if salary_obj and salary_obj.origin == SalaryOrigin.PUBLISHED and salary_obj.midpoint:
-        return job.salary
+        return salary_obj
     return estimate_salary(job, target_currency, rates)
 
 

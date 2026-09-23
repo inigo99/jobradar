@@ -243,7 +243,7 @@ def render_cv(
 ) -> RenderResult:
     """Render, shrink to fit, and write the CV next to the other generated files."""
     context = build_context(profile, tailored, job)
-    stem = f"CV_{slugify(job.company or 'company', 28)}__{slugify(job.title, 34)}"
+    stem = f"CV_{slugify(job.company or 'company', 28)}__{slugify(job.title or 'job', 34)}"
     paths.cv_dir.mkdir(parents=True, exist_ok=True)
     html_path = paths.cv_dir / f"{stem}.html"
     pdf_path = paths.cv_dir / f"{stem}.pdf"

@@ -32,14 +32,16 @@ def build_digest(jobs: list[Job], scores: dict[str, MatchScore], limit: int = 15
         score = scores.get(job.id)
         score_val = score.tailored if score else 0.0
         salary = ""
-        
-        if getattr(job, "salary", None) and job.salary.minimum:
-            salary = f" · {job.salary.minimum:,}–{job.salary.maximum:,} {job.salary.currency}"
-            if getattr(job.salary.origin, "value", "") == "estimated":
+        job_salary = getattr(job, "salary", None)
+
+        if job_salary is not None and job_salary.minimum:
+            salary = f" · {job_salary.minimum:,}–{job_salary.maximum:,} {job_salary.currency}"
+            if getattr(job_salary.origin, "value", "") == "estimated":
                 salary += " (est.)"
-                
-        alerts_text = f"\n        ⚠ {job.alerts[0]}" if getattr(job, "alerts", None) else ""
-        
+
+        alerts = getattr(job, "alerts", None) or []
+        alerts_text = f"\n        ⚠ {alerts[0]}" if alerts else ""
+
         lines.append(
             f"{score_val:.0f}%  {job.company or 'unnamed'} — {job.title}\n"
             f"        {job.location or 'unspecified'}{salary}\n"

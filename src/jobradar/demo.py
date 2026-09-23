@@ -55,7 +55,7 @@ def load_demo(database: Database, paths: Paths | None = None) -> tuple[int, Sett
             json.loads((DEMO_DIR / "jobs.json").read_text(encoding="utf-8"))]
     for job in jobs:
         job.requirements = extract_requirements_by_keyword(job)
-        if not job.salary.midpoint:
+        if job.salary is None or not job.salary.midpoint:
             job.salary = estimate_salary(job, settings.filters.salary_currency)
         job.alerts = derive_alerts(job)
     database.upsert_jobs(jobs)
