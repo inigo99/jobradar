@@ -8,6 +8,11 @@ The listing page renders only a handful of cards server-side, but the raw HTML
 contains every result as a ``/<city>/<slug>/of-i<hash>`` URL, and the slug
 already carries the job title — so ads can be filtered by title *before*
 spending a request on the detail page.
+
+The listing and the ad page need different levels of ``Fetcher``'s browser
+support: the listing answers a plain headless browser (``browser="dynamic"``)
+normally, but the ad page answers the same request with an HTTP 405 behind a
+CAPTCHA challenge — it needs ``browser="stealthy"``, which gets through.
 """
 
 from __future__ import annotations
@@ -50,7 +55,7 @@ class InfoJobsSource(JobSource):
             params = {"keyword": term, "sinceDate": self._since(query.max_age_days)}
             if query.remote_only:
                 params["teleworkingIds"] = "2"  # fully remote
-            body = self.fetcher.get(SEARCH, params=params)
+            body = self.fetcher.get(SEARCH, params=params, browser="dynamic")
             if not body:
                 continue
             for city, slug, offer_hash in OFFER_URL.findall(body):
@@ -78,7 +83,7 @@ class InfoJobsSource(JobSource):
         return "_15_DAYS"
 
     def _detail(self, offer_hash: str, url: str, slug: str, city: str) -> Job | None:
-        body = self.fetcher.get(url)
+        body = self.fetcher.get(url, browser="stealthy")
         if not body:
             return None
         text = strip_html(body)
@@ -121,7 +126,7 @@ class InfoJobsSource(JobSource):
 
         The redirect is the reliable signal, not the page text.
         """
-        body = self.fetcher.get(job.link, use_cache=False)
+        body = self.fetcher.get(job.link, use_cache=False, browser="stealthy")
         if body is None:
             return False, "Offer page unreachable"
         if CLOSED_PATH in body or "ya no se aceptan más candidaturas" in body.lower():

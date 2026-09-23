@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jobradar"
-version = "1.1.0"
+version = "1.2.0"
 description = "Self-hosted job radar: searches job boards, scores openings against your CV, and tailors an honest one-page CV for each one."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -32,6 +32,12 @@ dependencies = [
   "uvicorn[standard]>=0.29",
   "python-multipart>=0.0.9",
   "rich>=13.7",
+  # Real-browser fetching for the `restricted` sources (LinkedIn, InfoJobs,
+  # Tecnoempleo) — see sources/base.py::Fetcher. Everything else keeps using
+  # plain httpx above. `[fetchers]` pulls the fetcher classes themselves;
+  # their browsers are a separate, one-time download (`scrapling install`,
+  # after this package is installed — see the README).
+  "scrapling[fetchers]>=0.4",
 ]
 
 [project.optional-dependencies]

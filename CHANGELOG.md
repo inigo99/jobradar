@@ -4,6 +4,27 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/).
 
+## 1.2.0 — 2026-09-23
+
+### Added
+
+- **The `restricted` sources now fetch through a real browser.** LinkedIn,
+  InfoJobs and Tecnoempleo route their requests through
+  [Scrapling](https://github.com/D4Vinci/Scrapling) (`Fetcher.get(...,
+  browser="dynamic" | "stealthy")`) instead of a plain HTTP request, which is
+  what a page built for a browser actually expects. InfoJobs' ad page
+  specifically needs `"stealthy"` — it answers a plain browser with an HTTP
+  405 behind a CAPTCHA challenge that stealth mode gets past. The other six
+  sources are unaffected and keep using plain HTTP, which is faster and is
+  all they need.
+- `scrapling[fetchers]` is a new core dependency. Its browsers are a separate,
+  one-time download: `scrapling install`, needed only if you enable one of
+  the three sources above — see the README's [Install](README.md#install)
+  and [Job sources](README.md#job-sources) sections.
+- `SourceSettings.scrapling_real_chrome` (off by default) launches your own
+  installed Chrome for those three sources instead of Scrapling's bundled
+  browser, for anyone running JobRadar interactively who wants the speed.
+
 ## 1.1.0 — 2026-09-11
 
 ### Added

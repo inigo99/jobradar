@@ -5,6 +5,11 @@ It returns a fragment of HTML rather than JSON, so the parsing here is regex
 over ``data-entity-urn`` attributes: a DOM parser is not usable because the
 fragment is not a document.
 
+Every fetch goes through ``Fetcher`` with ``browser="dynamic"``: a plain
+``httpx`` request against this endpoint is answered inconsistently, but a
+real (even non-stealth) browser fingerprint is enough to get the listing and
+the ad page every time.
+
 Read ``tos_note`` before enabling this. LinkedIn's User Agreement restricts
 automated access to the service; enabling this adapter is a decision only the
 person running JobRadar can make for themselves.
@@ -72,7 +77,7 @@ class LinkedInGuestSource(JobSource):
                     }
                     if remote:
                         params["f_WT"] = self.REMOTE_FILTER
-                    body = self.fetcher.get(SEARCH, params=params)
+                    body = self.fetcher.get(SEARCH, params=params, browser="dynamic")
                     if not body:
                         break
                     found = self._parse_cards(body)
@@ -133,7 +138,7 @@ class LinkedInGuestSource(JobSource):
         LinkedIn's remote tag is wrong often enough that the pipeline always
         re-derives work mode from this text.
         """
-        body = self.fetcher.get(DETAIL.format(job_id=job.native_id))
+        body = self.fetcher.get(DETAIL.format(job_id=job.native_id), browser="dynamic")
         if not body:
             return job.description
         text = strip_html(body)
@@ -146,7 +151,7 @@ class LinkedInGuestSource(JobSource):
         return text
 
     def check_open(self, job: Job) -> tuple[bool, str]:
-        body = self.fetcher.get(DETAIL.format(job_id=job.native_id), use_cache=False)
+        body = self.fetcher.get(DETAIL.format(job_id=job.native_id), use_cache=False, browser="dynamic")
         if body is None:
             status = self.fetcher.head_status(job.link)
             return (False, "HTTP 404") if status == 404 else (True, "")

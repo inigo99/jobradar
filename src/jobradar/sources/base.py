@@ -16,6 +16,12 @@ Every source declares its own ``tos_tier``:
                be automated. **Never enabled by default.** The user must switch
                it on explicitly, having read the warning, and accepts
                responsibility for their own use.
+
+The ``restricted`` sources are also the only ones that ever ask ``Fetcher`` to
+open a real browser (see ``Fetcher.get(..., browser=...)``) instead of a plain
+HTTP request — that needs the ``scrapling`` package's browsers installed once
+via ``scrapling install``. Every ``open``/``credentials`` source keeps using
+plain HTTP, which is faster and needs nothing extra.
 """
 
 from __future__ import annotations
@@ -88,6 +94,14 @@ class Fetcher:
     Being a good citizen is not optional here: a job board that blocks the
     default user agent because JobRadar hammered it hurts every user of the
     project. The defaults are deliberately slow.
+
+    Plain HTTP (``httpx``) is the default and only transport for every
+    ``open``/``credentials`` source. The three ``restricted`` sources — the
+    ones reached by parsing pages built for a browser, not a program — can
+    instead ask :meth:`get` to fetch through Scrapling's browser engines by
+    passing ``browser="dynamic"`` or ``browser="stealthy"``; see that
+    method's docstring. Throttling, ``robots.txt`` and the disk cache apply
+    identically either way, so a source never has to think about it.
     """
 
     def __init__(self, settings: SourceSettings, cache_dir: Path | None = None):
@@ -162,14 +176,66 @@ class Fetcher:
             encoding="utf-8",
         )
 
+    def _browser_get(self, url: str, *, headers: dict | None, mode: str) -> str | None:
+        """Fetch ``url`` through Scrapling's browser engines instead of ``httpx``.
+
+        Only called by :meth:`get` when a ``restricted`` source passes
+        ``browser=``. ``mode`` is ``"dynamic"`` — a plain headless browser,
+        enough to get past a check for a real browser fingerprint, such as
+        LinkedIn's guest endpoints — or ``"stealthy"`` — fingerprint spoofing
+        plus Cloudflare-style challenge solving, for a page that answers a
+        plain browser with a block instead of the content, such as
+        InfoJobs' ad pages (they return HTTP 405 behind a CAPTCHA challenge
+        to ``"dynamic"``, and load normally under ``"stealthy"``).
+
+        Returns ``None`` — same contract as :meth:`get` itself — if the
+        ``scrapling`` package's browsers are not installed
+        (``scrapling install``, once) or the fetch fails for any reason.
+        """
+        try:
+            from scrapling.fetchers import DynamicFetcher, StealthyFetcher
+        except ImportError:
+            log.warning(
+                "scrapling is not installed — cannot fetch %s through a browser; "
+                "run `pip install jobradar` again or `scrapling install`", url,
+            )
+            return None
+        fetch = StealthyFetcher.fetch if mode == "stealthy" else DynamicFetcher.fetch
+        kwargs: dict[str, Any] = {
+            "headless": True,
+            "real_chrome": self.settings.scrapling_real_chrome,
+            "extra_headers": headers or None,
+            # Fetcher.get() already retries whole attempts with backoff below;
+            # a nested retry here would just double the wait on a dead page.
+            "retries": 0,
+        }
+        if mode == "stealthy":
+            kwargs["solve_cloudflare"] = True
+        try:
+            page = fetch(url, **kwargs)
+        except Exception as exc:  # Playwright/browser errors, not one Scrapling type
+            log.debug("browser fetch %s failed: %s", url, exc)
+            return None
+        if page.status >= 400:
+            log.debug("%s returned HTTP %s via browser", url, page.status)
+            return None
+        return page.body.decode("utf-8", errors="replace")
+
     # -- public API --------------------------------------------------------
 
     def get(self, url: str, *, params: dict | None = None, retries: int = 2,
-            use_cache: bool = True, headers: dict | None = None) -> str | None:
+            use_cache: bool = True, headers: dict | None = None,
+            browser: str | None = None) -> str | None:
         """GET ``url``, returning the body or None if it could not be fetched.
 
         Sources are expected to treat None as "this query yielded nothing" and
         carry on: one dead board must never abort a whole run.
+
+        ``browser`` routes the request through a real browser instead of a
+        plain HTTP request — pass ``"dynamic"`` or ``"stealthy"``, see
+        :meth:`_browser_get`. Leave it ``None`` (the default) for every
+        ``open``/``credentials`` source: plain HTTP is faster and all of them
+        answer it correctly.
         """
         full = str(httpx.URL(url, params=params or {}))
         cache_path = self._cache_path(full) if use_cache else None
@@ -181,6 +247,13 @@ class Fetcher:
             return None
         for attempt in range(retries + 1):
             self._throttle(full)
+            if browser:
+                body = self._browser_get(full, headers=headers, mode=browser)
+                if body is not None:
+                    self._write_cache(cache_path, body)
+                    return body
+                time.sleep(1.5 * (attempt + 1))
+                continue
             try:
                 response = self._client.get(full, headers=headers)
                 if response.status_code == 429:

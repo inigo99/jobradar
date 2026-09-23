@@ -467,6 +467,25 @@ def cmd_serve(args: argparse.Namespace) -> int:
     return 0
 
 
+def _scrapling_browsers_installed() -> bool:
+    """Whether ``scrapling install`` has been run.
+
+    ``scrapling[fetchers]`` itself is a required dependency, so it always
+    imports; what it needs separately is its own one-time browser download.
+    Scrapling's own ``install`` command marks completion with this exact
+    file, so reading it is more honest than a browser launch attempt, which
+    would make `doctor` slow and would itself need a browser to fail with.
+    """
+    try:
+        from pathlib import Path
+
+        import scrapling
+
+        return (Path(scrapling.__file__).parent / ".scrapling_dependencies_installed").exists()
+    except ImportError:
+        return False
+
+
 def cmd_doctor(args: argparse.Namespace) -> int:
     """Check the installation and report what is missing."""
     database = _database(args)
@@ -489,6 +508,12 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             checks.append((label, True, ""))
         except ImportError:
             checks.append((label, False, hint))
+
+    checks.append((
+        "Scrapling browsers (LinkedIn / InfoJobs / Tecnoempleo)",
+        _scrapling_browsers_installed(),
+        "run 'scrapling install' — only needed if you enable one of those three sources",
+    ))
 
     llm = build_client(settings.llm)
     checks.append((f"Language model ({settings.llm.provider})", llm is not None,

@@ -7,6 +7,7 @@ JobRadar runs on your machine, keeps your CV and your job search in a local SQLi
 ```bash
 pip install -e ".[all]"
 playwright install chromium     # only needed for PDF output
+scrapling install               # only needed if you enable LinkedIn/InfoJobs/Tecnoempleo
 jobradar demo                   # synthetic data, no network calls
 jobradar serve                  # dashboard on http://127.0.0.1:8000
 ```
@@ -145,6 +146,7 @@ cd jobradar
 python -m venv .venv && source .venv/bin/activate    # Windows: .venv\Scripts\activate
 pip install -e ".[all]"
 playwright install chromium
+scrapling install
 ```
 
 Or install only what you need:
@@ -155,6 +157,13 @@ pip install -e ".[pdf]"         # + PDF rendering (headless Chromium)
 pip install -e ".[parse]"       # + importing a PDF or DOCX CV
 pip install -e ".[excel]"       # + .xlsx export
 ```
+
+Either way, `pip install` alone is enough for every `open`/`credentials`
+source. **`scrapling install`** is the one extra, one-time step, and it only
+matters if you plan to switch on LinkedIn, InfoJobs or Tecnoempleo: it
+downloads the browsers those three adapters fetch through (a few hundred MB).
+Skip it and everything else still works; those three adapters just have
+nothing to fetch with until you run it.
 
 `jobradar doctor` tells you what is installed and what each missing piece would give you.
 
@@ -286,7 +295,9 @@ Shipped adapters:
 
 **About the restricted tier.** These read pages that were built for people, not programs, and the sites' terms may not permit automated access. They are off unless you switch them on by name, having read the warning the dashboard shows. Whether that is acceptable is a decision for the person running the software, under their own jurisdiction and the site's terms — not a default this project should make for you. If you enable one, keep the request delay generous, leave `respect_robots` on, and use it at the volume of a person doing their own job search.
 
-**The polite defaults apply to every source**: one request per second per host, `robots.txt` honoured, responses cached for an hour, exponential backoff on 429, and a user agent that says what the software is.
+These three are also the only sources that fetch through a real browser (via [Scrapling](https://github.com/D4Vinci/Scrapling)) instead of a plain HTTP request — LinkedIn and Tecnoempleo answer a plain browser fine, InfoJobs' ad page needs Scrapling's stealth mode to get past a CAPTCHA challenge it puts up for the rest. That needs `scrapling install` once (see [Install](#install)) and is slower per request than plain HTTP, which is exactly why the other six sources do not use it: they do not need to. `scrapling_real_chrome` (off by default) launches your own installed Chrome instead of Scrapling's bundled one, if you want the speed and are running this somewhere interactive rather than on a server.
+
+**The polite defaults apply to every source, browser-fetched or not**: one request per second per host, `robots.txt` honoured, responses cached for an hour, exponential backoff on 429, and a user agent that says what the software is.
 
 Adding a source is one file and one registry line — see **[docs/SOURCES.md](docs/SOURCES.md)**.
 
@@ -365,7 +376,7 @@ src/jobradar/
 - **Your CV's layout is not reproduced pixel for pixel.** Its *content* is imported into a structured profile and re-rendered with a template. That is the trade: a structured profile can be tailored, scored and validated per job; a pixel-perfect copy can only be reprinted. Anything claiming otherwise from an arbitrary PDF is overselling.
 - **Importing without a language model is approximate.** The heuristic parser finds your contact details, sections, positions and bullets, and gets dates roughly right. Review it before generating anything — the dashboard tells you exactly this after an import.
 - **Salary estimates are estimates.** They come from an editable table, not from market data. They are always labelled.
-- **Restricted sources can break.** They read pages that change without notice. That is part of why they are opt-in.
+- **Restricted sources can break.** They read pages that change without notice. That is part of why they are opt-in. Fetching them through a real browser (Scrapling) is markedly more resilient than a plain HTTP request, but it is not a guarantee — a site can still change what it blocks.
 - **The score is a triage aid, not a verdict.** It measures overlap between an ad's stated requirements and your evidenced skills. It knows nothing about whether you would enjoy the job.
 
 ---

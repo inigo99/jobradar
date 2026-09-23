@@ -59,6 +59,10 @@ sources:
   timeout: 20.0
   respect_robots: true
   cache_ttl_minutes: 60
+  scrapling_real_chrome: false    # true: LinkedIn/InfoJobs/Tecnoempleo use your
+                                  # own installed Chrome instead of Scrapling's
+                                  # bundled browser — faster, but only sensible
+                                  # on a machine you use interactively
 
 llm:
   provider: none                 # none | anthropic | openai | openai-compatible | ollama

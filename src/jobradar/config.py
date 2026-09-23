@@ -177,6 +177,14 @@ class SourceSettings(BaseModel):
     #: Honour ``robots.txt`` before fetching a listing page. Leave this on.
     respect_robots: bool = True
     cache_ttl_minutes: int = 60
+    #: The ``restricted`` sources (LinkedIn, InfoJobs, Tecnoempleo) fetch
+    #: through a real browser via the ``scrapling`` package. Off by default,
+    #: which uses Scrapling's own bundled browser — the portable choice, since
+    #: it needs nothing beyond ``scrapling install``. Turn this on only on a
+    #: machine you use interactively and that already has Chrome installed:
+    #: it launches that Chrome instead, which is faster but is not there on a
+    #: server or in CI.
+    scrapling_real_chrome: bool = False
 
 
 class LLMSettings(BaseModel):

@@ -38,6 +38,33 @@ search.
 A board that blocks the default user agent because someone hammered it hurts
 every user of the project. The defaults are deliberately slow.
 
+## Browser-backed fetching for a blocked `restricted` source
+
+Plain HTTP is the default transport for `Fetcher.get()`, and every
+`open`/`credentials` source should never need anything else — if one of them
+starts needing a browser, that is usually a sign it should be `restricted`
+instead, not a reason to reach for this.
+
+For a `restricted` source, if the plain-HTTP path stops working — the site
+starts answering with a CAPTCHA, a 403, or a page that only renders after
+JavaScript runs — pass `browser="dynamic"` (a real headless browser) or
+`browser="stealthy"` (adds fingerprint spoofing and Cloudflare-style
+challenge solving) to that call instead of changing anything else:
+
+```python
+body = self.fetcher.get(url, params=params, browser="dynamic")
+```
+
+Both go through [Scrapling](https://github.com/D4Vinci/Scrapling), a
+mandatory dependency whose browsers are a separate, one-time download
+(`scrapling install`) — everything else about the call, including the cache,
+the throttle and the `robots.txt` check, stays exactly the same as the plain
+path, so nothing downstream of `self.fetcher.get(...)` needs to change.
+Start with `"dynamic"`; it is faster and is enough for most anti-bot walls.
+Reach for `"stealthy"` only for the specific requests that need it — see
+`sources/optional/infojobs.py`, where the listing uses `"dynamic"` but the ad
+page needs `"stealthy"` to get past a CAPTCHA challenge the other mode hits.
+
 ## Writing an adapter
 
 A source does two things: turn a `SearchQuery` into HTTP requests, and turn the

@@ -4,6 +4,12 @@ A focused Spanish IT board. Its listing already labels each ad "100% remoto" or
 "Híbrido" next to the location, so the work-mode filter can be applied before
 fetching any detail page — which makes it cheap to search compared with the
 generalist boards.
+
+Every fetch here uses ``Fetcher``'s plain headless browser
+(``browser="dynamic"``), the conservative default for a `restricted` source.
+Unlike LinkedIn and InfoJobs, this site has not been observed blocking that —
+if it starts to, escalate to ``browser="stealthy"`` the same way
+``infojobs.py`` does for its ad page.
 """
 
 from __future__ import annotations
@@ -44,7 +50,9 @@ class TecnoempleoSource(JobSource):
         wanted = [normalise(t) for t in query.terms()]
         for term in query.terms():
             for page in range(1, 4):
-                body = self.fetcher.get(SEARCH, params={"te": term, "pagina": page})
+                body = self.fetcher.get(
+                    SEARCH, params={"te": term, "pagina": page}, browser="dynamic"
+                )
                 if not body:
                     break
                 found = False
@@ -70,7 +78,7 @@ class TecnoempleoSource(JobSource):
         return list(jobs.values())
 
     def _detail(self, native_id: str, url: str, title: str, context: str) -> Job | None:
-        body = self.fetcher.get(url)
+        body = self.fetcher.get(url, browser="dynamic")
         text = strip_html(body) if body else context
         lowered = f"{context} {text}".lower()
         if "100% remoto" in lowered:
@@ -113,7 +121,7 @@ class TecnoempleoSource(JobSource):
         return f"{match.group(3)}-{match.group(2)}-{match.group(1)}" if match else ""
 
     def check_open(self, job: Job) -> tuple[bool, str]:
-        body = self.fetcher.get(job.link, use_cache=False)
+        body = self.fetcher.get(job.link, use_cache=False, browser="dynamic")
         if body is None:
             return False, "Offer page unreachable"
         if EXPIRED.search(strip_html(body)):
