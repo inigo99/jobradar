@@ -46,13 +46,13 @@ def test_pipeline_survives_null_fields(database, profile, configured):
     """Verify that the pipeline does not crash when dealing with corrupt jobs where fields are None."""
     malformed = make_job(native_id="null-test")
     # Bypass Pydantic validation by mutating after creation
-    setattr(malformed, "title", None)
-    setattr(malformed, "company", None)
-    setattr(malformed, "description", None)
-    setattr(malformed, "location", None)
-    setattr(malformed, "salary", None)
-    setattr(malformed, "requirements", None)
-    setattr(malformed, "alerts", None)
+    malformed.title = None
+    malformed.company = None
+    malformed.description = None
+    malformed.location = None
+    malformed.salary = None
+    malformed.requirements = None
+    malformed.alerts = None
 
     source = CountingSource([malformed])
     source.fetch_description = cast(Any, lambda job: None)
