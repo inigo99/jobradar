@@ -333,9 +333,9 @@ class Job(BaseModel):
     id: str = ""  # "<source>:<native_id>", filled in by ``ensure_id``
     source: str
     native_id: str
-    title: str
-    company: str = ""
-    location: str = ""
+    title: str | None = None
+    company: str | None = None
+    location: str | None = None
     country: str = ""  # ISO-3166 alpha-2 when known
     work_mode: WorkMode = WorkMode.UNKNOWN
     remote_scope: RemoteScope = RemoteScope.UNKNOWN
@@ -343,13 +343,13 @@ class Job(BaseModel):
     url: str = ""
     apply_url: str = ""  # overrides ``url`` when the ad lives elsewhere
     posted_at: date | None = None
-    description: str = ""
+    description: str | None = None
     language: str = "en"
-    salary: Salary = Field(default_factory=Salary)
+    salary: Salary | None = Field(default_factory=Salary)
     min_years_experience: int | None = None
-    requirements: list[Requirement] = Field(default_factory=list)
+    requirements: list[Requirement] | None = Field(default_factory=list)
     # Things the user must check before applying, e.g. "client not named".
-    alerts: list[str] = Field(default_factory=list)
+    alerts: list[str] | None = Field(default_factory=list)
     # Source-specific payload, kept for debugging and for re-enrichment.
     raw: dict[str, Any] = Field(default_factory=dict)
     first_seen: datetime | None = None
@@ -377,7 +377,7 @@ class Job(BaseModel):
         return ((today or date.today()) - self.posted_at).days
 
 
-def _normalise(value: str) -> str:
+def _normalise(value: str | None) -> str:
     """Lowercase, strip accents and punctuation — for fuzzy comparisons."""
     import unicodedata
 

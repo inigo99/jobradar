@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import sys
 import types
+from typing import Any
 
 import httpx
 import pytest
@@ -82,7 +83,7 @@ def _install_fake_scrapling(monkeypatch, *, dynamic_fetch=None, stealthy_fetch=N
     DynamicFetcher, StealthyFetcher`` lazily, so this is enough to control
     what it sees without a real Scrapling install.
     """
-    fake_module = types.ModuleType("scrapling.fetchers")
+    fake_module: Any = types.ModuleType("scrapling.fetchers")
 
     class _DynamicFetcher:
         fetch = staticmethod(dynamic_fetch) if dynamic_fetch else None
@@ -90,8 +91,8 @@ def _install_fake_scrapling(monkeypatch, *, dynamic_fetch=None, stealthy_fetch=N
     class _StealthyFetcher:
         fetch = staticmethod(stealthy_fetch) if stealthy_fetch else None
 
-    setattr(fake_module, "DynamicFetcher", _DynamicFetcher)
-    setattr(fake_module, "StealthyFetcher", _StealthyFetcher)
+    fake_module.DynamicFetcher = _DynamicFetcher
+    fake_module.StealthyFetcher = _StealthyFetcher
     monkeypatch.setitem(sys.modules, "scrapling.fetchers", fake_module)
 
 

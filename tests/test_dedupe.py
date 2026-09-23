@@ -21,8 +21,11 @@ def test_keeps_the_more_informative_record():
                     salary=Salary(origin=SalaryOrigin.UNKNOWN))
     rich = make_job(source="boardb", native_id="2", description="A full advertisement." * 20)
     survivor = deduplicate([thin, rich])[0]
+    assert survivor.salary is not None
     assert survivor.salary.origin == SalaryOrigin.PUBLISHED
-    assert len(survivor.description) > 100
+    description = survivor.description
+    assert description is not None
+    assert len(description) > 100
 
 
 def test_records_where_else_it_was_seen():
@@ -45,10 +48,9 @@ def test_different_roles_at_one_company_are_not_merged():
 
 def test_dedupe_survives_null_fields():
     a = make_job(native_id="1")
-    setattr(a, "title", None)
-    setattr(a, "company", None)
+    a.title = None
+    a.company = None
     b = make_job(native_id="2")
-    setattr(b, "title", None)
-    setattr(b, "company", None)
-    # No debería crashear, ni debería combinarlos a ciegas
+    b.title = None
+    b.company = None
     assert len(deduplicate([a, b])) == 2

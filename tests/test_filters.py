@@ -82,10 +82,11 @@ def test_explain_groups_reasons():
 
 def test_filters_survive_null_fields():
     job = make_job()
-    setattr(job, "title", None)
-    setattr(job, "company", None)
-    setattr(job, "description", None)
-    setattr(job, "location", None)
-    setattr(job, "salary", None)
+    job.title = None
+    job.company = None
+    job.description = None
+    job.location = None
+    job.salary = None
+
     outcome = apply_filters(job, Filters(), today=TODAY)
     assert outcome is not None

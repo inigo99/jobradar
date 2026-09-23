@@ -80,7 +80,7 @@ def test_is_senior_title_matches_other_languages():
 
 def test_focus_survives_null_fields():
     job = _job()
-    setattr(job, "title", None)
-    setattr(job, "salary", None)
+    job.title = None
+    job.salary = None
     focus, reason = focus_for(job, SCORE, TODAY)
     assert focus is not None

@@ -30,7 +30,7 @@ class FakeSource(JobSource):
         return list(self._jobs)
 
     def fetch_description(self, job):
-        return job.description
+        return job.description or ""
 
     def check_open(self, job):
         return (job.id not in self._closed), "gone"
