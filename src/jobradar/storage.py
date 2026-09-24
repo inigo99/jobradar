@@ -33,8 +33,10 @@ from pydantic import ValidationError
 from .config import Paths, Settings, validation_summary
 from .errors import ConfigError, StorageError, describe_os_error
 from .models import (
+    AnswerThread,
     Application,
     ApplicationStatus,
+    BankEntry,
     GeneratedDocument,
     Job,
     MailNews,
@@ -743,6 +745,42 @@ class Database:
 
     def set_mail_checked_on(self, day: date) -> None:
         self._put_doc("mail_state", {"checked_on": day.isoformat()})
+
+    # -- form answers and the answer bank ------------------------------------
+
+    def answer_thread(self, job_id: str) -> AnswerThread:
+        """The job's form-answer thread (empty when none was started)."""
+        data = self._get_doc(f"answers:{job_id}")
+        if not data:
+            return AnswerThread(job_id=job_id)
+        try:
+            return AnswerThread.model_validate(data)
+        except ValidationError as exc:
+            raise StorageError(
+                f"The stored form answers for job {job_id} are unreadable: {exc.errors()[0]['msg']}.",
+                hint="Clear the thread from the dashboard to start it again.",
+            ) from exc
+
+    def save_answer_thread(self, thread: AnswerThread) -> None:
+        self._put_doc(f"answers:{thread.job_id}", thread.model_dump(mode="json"))
+
+    def delete_answer_thread(self, job_id: str) -> None:
+        with self.transaction() as cursor:
+            cursor.execute("DELETE FROM documents_kv WHERE key = ?", (f"answers:{job_id}",))
+
+    def answer_bank(self) -> list[BankEntry]:
+        """Saved answers, newest first."""
+        data = self._get_doc("answer_bank") or {}
+        entries: list[BankEntry] = []
+        for payload in data.get("items", []):
+            try:
+                entries.append(BankEntry.model_validate(payload))
+            except ValidationError as exc:
+                log.warning("Skipping an unreadable answer-bank entry: %s", exc)
+        return sorted(entries, key=lambda e: e.saved_at, reverse=True)
+
+    def save_answer_bank(self, entries: Iterable[BankEntry]) -> None:
+        self._put_doc("answer_bank", {"items": [e.model_dump(mode="json") for e in entries]})
 
     # -- run log ------------------------------------------------------------
 

@@ -127,6 +127,7 @@ function jobCard(job) {
   actions.append(button("Tailor CV", () => buildCv(job, card)));
   actions.append(button("Cover letter", () => buildDoc(job, "cover_letter", card)));
   actions.append(button("Application email", () => buildDoc(job, "email", card)));
+  actions.append(button("Form answers", () => openAnswers(job, card)));
   if (job.has_cv) {
     actions.append(el("a", { href: `/api/jobs/${encodeURIComponent(job.id)}/cv/download` },
       el("button", {}, "Download CV")));
@@ -213,22 +214,33 @@ async function buildCv(job, card) {
   await refresh();
 }
 
+/* Opens the saved letter or email when there is one — so a click never
+   overwrites the user's edits — and writes it otherwise. */
 async function buildDoc(job, kind, card) {
+  const saved = await api(`/api/jobs/${encodeURIComponent(job.id)}/documents`);
+  if (saved[kind]) { showDoc(job, kind, card, saved[kind]); return; }
+  await writeDoc(job, kind, card);
+}
+
+async function writeDoc(job, kind, card) {
   const url = `/api/jobs/${encodeURIComponent(job.id)}/documents/${kind}`;
   const result = await api(url, { method: "POST" });
   showDoc(job, kind, card, result.document);
   await refresh();
 }
 
-/* The letter or email as an editable text box: edits are saved before the
-   PDF is downloaded, so the PDF always matches what is on screen. */
+/* The letter or email as an editable text box, with the review warnings.
+   Edits are saved before the PDF is downloaded, so the PDF always matches
+   what is on screen. */
 function showDoc(job, kind, card, documentData) {
   const url = `/api/jobs/${encodeURIComponent(job.id)}/documents/${kind}`;
   const output = $(".job-output", card);
   const box = el("textarea", { className: "doc-text", rows: 14 });
   box.value = documentData.text;
+  const warnings = el("div", {}, warningsBlock(documentData.warnings));
   const save = async () => {
     const saved = await api(url, { method: "PUT", body: JSON.stringify({ text: box.value }) });
+    warnings.replaceChildren(...[warningsBlock(saved.document.warnings)].filter(Boolean));
     return saved.document;
   };
   output.innerHTML = "";
@@ -237,11 +249,17 @@ function showDoc(job, kind, card, documentData) {
     el("p", { className: "hint" },
       documentData.llm_generated ? "Written by the language model. Edit it freely." :
       "Skeleton from your profile — the bracketed parts are yours to write."),
+    warnings,
     box,
     el("div", { className: "actions" },
-      button("Save", async () => { await save(); toast("Saved"); }),
+      button("Save and check", async () => { await save(); toast("Saved"); }),
       button("Copy", async () => { await navigator.clipboard.writeText(box.value); toast("Copied"); }),
-      button("Download PDF", async () => { await save(); window.location.href = url + "/pdf"; })),
+      button("Download PDF", async () => { await save(); window.location.href = url + "/pdf"; }),
+      button("Write it again", async () => {
+        if (confirm("Replace this text with a new draft? Your edits will be lost.")) {
+          await writeDoc(job, kind, card);
+        }
+      })),
   );
 }
 

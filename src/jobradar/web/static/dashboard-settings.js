@@ -30,6 +30,11 @@ function settingsBody() {
       selectFrom("s_pdfengine", settings.cv_pdf_engine,
         [["auto", "Print the template with Chromium (built-in writer if it is missing)"],
          ["builtin", "Always the built-in writer (plainer, needs no browser)"]]),
+      el("label", {}, "Phrases you never use (one per line)"),
+      el("p", { className: "hint" },
+        "Letters, emails and form answers that contain one are flagged, on top of the usual " +
+        "template phrases (\"team player\", \"to whom it may concern\"…)."),
+      el("textarea", { id: "s_banned", value: (settings.banned_phrases || []).join("\n") }),
     ),
 
     el("fieldset", {},
@@ -361,6 +366,7 @@ async function saveSettings() {
   settings.default_language = value("s_language");
   settings.cv_template = value("s_template");
   settings.cv_pdf_engine = value("s_pdfengine") || "auto";
+  settings.banned_phrases = value("s_banned").split("\n").map(s => s.trim()).filter(Boolean);
   settings.search.titles = list("s_titles");
   settings.search.keywords = list("s_keywords");
 

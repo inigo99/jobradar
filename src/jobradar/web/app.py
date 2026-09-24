@@ -42,8 +42,10 @@ from starlette.requests import Request
 from .. import __version__
 from ..config import Paths, countries, load_dotenv, validation_summary
 from ..documents import generate_cover_letter, generate_email, render_cv, tailor
+from ..documents.answers import add_turn, answer, to_bank
 from ..documents.letters import contact_line
 from ..documents.pdfwriter import letter_pdf
+from ..documents.review import measure, review_text
 from ..errors import JobRadarError, ProfileError, StorageError, describe_os_error
 from ..families import Family, catalogue_view, families_for
 from ..families import classify as classify_family
@@ -54,6 +56,7 @@ from ..llm import build_client
 from ..mail import check_mail, interview_ics
 from ..mail.imap import configured as mail_configured
 from ..models import (
+    AnswerThread,
     Application,
     CvVariant,
     GeneratedDocument,
@@ -71,12 +74,15 @@ from ..sources import available as available_sources
 from ..storage import Database
 from ..textutils import slugify
 from .api import (
+    AnswerLimitPayload,
     ApplicationPayload,
+    BankEditPayload,
     DocumentTextPayload,
     FilteredView,
     JobView,
     OnboardingPayload,
     ProfilePatch,
+    QuestionPayload,
     SettingsPayload,
 )
 
@@ -592,7 +598,7 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
             if llm:
                 llm.close()
         database.save_document(document)
-        return {"ok": True, "document": document.model_dump(mode="json")}
+        return {"ok": True, "document": document_view(document, job)}
 
     def letter_or_404(job_id: str, kind: str) -> GeneratedDocument:
         if kind not in LETTER_KINDS:
@@ -609,7 +615,7 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
         document = letter_or_404(job_id, kind)
         document.text = payload.text.strip()
         database.save_document(document)
-        return {"ok": True, "document": document.model_dump(mode="json")}
+        return {"ok": True, "document": document_view(document, database.get_job(job_id))}
 
     @app.get("/api/jobs/{job_id}/documents/{kind}/pdf")
     def download_letter(job_id: str, kind: str):
@@ -633,10 +639,133 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
 
     @app.get("/api/jobs/{job_id}/documents")
     def list_documents(job_id: str):
-        return {
-            kind: document.model_dump(mode="json")
-            for kind, document in database.documents_for(job_id).items()
-        }
+        """Saved documents, letters re-checked so older drafts get today's warnings."""
+        job = database.get_job(job_id)
+        return {kind: document_view(document, job)
+                for kind, document in database.documents_for(job_id).items()}
+
+    def document_view(document: GeneratedDocument, job: Job | None) -> dict:
+        view = document.model_dump(mode="json")
+        profile = database.load_profile()
+        if document.kind in LETTER_KINDS and profile is not None:
+            view["warnings"] = [f.model_dump(mode="json") for f in review_text(
+                document.text, profile, job, document.kind,
+                extra_phrases=database.load_settings().banned_phrases)]
+        return view
+
+    # -- form answers and the answer bank ------------------------------------
+
+    def thread_view(job: Job, thread: AnswerThread) -> dict:
+        """The thread with each answer's length, warnings and bank status."""
+        profile = require_profile()
+        banned = database.load_settings().banned_phrases
+        banked = {entry.answer for entry in database.answer_bank()}
+        messages = []
+        for message in thread.messages:
+            view = message.model_dump(mode="json")
+            if message.role == "answer":
+                view["length"] = measure(message.text, thread.unit)
+                view["in_bank"] = message.text in banked
+                view["warnings"] = [f.model_dump(mode="json") for f in review_text(
+                    message.text, profile, job, "answer", extra_phrases=banned,
+                    limit=thread.limit, unit=thread.unit)]
+            messages.append(view)
+        return {"limit": thread.limit, "unit": thread.unit.value, "messages": messages}
+
+    def answer_index_or_404(thread: AnswerThread, index: int) -> None:
+        if not 0 <= index < len(thread.messages) or thread.messages[index].role != "answer":
+            raise HTTPException(status_code=404, detail="There is no answer at that position")
+
+    @app.get("/api/jobs/{job_id}/answers")
+    def get_answers(job_id: str):
+        job = job_or_404(job_id)
+        return thread_view(job, database.answer_thread(job_id))
+
+    @app.post("/api/jobs/{job_id}/answers")
+    def ask(job_id: str, payload: QuestionPayload):
+        """Answer a form question (or refine the last answer) in the job's thread."""
+        job = job_or_404(job_id)
+        profile = require_profile()
+        settings = database.load_settings()
+        thread = database.answer_thread(job_id)
+        llm = build_client(settings.llm)
+        try:
+            text, by_model, precedents = answer(profile, job, thread, payload.question.strip(),
+                                                database.answer_bank(), settings, llm)
+        finally:
+            if llm:
+                llm.close()
+        add_turn(thread, "question", payload.question.strip())
+        add_turn(thread, "answer", text)
+        database.save_answer_thread(thread)
+        view = thread_view(job, thread)
+        view["llm_generated"] = by_model
+        view["precedents"] = [{"question": p.entry.question, "company": p.entry.company}
+                              for p in precedents]
+        return view
+
+    @app.put("/api/jobs/{job_id}/answers/limit")
+    def set_answer_limit(job_id: str, payload: AnswerLimitPayload):
+        job = job_or_404(job_id)
+        thread = database.answer_thread(job_id)
+        thread.limit, thread.unit = payload.limit, payload.unit
+        database.save_answer_thread(thread)
+        return thread_view(job, thread)
+
+    @app.put("/api/jobs/{job_id}/answers/{index}")
+    def edit_answer(job_id: str, index: int, payload: DocumentTextPayload):
+        """Keep a hand edit to one answer. The bank keeps its own copy."""
+        job = job_or_404(job_id)
+        thread = database.answer_thread(job_id)
+        answer_index_or_404(thread, index)
+        if not payload.text.strip():
+            raise HTTPException(status_code=400, detail="An answer cannot be empty")
+        message = thread.messages[index]
+        message.text, message.edited_at = payload.text.strip(), datetime.now(timezone.utc)
+        database.save_answer_thread(thread)
+        return thread_view(job, thread)
+
+    @app.delete("/api/jobs/{job_id}/answers")
+    def clear_answers(job_id: str):
+        job_or_404(job_id)
+        database.delete_answer_thread(job_id)
+        return {"ok": True}
+
+    @app.post("/api/jobs/{job_id}/answers/{index}/bank")
+    def bank_answer(job_id: str, index: int):
+        """Save one answer, with the question it replies to, in the answer bank."""
+        job = job_or_404(job_id)
+        thread = database.answer_thread(job_id)
+        answer_index_or_404(thread, index)
+        entry = to_bank(thread, index, job, job.language or database.load_settings().default_language)
+        bank = [e for e in database.answer_bank() if e.id != entry.id]
+        database.save_answer_bank([entry, *bank])
+        return {"ok": True, "entry": entry.model_dump(mode="json")}
+
+    @app.get("/api/answer-bank")
+    def get_bank():
+        return {"entries": [e.model_dump(mode="json") for e in database.answer_bank()]}
+
+    @app.put("/api/answer-bank/{entry_id}")
+    def edit_bank(entry_id: str, payload: BankEditPayload):
+        bank = database.answer_bank()
+        entry = next((e for e in bank if e.id == entry_id), None)
+        if entry is None:
+            raise HTTPException(status_code=404, detail="That answer is no longer in the bank")
+        # The id stays, even if the question is reworded, so it is still the same entry.
+        entry.question, entry.answer = payload.question.strip(), payload.answer.strip()
+        entry.edited_at = datetime.now(timezone.utc)
+        database.save_answer_bank(bank)
+        return {"ok": True, "entry": entry.model_dump(mode="json")}
+
+    @app.delete("/api/answer-bank/{entry_id}")
+    def delete_bank(entry_id: str):
+        bank = database.answer_bank()
+        remaining = [e for e in bank if e.id != entry_id]
+        if len(remaining) == len(bank):
+            raise HTTPException(status_code=404, detail="That answer is no longer in the bank")
+        database.save_answer_bank(remaining)
+        return {"ok": True}
 
     # -- pipeline ---------------------------------------------------------
 

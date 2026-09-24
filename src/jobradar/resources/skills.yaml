@@ -119,7 +119,7 @@ healthcare: {label: Healthcare domain, group: domain, aliases: [clinical, sanita
 
 # --- Office, administration and business tools ------------------------------
 excel: {label: Excel / spreadsheets, group: office, aliases: [excel, "microsoft excel", spreadsheets, "hojas de calculo", "hojas de cálculo", "google sheets", "tablas dinamicas", "pivot tables"]}
-office_suite: {label: Office suite, group: office, aliases: ["microsoft office", "office 365", "microsoft 365", "paquete office", word, powerpoint, outlook, "google workspace"]}
+office_suite: {label: Office suite, group: office, aliases: ["microsoft office", "office 365", "microsoft 365", "paquete office", "microsoft word", "ms word", powerpoint, "microsoft outlook", "ms outlook", "google workspace"]}
 data_entry: {label: Data entry, group: office, aliases: ["data entry", "grabacion de datos", "grabación de datos", mecanografia, "typing"]}
 bookkeeping: {label: Bookkeeping, group: finance, aliases: [bookkeeping, "teneduria de libros", facturacion, facturación, invoicing, "accounts payable", "accounts receivable", "cuentas a pagar", "cuentas a cobrar"]}
 payroll: {label: Payroll, group: finance, aliases: [payroll, nominas, nóminas, "seguridad social", "social security contributions"]}

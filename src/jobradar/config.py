@@ -366,6 +366,9 @@ class Settings(BaseModel):
     #: is available and the built-in writer otherwise; "builtin" always uses
     #: the built-in writer, which needs no browser but lays out more plainly.
     cv_pdf_engine: Literal["auto", "builtin"] = "auto"
+    #: Phrases you never use, flagged in letters, emails and form answers on
+    #: top of the built-in list (see documents/review.py).
+    banned_phrases: list[str] = Field(default_factory=list)
 
     @classmethod
     def from_yaml(cls, path: str | Path) -> Settings:

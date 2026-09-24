@@ -15,7 +15,7 @@ import hashlib
 import re
 from datetime import date, datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -492,6 +492,51 @@ class GeneratedDocument(BaseModel):
     generated_at: datetime | None = None
     # True when a language model wrote it, False for the deterministic path.
     llm_generated: bool = False
+
+
+class LimitUnit(str, Enum):
+    """How an application form counts the length of an answer."""
+
+    CHARACTERS = "characters"
+    WORDS = "words"
+
+
+class ThreadMessage(BaseModel):
+    """One turn of a form-answer thread: the user's question or an answer."""
+
+    role: Literal["question", "answer"]
+    text: str
+    at: datetime
+    #: Set when the user edited an answer by hand after it was written.
+    edited_at: datetime | None = None
+
+
+class AnswerThread(BaseModel):
+    """The free-text questions of one job's application form, and the answers.
+
+    A thread per job: the user pastes a question, gets an answer, and refines
+    it in the same thread ("shorter", "less formal") instead of starting over.
+    The limit is the form's own, and it is a hard one.
+    """
+
+    job_id: str
+    limit: int | None = Field(default=None, ge=1)
+    unit: LimitUnit = LimitUnit.CHARACTERS
+    messages: list[ThreadMessage] = Field(default_factory=list)
+
+
+class BankEntry(BaseModel):
+    """An answer the user liked, kept to be adapted when a similar question returns."""
+
+    id: str
+    question: str
+    answer: str
+    company: str = ""
+    job_title: str = ""
+    job_id: str = ""
+    language: str = "en"
+    saved_at: datetime
+    edited_at: datetime | None = None
 
 
 class MailKind(str, Enum):

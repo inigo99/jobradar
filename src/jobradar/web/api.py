@@ -12,7 +12,7 @@ from datetime import date
 from pydantic import BaseModel, Field
 
 from ..config import Filters, Settings
-from ..models import ApplicationStage, ApplicationStatus, CvVariant
+from ..models import ApplicationStage, ApplicationStatus, CvVariant, LimitUnit
 
 
 class OnboardingPayload(BaseModel):
@@ -65,6 +65,26 @@ class DocumentTextPayload(BaseModel):
     """The user's edited text of a cover letter or application email."""
 
     text: str
+
+
+class QuestionPayload(BaseModel):
+    """A question pasted from an application form, or a refinement of the last answer."""
+
+    question: str = Field(min_length=1, max_length=4000)
+
+
+class AnswerLimitPayload(BaseModel):
+    """The form's own length limit for this job's answers (``None`` = no limit)."""
+
+    limit: int | None = Field(default=None, ge=1, le=100_000)
+    unit: LimitUnit = LimitUnit.CHARACTERS
+
+
+class BankEditPayload(BaseModel):
+    """A hand edit to a saved answer."""
+
+    question: str = Field(min_length=1)
+    answer: str = Field(min_length=1)
 
 
 class JobView(BaseModel):

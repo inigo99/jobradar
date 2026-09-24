@@ -113,11 +113,23 @@
     white-space: pre-wrap; background: var(--surface-2); border: 1px solid var(--line);
     border-radius: 8px; padding: 11px; font-size: 13px; margin-top: 8px; max-height: 380px; overflow: auto;
   }
+  .warnings { margin: 8px 0; border-left: 3px solid var(--warn); padding-left: 10px; }
+  .chat { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; max-height: 520px; overflow: auto; }
+  .bubble { border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; font-size: 13.5px;
+            white-space: pre-wrap; }
+  .bubble.question { background: var(--surface-2); align-self: flex-end; max-width: 80%; }
+  .bubble .who { display: block; font-size: 11px; font-weight: 700; color: var(--ink-3);
+                 text-transform: uppercase; letter-spacing: .05em; margin-bottom: 3px; }
+  .bubble textarea, .bank-row textarea, .bank-row input, .question-box { width: 100%; box-sizing: border-box; }
+  .count { font-size: 12px; color: var(--ink-3); } .count.over { color: var(--danger); font-weight: 700; }
+  .actions { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+  .actions input.limit, .actions select { width: auto; } .actions label.inline { margin: 0; font-size: 12.5px; }
+  .bank-row { border-bottom: 1px solid var(--line); padding: 8px 0; font-size: 13px; white-space: pre-wrap; }
+  .bank-row .bank-q { font-weight: 700; margin: 0 0 4px; }
   .variant-row { display: grid; grid-template-columns: 130px 1fr; gap: 8px; align-items: start;
                  font-size: 13px; margin: 4px 0; }
   textarea.doc-text { width: 100%; box-sizing: border-box; color: var(--ink); font: inherit; font-size: 13px;
                       resize: vertical; max-height: none; }
-  .job-output .actions { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 8px; }
   .track { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
 
   dialog {
