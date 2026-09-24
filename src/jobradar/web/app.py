@@ -41,7 +41,7 @@ from pydantic import ValidationError
 from starlette.requests import Request
 
 from .. import __version__
-from ..config import Paths, countries, load_dotenv, validation_summary
+from ..config import Filters, Paths, countries, load_dotenv, validation_summary
 from ..documents import generate_cover_letter, generate_email, render_cv, tailor
 from ..documents.answers import add_turn, answer, to_bank
 from ..documents.letters import contact_line
@@ -80,7 +80,7 @@ from ..profile import import_profile
 from ..profile.vocabulary import SkillEdit, apply_skill_edits, carry_over
 from ..sources import available as available_sources
 from ..storage import Database
-from ..textutils import slugify
+from ..textutils import contains_phrase, slugify
 from .api import (
     AnswerLimitPayload,
     ApplicationPayload,
@@ -135,9 +135,28 @@ async def save_upload(upload: UploadFile, directory: Path) -> Path:
     return target
 
 
+def where_for(job: Job, filters: Filters | None) -> str:
+    """Where a job is, as the board's "Where" filter groups it.
+
+    ``local`` when its location names one of the user's areas, ``home`` when
+    it is in their country, ``abroad`` when in another, ``unknown`` when the
+    ad says no country (common for remote roles).
+    """
+    if filters is None:
+        return "unknown"
+    location = job.location or ""
+    if any(contains_phrase(location, area) for area in filters.local_areas):
+        return "local"
+    country = (job.country or "").upper()
+    if not country:
+        return "unknown"
+    return "home" if country == (filters.home_country or "").upper() else "abroad"
+
+
 def _job_view(job: Job, score: MatchScore | None, application: Application,
               documents: dict, profile_years: float | None = None,
-              families: dict[str, Family] | None = None) -> JobView:
+              families: dict[str, Family] | None = None,
+              filters: Filters | None = None) -> JobView:
     if families and not job.family:
         # Jobs stored before families existed are classified on the fly.
         job.family = classify_family(job, families)
@@ -148,6 +167,8 @@ def _job_view(job: Job, score: MatchScore | None, application: Application,
         title=job.title or "",
         company=job.company or "",
         location=job.location or "",
+        country=job.country or "",
+        where=where_for(job, filters),
         work_mode=job.work_mode.value,
         remote_scope=job.remote_scope.value,
         source=job.source,
@@ -344,7 +365,7 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
             documents = database.documents_for(job.id)
             jobs.append(
                 _job_view(job, scores.get(job.id), application, documents, profile_years,
-                          families)
+                          families, settings.filters)
                 .model_dump(mode="json")
             )
         # Focus order by default: once a profile covers most of what the ads

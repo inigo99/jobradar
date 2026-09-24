@@ -8,6 +8,11 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- **Board filters**: text, work mode, where (your areas, your country, abroad,
+  not stated), job family, source, language, minimum salary (midpoint of the
+  band) and minimum match, with a count of what is shown and one button to
+  clear them. They only narrow the view — nothing is rejected — and are
+  remembered in the browser.
 - **Job families for any kind of work.** 23 families (healthcare, care,
   education, logistics, hospitality, retail, trades, construction, finance,
   software and more, plus *General*) in `resources/families.yaml`, assigned

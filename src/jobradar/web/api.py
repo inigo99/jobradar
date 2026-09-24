@@ -152,6 +152,10 @@ class JobView(BaseModel):
     title: str
     company: str
     location: str
+    country: str = ""
+    #: Where the job is, from the user's point of view: "local" (one of their
+    #: areas), "home" (their country), "abroad", or "unknown".
+    where: str = "unknown"
     work_mode: str
     remote_scope: str
     source: str

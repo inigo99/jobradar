@@ -30,13 +30,39 @@
 <main>
   <div class="tabs" id="tabs" role="tablist"></div>
   <div class="toolbar" id="toolbar">
-    <input type="search" id="filter" placeholder="Filter by company, title or skill…">
-    <select id="sort" style="max-width:200px">
+    <div class="filters" role="search" aria-label="Filter the board">
+      <label class="fld wide">Search
+        <input type="search" id="f_text" placeholder="Company, title, place or skill…"></label>
+      <label class="fld">Work mode
+        <select id="f_mode">
+          <option value="">Any</option><option value="remote">Remote</option>
+          <option value="hybrid">Hybrid</option><option value="onsite">On-site</option>
+          <option value="unknown">Not stated</option>
+        </select></label>
+      <label class="fld">Where
+        <select id="f_where">
+          <option value="">Anywhere</option><option value="local">My areas</option>
+          <option value="home">My country</option><option value="abroad">Abroad</option>
+          <option value="unknown">Not stated</option>
+        </select></label>
+      <label class="fld">Family <select id="f_family"><option value="">All families</option></select></label>
+      <label class="fld">Source <select id="f_source"><option value="">All sources</option></select></label>
+      <label class="fld">Language <select id="f_language"><option value="">Any language</option></select></label>
+      <label class="fld range"><span class="fld-head">Salary (midpoint)
+        <span class="hint" id="f_salary_value">any</span></span>
+        <input type="range" id="f_salary" min="0" max="100000" step="1000" value="0"></label>
+      <label class="fld range"><span class="fld-head">Match
+        <span class="hint" id="f_score_value">any</span></span>
+        <input type="range" id="f_score" min="0" max="100" step="5" value="0"></label>
+      <button type="button" class="ghost" id="f_clear">Clear filters</button>
+    </div>
+    <select id="sort" style="max-width:200px" aria-label="Sort the board">
       <option value="focus">Focus — what to apply to now</option>
       <option value="score">Best match first</option>
       <option value="date">Newest first</option>
       <option value="salary">Highest salary first</option>
     </select>
+    <span id="f_count" class="hint" aria-live="polite"></span>
     <span id="run-note" class="hint"></span>
   </div>
   <div id="board"></div>
@@ -75,6 +101,7 @@
 </dialog>
 
 <script src="/static/dashboard-core.js?v={{ version }}"></script>
+<script src="/static/dashboard-filters.js?v={{ version }}"></script>
 <script src="/static/dashboard-board.js?v={{ version }}"></script>
 <script src="/static/dashboard-mail.js?v={{ version }}"></script>
 <script src="/static/dashboard-answers.js?v={{ version }}"></script>
