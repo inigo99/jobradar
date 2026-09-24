@@ -51,8 +51,19 @@ this project can claim its output is defensible. Changing them needs a very good
 argument and a test.
 
 **Politeness to job boards.** All HTTP goes through `sources.base.Fetcher`,
-which rate-limits, caches and honours `robots.txt`. Do not bypass it, and do not
-lower the defaults.
+which rate-limits, caches and honours `robots.txt` (restricted sources, which
+the user switches on deliberately, skip that one check — see
+[docs/SOURCES.md](docs/SOURCES.md)). Do not bypass it, and do not lower the
+defaults.
+
+**The dashboard.** `web/templates/dashboard.html` loads plain scripts from
+`web/static/` in order; they share one global scope, one file per area
+(board, mail, answers, jobs, insights, wizard, settings) and `dashboard-main.js`
+last. No framework, no build step, nothing loaded from outside the machine.
+
+**The mailbox.** `mail/imap.py` opens the folder read-only and fetches with
+`BODY.PEEK`. Keep it that way: reading a user's email must never mark, move or
+delete anything.
 
 **The restricted tier.** New adapters that parse pages built for human visitors
 must declare `tos_tier = "restricted"` and a `tos_note` naming the actual

@@ -44,7 +44,7 @@ from .models import (
     Profile,
     SearchRun,
 )
-from .profile.vocabulary import activate_custom_skills
+from .taxonomy import use_custom_skills
 
 log = logging.getLogger(__name__)
 
@@ -197,7 +197,7 @@ def _listing_fields(payload: str) -> dict[str, Any]:
 
 def _activate_custom_skills(profile: Profile) -> None:
     """Skills the user added by hand join the vocabulary whenever the profile loads."""
-    activate_custom_skills(profile)
+    use_custom_skills(profile.custom_skills, profile.skill_labels)
 
 
 def _storage_error(exc: sqlite3.Error, path: Path) -> StorageError:

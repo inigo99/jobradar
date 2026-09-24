@@ -6,8 +6,8 @@ JobRadar runs on your machine, keeps your CV and your job search in a local SQLi
 
 ```bash
 pip install -e ".[all]"
-playwright install chromium     # only needed for PDF output
-scrapling install               # only needed if you enable LinkedIn/InfoJobs/Tecnoempleo
+playwright install chromium     # optional: the HTML templates' typography in the PDF
+scrapling install               # only needed if you enable LinkedIn/InfoJobs/Tecnoempleo/Indeed
 jobradar demo                   # synthetic data, no network calls
 jobradar serve                  # dashboard on http://127.0.0.1:8000
 ```
@@ -48,17 +48,21 @@ jobradar serve                  # dashboard on http://127.0.0.1:8000
 
 The years filter takes its ceiling from your CV's own dates, so it rises on its own instead of ageing quietly, and it separates the ads you miss by a hair from the ones far out of reach. An ad that states no minimum is never filtered on years at all — most state none.
 
-**5. Prices.** Around two thirds of ads publish no salary. JobRadar estimates a band from an editable reference table adjusted for the country, always marks it as an estimate, and shows the reasoning.
+**5. Sorts and prices.** Every job is put in a **job family** — healthcare, logistics, hospitality, software, finance and twenty more, for any kind of work, editable in Settings — and a family can be given a priority to move it up or down the board. Around two thirds of ads publish no salary, so JobRadar estimates a band: the family's reference band, adjusted for the kind of employer (public sector, staffing agency, large company…), the country that actually hires, and at most two signals from the ad (many years asked for, an unnamed client, a regulated sector). It is always marked as an estimate and shows the reasoning.
 
 **6. Scores, then triages.** Each job gets two scores: what your CV proves *today*, and what it would prove if the relevant skills were pulled out of your skills list and into an achievement. The difference is what tailoring is worth. Gaps are listed explicitly, worst first, each marked with how long it would realistically take to close before an interview.
 
 Match score answers "could I do this job". It stops discriminating once your profile covers most of what the ads ask for — everything clusters near the top, and sorting by match becomes sorting by noise. So the board is ordered by **focus**: the match score less what is already known to go nowhere (ads that have aged past the point of a reply, titles pitched above your years), plus a nudge for ads that publish a band. Every job carries one sentence saying why it sits where it does, and the honest match number is one click away. **Today** is the first tab: six jobs in focus order and a weekly counter, because a board of two hundred jobs does not say where to start.
 
-**7. Tailors.** For any job, JobRadar writes a headline and a professional summary, reorders your achievements by relevance, reorders your skill groups, and renders a one-page PDF — shrinking the type in small steps until it fits rather than cutting your content.
+**7. Tailors and writes.** For any job, JobRadar writes a headline and a professional summary, reorders your achievements by relevance, reorders your skill groups, and renders a one-page PDF — shrinking the type in small steps until it fits rather than cutting your content. A **CV per job family** fixes the headline, which achievements lead or are left out and which skill groups come first for, say, every warehouse job. The PDF needs no browser: when Chromium is missing the built-in writer prints it. Cover letters and application emails are editable and download as PDF, and a **form-answers** thread per job answers the free-text questions of application forms within the form's own length limit, with an **answer bank** so a good answer can be adapted the next time a similar question comes up.
 
-**8. Checks.** Every generated document is validated against your profile, and every CV is linted for the things a senior recruiter spots in ten seconds.
+**8. Checks.** Every generated CV is validated against your profile, and linted for the things a senior recruiter spots in ten seconds. Letters, emails and form answers get warnings that never block anything: figures that are neither in your CV nor in the ad, years you do not have, skills you cannot show, template phrases, a company never named, parts still to fill in.
 
-**9. Tracks.** Active, applied, rejected, discarded — with stages, dates and notes. *Discarded* (you passed) and *rejected* (they passed) are kept distinct, because merging them destroys your response-rate statistics. Applications are never submitted for you: the button opens the ad.
+**9. Tracks.** Active, applied, rejected, discarded — with stages, dates and notes. *Discarded* (you passed) and *rejected* (they passed) are kept distinct, because merging them destroys your response-rate statistics. Applications are never submitted for you: the button opens the ad. A job found elsewhere is added by hand and read like any other; a job you never want to see again is deleted (with a week to undo).
+
+**10. Reads your replies.** With a mailbox configured, JobRadar reads (never changes) your email over IMAP and puts each reply next to its application: a rejection, a next step, or an automatic acknowledgement, quoting the sentence it went by. A proposed interview time becomes a calendar file. It never changes an application's stage on its own.
+
+**11. Says whether it is working.** *Insights* shows the funnel — replies by source, by job family and by match score, the median wait, companies that never answer — and each source's record over past runs, so keeping or dropping a board is a decision made with numbers.
 
 ---
 
@@ -79,7 +83,7 @@ Each skill in your profile carries two numbers:
 
 A tailored CV can raise a skill from its evidence to its ceiling by moving it into a bullet or the summary. **A skill with evidence `0.0` has no ceiling and never rises.** That single rule is the lock: no amount of tailoring can invent experience, so the improvement in the score always reflects better presentation of things that are already true.
 
-Both numbers are proposed automatically when your CV is imported and are editable in the dashboard, because only you know which of your listed tools you could survive a technical interview on.
+Both numbers are proposed automatically when your CV is imported and are editable in the dashboard, because only you know which of your listed tools you could survive a technical interview on. Under **Settings → Your skills** you can add, edit and delete skills and the groups your CV lists them in. A skill JobRadar does not know yet becomes one of yours — with any other names it goes by in ads — and is read in ads from then on. A skill you delete stays deleted, even through a new CV import.
 
 ### 2. Your achievements are never rewritten
 
@@ -111,6 +115,9 @@ When a draft fails, JobRadar keeps the deterministic version and tells you what 
 | `missing-dates` | error | An undated position |
 | `chronology` | error | Positions not in reverse-chronological order |
 | `no-achievements` | error | A CV of job titles with nothing under them |
+| `impossible-ceiling` | error / warning | A ceiling on a skill with no evidence, or below its evidence |
+| `position-without-achievements` | warning | One position with nothing under it |
+| `unproven-evidence` | warning | A skill marked as demonstrated that no achievement shows |
 | `employment-gap` | warning | An unexplained gap over five months |
 | `few-metrics` | warning | Fewer than half the achievements carry a number |
 | `duty-language` | warning | "Responsible for…", "Worked on…" |
@@ -126,6 +133,7 @@ When a draft fails, JobRadar keeps the deterministic version and tells you what 
 | `orphan-skills` | info | Many skills listed but never demonstrated |
 | `repeated-keyword` | info | The same term repeated for ATS ranking that does not work |
 | `summary-without-evidence` | info | A summary with no concrete figure |
+| `unknown-listed-skills` | info | Listed skills that matching does not know, so they never count |
 
 Rules that would encode a cultural preference are deliberately absent. Whether a CV should carry a photo or a date of birth varies enormously by country, and a linter that flags a German CV for following German convention is worse than no linter.
 </details>
@@ -153,22 +161,25 @@ Or install only what you need:
 
 ```bash
 pip install -e .                # search, filter, score, dashboard, HTML CVs
-pip install -e ".[pdf]"         # + PDF rendering (headless Chromium)
+pip install -e ".[pdf]"         # + the templates' own PDF typography (headless Chromium)
 pip install -e ".[parse]"       # + importing a PDF or DOCX CV
 pip install -e ".[excel]"       # + .xlsx export
 ```
 
-Run `playwright install chromium` again after upgrading Playwright: each
-version expects its own browser build. If it cannot download one, JobRadar
-prints the PDF with any other Chromium it finds (an older Playwright build or
-a system Chromium/Chrome), or the one named in `JOBRADAR_CHROMIUM_PATH`.
+Without Playwright the CV is still a PDF: a built-in writer lays it out more
+plainly and needs no browser (choose it permanently with *CV PDF* in
+Settings). With it, run `playwright install chromium` again after upgrading
+Playwright: each version expects its own browser build. If it cannot download
+one, JobRadar prints the PDF with any other Chromium it finds (an older
+Playwright build or a system Chromium/Chrome), or the one named in
+`JOBRADAR_CHROMIUM_PATH`.
 
 Either way, `pip install` alone is enough for every `open`/`credentials`
 source. **`scrapling install`** is the one extra, one-time step, and it only
-matters if you plan to switch on LinkedIn, InfoJobs or Tecnoempleo: it
-downloads the browsers those three adapters fetch through (a few hundred MB).
-Skip it and everything else still works; those three adapters just have
-nothing to fetch with until you run it.
+matters if you plan to switch on LinkedIn, InfoJobs, Tecnoempleo or Indeed:
+it downloads the browsers those adapters fetch through (a few hundred MB).
+Skip it and everything else still works; those adapters just have nothing to
+fetch with until you run it.
 
 `jobradar doctor` tells you what is installed and what each missing piece would give you.
 
@@ -210,11 +221,11 @@ jobradar serve
 
 **First run** collects, in order: who you are and where you work from; your CV (upload or paste); the job titles you are looking for; your filters; and which sources to search. All of it is saved and never asked again — the same values are editable afterwards under **Settings**.
 
-**The board** has seven tabs — Today, Active, Applied, Rejected, Discarded, Closed ads and Filtered out — with a search box and sorting by focus, match, date or salary. Each job shows both scores, your strongest overlaps, your genuine gaps, the salary with its provenance, and anything you should clarify before applying.
+**The board** has eight tabs — Today, Active, Applied, Rejected, Discarded, Closed ads, Filtered out and Insights — with a search box and sorting by focus, match, date or salary. Each job shows both scores, its family, your strongest overlaps, your genuine gaps, the salary with its provenance, the latest reply from your inbox, and anything you should clarify before applying. *Filtered out* lists the ads just short on years in a table of their own; the ones far out of reach are only counted.
 
-**Per job**, four buttons: open the ad, tailor the CV, write a cover letter, write the application email. Letters are written on demand, one job at a time, because writing them for every job found is the slowest and most expensive part of any job-search automation and you want them for a handful of jobs.
+**Per job**: open the ad, tailor the CV, write a cover letter or the application email (editable, with warnings, downloadable as PDF), answer the application form's questions, mark it, or delete it. Letters are written on demand, one job at a time, because writing them for every job found is the slowest and most expensive part of any job-search automation and you want them for a handful of jobs. Tick several jobs to delete them at once; every deletion can be undone for a week. **+ Job** adds a job you found yourself.
 
-**Settings** covers everything: your details, target titles, every filter, which sources run, the language-model provider, and — most usefully — the evidence and ceiling for each of your skills.
+**Settings** covers everything: your details, target titles, every filter, which sources run and which only on one weekday, the job families and their priority, the mailbox check, the language-model provider, phrases you never use, your skills with their evidence and ceiling, and the CV for each job family.
 
 ![Settings](docs/images/settings.png)
 
@@ -227,6 +238,8 @@ jobradar serve
 | `jobradar init [--cv FILE] [--config FILE]` | Set up, interactively or from YAML |
 | `jobradar demo` | Load the synthetic dataset |
 | `jobradar search [--explain] [--no-llm] [--notify] [--refresh]` | Run the pipeline. Ads already on file are not fetched or re-read; `--refresh` forces it |
+| `jobradar mail [--days N]` | Read replies to your applications from your inbox (read-only IMAP) |
+| `jobradar insights [--runs N]` | The application funnel and each source's record |
 | `jobradar sweep [--limit N]` | Retire ads that have closed |
 | `jobradar tailor [JOB_ID] [--top N]` | Generate tailored CVs |
 | `jobradar lint` | Run the red-flag check on your profile |
@@ -263,10 +276,11 @@ The filters, briefly:
 | `max_age_days`, `keep_undated` | Freshness |
 | `prune_after_days` | Close untouched jobs older than this before each search (default 45) |
 
-Two data files are meant to be edited:
+Three data files hold the shipped vocabulary; most of it is also editable from the dashboard:
 
-- **`src/jobradar/resources/skills.yaml`** — the skill taxonomy. Cross-industry, but if your field is not covered, add your keys here and everything downstream picks them up.
-- **`src/jobradar/resources/salary_bands.yaml`** — reference salary bands by role family, seniority and country. Deliberately conservative; treat them as a starting point for your market, not as data.
+- **`src/jobradar/resources/skills.yaml`** — the skill taxonomy. Cross-industry; a skill your field needs can be added in Settings → Your skills, or here for everyone.
+- **`src/jobradar/resources/families.yaml`** — the job families, their title keywords and salary bands. Families can be renamed, re-worded, given a priority, switched off or added in Settings.
+- **`src/jobradar/resources/salary_bands.yaml`** — how an estimate is adjusted: by seniority, country, kind of employer and a few signals in the ad. Deliberately conservative; treat it as a starting point for your market, not as data.
 
 The `_learning_difficulty` block at the end of `skills.yaml` says how long each gap would take to close — `fast`, `medium` or `slow` — and that is what the coloured gap chips mean. It never decides *what* is a gap (your evidence does that) and it never puts anything on a CV: a "fast" gap goes on the CV once you have actually learnt it, not before.
 
@@ -293,17 +307,21 @@ Shipped adapters:
 | Himalayas | open | Publishes structured geographic restrictions — the field that decides whether an international remote job is real for you |
 | Arbeitnow | open | Free documented API, strong in the German-speaking market |
 | Company career boards | open | Greenhouse, Lever, Ashby, Workable, Recruitee, SmartRecruiters, Personio — auto-detected from a domain |
+| Manfred (Spain) | open | Public JSON of a tech board; publishes salary, remote percentage and each skill's required level |
 | Adzuna | credentials | ~20 countries, indexes local boards. [Free key](https://developer.adzuna.com/) |
 | Jooble | credentials | Worldwide. [Free key](https://jooble.org/api/about) |
 | LinkedIn (guest endpoint) | restricted | Highest volume by a distance |
 | InfoJobs (Spain) | restricted | Publishes salary, minimum years and required skills |
 | Tecnoempleo (Spain) | restricted | Tech-only, labels work mode in the listing |
+| Indeed | restricted | Every sector, 25 countries; read through Scrapling's stealth browser |
 
-**About the restricted tier.** These read pages that were built for people, not programs, and the sites' terms may not permit automated access. They are off unless you switch them on by name, having read the warning the dashboard shows. Whether that is acceptable is a decision for the person running the software, under their own jurisdiction and the site's terms — not a default this project should make for you. If you enable one, keep the request delay generous, leave `respect_robots` on, and use it at the volume of a person doing their own job search.
+A source that publishes little can run only once a week (**Settings → Sources → weekly**, and the weekday); every other day it rests.
 
-These three are also the only sources that fetch through a real browser (via [Scrapling](https://github.com/D4Vinci/Scrapling)) instead of a plain HTTP request — LinkedIn and Tecnoempleo answer a plain browser fine, InfoJobs' ad page needs Scrapling's stealth mode to get past a CAPTCHA challenge it puts up for the rest. That needs `scrapling install` once (see [Install](#install)) and is slower per request than plain HTTP, which is exactly why the other six sources do not use it: they do not need to. `scrapling_real_chrome` (off by default) launches your own installed Chrome instead of Scrapling's bundled one, if you want the speed and are running this somewhere interactive rather than on a server.
+**About the restricted tier.** These read pages that were built for people, not programs, and the sites' terms may not permit automated access. They are off unless you switch them on by name, having read the warning the dashboard shows. Whether that is acceptable is a decision for the person running the software, under their own jurisdiction and the site's terms — not a default this project should make for you. If you enable one, keep the request delay generous and use it at the volume of a person doing their own job search.
 
-**The polite defaults apply to every source, browser-fetched or not**: one request per second per host, `robots.txt` honoured, responses cached for an hour, exponential backoff on 429, and a user agent that says what the software is.
+These four are also the only sources that fetch through a real browser (via [Scrapling](https://github.com/D4Vinci/Scrapling)) instead of a plain HTTP request — LinkedIn and Tecnoempleo answer a plain browser fine; InfoJobs' ad page and Indeed need Scrapling's stealth mode to get past the challenge they put up. That needs `scrapling install` once (see [Install](#install)) and is slower per request than plain HTTP, which is exactly why the other sources do not use it: they do not need to. If the browser build Scrapling expects is missing, another installed Chromium is used, and a blocked page or a missing browser is reported once per run instead of silently returning nothing. `scrapling_real_chrome` (off by default) launches your own installed Chrome instead of Scrapling's bundled one, if you want the speed and are running this somewhere interactive rather than on a server.
+
+**The polite defaults apply to every source, browser-fetched or not**: one request per second per host, responses cached for an hour, exponential backoff on 429, and a user agent that says what the software is. `robots.txt` is honoured by every open and credentials source. The restricted sources do not consult it: those sites disallow every automated visitor in it, so honouring it would mean the adapters you deliberately switched on never fetch anything — switching one on is the decision the file would otherwise make for you.
 
 Adding a source is one file and one registry line — see **[docs/SOURCES.md](docs/SOURCES.md)**.
 
@@ -313,7 +331,7 @@ Adding a source is one file and one registry line — see **[docs/SOURCES.md](do
 
 Everything works without one. With `provider = "none"` JobRadar reads ads with a keyword taxonomy, writes summaries from a template filled with your own material, and produces letter skeletons with the parts that need a human marked in brackets.
 
-A model improves four things: reading an ambiguous ad, importing a CV into a structured profile, writing the tailored summary, and writing letters. It is spoken to over plain HTTP, so enabling it adds no Python dependency.
+A model improves five things: reading an ambiguous ad (including one you add by hand), importing a CV into a structured profile, writing the tailored summary, writing letters, and answering application-form questions. Without one, a form question gets your most relevant achievement or a saved answer from the bank as a starting point. It is spoken to over plain HTTP, so enabling it adds no Python dependency.
 
 ```bash
 JOBRADAR_LLM_PROVIDER=anthropic          # or openai, gemini, openai-compatible, ollama
@@ -371,16 +389,20 @@ src/jobradar/
 ├── sources/             One file per job board
 │   ├── base.py          The plugin contract + the polite HTTP client
 │   └── optional/        Opt-in adapters, off by default
+├── families.py          Job families: classification, priority, salary band
+├── insights.py          The application funnel and the run history
 ├── pipeline/            search · dedupe · filters · salary · scoring · sweep
-├── profile/             CV import, evidence and ceiling derivation
-├── documents/           Tailoring, rendering, letters, the validator
+├── profile/             CV import, evidence and ceiling derivation, skill edits
+├── documents/           Tailoring, rendering, the built-in PDF writer, letters,
+│                        form answers, the validator and the text review
 │   └── templates/       CV templates (single column, ATS-safe)
 ├── lint/                The recruiter red-flag rules
 ├── llm/                 Provider-agnostic client and every prompt
-├── web/                 FastAPI dashboard, one self-contained page
+├── web/                 FastAPI dashboard: one page, plain scripts in static/, no CDN
 ├── exporters/           CSV and Excel
+├── mail/                Reading replies over IMAP (read-only) and matching them
 ├── notify/              Email and Telegram digests
-└── resources/           skills.yaml · countries.yaml · salary_bands.yaml · demo data
+└── resources/           skills.yaml · families.yaml · countries.yaml · salary_bands.yaml · demo data
 ```
 
 **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** explains why the pipeline is ordered the way it is and where to hook in.
@@ -393,7 +415,8 @@ src/jobradar/
 - The dashboard binds to `127.0.0.1`. Exposing it takes an explicit `--host`, and you should think before doing so: there is no login.
 - Binding to loopback does not stop a web page open in the same browser from posting to it, so the server also refuses requests whose `Host` is not a name it was started for (defeats DNS rebinding) and any change coming from another origin. The CLI and scripts, which send no `Origin`, are unaffected. With `--host 0.0.0.0` the host check is off unless you set `JOBRADAR_ALLOWED_HOSTS`.
 - The page loads no external assets — no CDN, no fonts, no analytics. It works offline.
-- Outbound requests go to the job boards you enabled, the ECB (for exchange rates) and your language-model provider if you configured one. Nothing else.
+- Outbound requests go to the job boards you enabled, the ECB (for exchange rates), your language-model provider and your mail server if you configured them. Nothing else.
+- The mailbox is opened read-only: messages are never marked as read, moved or deleted, and only the replies matched to an application (sender, subject, one quoted sentence) are stored.
 - API keys are read from the environment and are never written to the database or included in an export.
 
 ---

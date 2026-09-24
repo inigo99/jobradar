@@ -298,7 +298,8 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
     def job_or_404(job_id: str) -> Job:
         job = database.get_job(job_id)
         if job is None:
-            raise HTTPException(status_code=404, detail="Unknown job")
+            raise HTTPException(status_code=404,
+                                detail="That job is not on the board any more; reload the page.")
         return job
 
     def score_for(job: Job, profile: Profile) -> MatchScore:
@@ -553,7 +554,8 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
     async def reimport(cv_file: UploadFile = File(...)):
         """Replace the profile from a new CV file."""
         if not cv_file.filename:
-            raise HTTPException(status_code=400, detail="No file provided")
+            raise HTTPException(status_code=400,
+                                detail="No file was attached; choose your CV file first.")
         settings = database.load_settings()
         target = await save_upload(cv_file, paths.uploads_dir)
         llm = build_client(settings.llm)
@@ -611,7 +613,10 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
                                 origin=SalaryOrigin.PUBLISHED, basis="typed in by you")
         if payload.family:
             if payload.family not in families_for(settings):
-                raise HTTPException(status_code=400, detail=f"Unknown job family '{payload.family}'")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Unknown job family '{payload.family}'. Pick one from the list, or "
+                           "add it in Settings → Job families.")
             job.family = payload.family
             job.raw["family_set_by_user"] = True
         llm = build_client(settings.llm)
@@ -692,7 +697,9 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
     def download_cv(job_id: str):
         document = database.get_document(job_id, "cv")
         if not document or not document.path:
-            raise HTTPException(status_code=404, detail="Generate the CV first")
+            raise HTTPException(
+                status_code=404,
+                detail="No CV has been generated for this job yet; press Tailor CV first.")
         path = Path(document.path)
         if not path.is_file():
             raise HTTPException(status_code=404,
@@ -703,7 +710,8 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
     def build_letter(job_id: str, kind: str):
         """Write the cover letter or the application email for one job."""
         if kind not in LETTER_KINDS:
-            raise HTTPException(status_code=400, detail="Unknown document type")
+            raise HTTPException(status_code=400,
+                                detail=f"Unknown document type '{kind}'; use cover_letter or email.")
         job = job_or_404(job_id)
         profile = require_profile()
         settings = database.load_settings()
@@ -720,10 +728,14 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
 
     def letter_or_404(job_id: str, kind: str) -> GeneratedDocument:
         if kind not in LETTER_KINDS:
-            raise HTTPException(status_code=400, detail="Unknown document type")
+            raise HTTPException(status_code=400,
+                                detail=f"Unknown document type '{kind}'; use cover_letter or email.")
         document = database.get_document(job_id, kind)
         if not document:
-            raise HTTPException(status_code=404, detail="Write the document first")
+            raise HTTPException(
+                status_code=404,
+                detail="That document has not been written yet; press Cover letter or "
+                       "Application email first.")
         return document
 
     @app.put("/api/jobs/{job_id}/documents/{kind}")
@@ -792,7 +804,9 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
 
     def answer_index_or_404(thread: AnswerThread, index: int) -> None:
         if not 0 <= index < len(thread.messages) or thread.messages[index].role != "answer":
-            raise HTTPException(status_code=404, detail="There is no answer at that position")
+            raise HTTPException(
+                status_code=404,
+                detail="There is no answer at that position in this job's thread; reload it.")
 
     @app.get("/api/jobs/{job_id}/answers")
     def get_answers(job_id: str):
@@ -837,7 +851,9 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
         thread = database.answer_thread(job_id)
         answer_index_or_404(thread, index)
         if not payload.text.strip():
-            raise HTTPException(status_code=400, detail="An answer cannot be empty")
+            raise HTTPException(status_code=400,
+                                detail="An answer cannot be empty; write something or delete the "
+                                       "thread.")
         message = thread.messages[index]
         message.text, message.edited_at = payload.text.strip(), datetime.now(timezone.utc)
         database.save_answer_thread(thread)
@@ -869,7 +885,9 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
         bank = database.answer_bank()
         entry = next((e for e in bank if e.id == entry_id), None)
         if entry is None:
-            raise HTTPException(status_code=404, detail="That answer is no longer in the bank")
+            raise HTTPException(
+                status_code=404,
+                detail="That answer is no longer in the bank; reload the page.")
         # The id stays, even if the question is reworded, so it is still the same entry.
         entry.question, entry.answer = payload.question.strip(), payload.answer.strip()
         entry.edited_at = datetime.now(timezone.utc)
@@ -881,7 +899,9 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
         bank = database.answer_bank()
         remaining = [e for e in bank if e.id != entry_id]
         if len(remaining) == len(bank):
-            raise HTTPException(status_code=404, detail="That answer is no longer in the bank")
+            raise HTTPException(
+                status_code=404,
+                detail="That answer is no longer in the bank; reload the page.")
         database.save_answer_bank(remaining)
         return {"ok": True}
 
@@ -969,7 +989,9 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
         """
         job = database.restore_filtered(job_id)
         if job is None:
-            raise HTTPException(status_code=404, detail="Not in the filtered list")
+            raise HTTPException(
+                status_code=404,
+                detail="That ad is no longer in the filtered list; reload the page.")
         profile = database.load_profile()
         if profile is not None:
             database.save_score(job.id, score_job(job, profile))

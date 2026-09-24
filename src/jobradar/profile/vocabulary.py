@@ -175,8 +175,7 @@ def profile_text(profile: Profile, languages: tuple[str, ...] = ("en", "es")) ->
 
 def activate_custom_skills(profile: Profile) -> None:
     """Register the profile's own skills with the taxonomy (see ``Profile.custom_skills``)."""
-    use_custom_skills({key: (profile.skill_labels.get(key) or key[len(CUSTOM_PREFIX):], aliases)
-                       for key, aliases in profile.custom_skills.items()})
+    use_custom_skills(profile.custom_skills, profile.skill_labels)
 
 
 def custom_key(name: str) -> str:

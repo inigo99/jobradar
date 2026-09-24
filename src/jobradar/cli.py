@@ -346,10 +346,14 @@ def cmd_insights(args: argparse.Namespace) -> int:
               [[w["company"], w["title"][:40], w["applied_on"], str(w["days"])]
                for w in report.waiting])
 
-    out(f"\n[bold]Last {runs['runs']} runs[/bold]"
+    if not runs["runs"]:
+        out("\nNo search has run yet, so there is no run history.")
+        return 0
+    out(f"\n[bold]Last {runs['runs']} run{'s' if runs['runs'] != 1 else ''}[/bold]"
         + (f" (since {runs['since']})" if runs["since"] else "")
         + f": {runs['fetched']} fetched, {runs['kept']} kept, {runs['new']} new"
-        + (f", {runs['duplicate_share']:g}% duplicates" if runs["duplicate_share"] is not None else "")
+        + (f", {runs['duplicate_share']:g}% duplicates"
+           if runs["duplicate_share"] is not None else "")
         + (f", median {runs['median_minutes']:g} min per run" if runs["median_minutes"] else "")
         + ".")
     if runs["by_source"]:
@@ -358,7 +362,8 @@ def cmd_insights(args: argparse.Namespace) -> int:
                 f"{e['kept_share']:g}" if e["kept_share"] is not None else "—",
                 str(e["failed"]), str(e["skipped"])] for name, e in runs["by_source"].items()])
     if runs["filtered_by_category"]:
-        out("Filtered out: " + ", ".join(f"{n} by {c}" for c, n in runs["filtered_by_category"].items()))
+        out("Filtered out: " + ", ".join(f"{n} by {c}"
+                                         for c, n in runs["filtered_by_category"].items()))
     return 0
 
 

@@ -64,19 +64,22 @@ _CUSTOM: dict[str, Skill] = {}
 CUSTOM_PREFIX = "custom_"
 
 
-def use_custom_skills(custom: dict[str, tuple[str, list[str]]]) -> None:
-    """Make the user's own skills part of the vocabulary: ``{key: (label, aliases)}``.
+def use_custom_skills(custom: dict[str, list[str]], labels: dict[str, str] | None = None) -> None:
+    """Make the user's own skills part of the vocabulary.
 
-    Called whenever the profile is loaded, so a skill added in Settings is
-    read in job ads and checked by the validator like a shipped one.
+    ``custom`` maps each key to the other names the skill goes by in ads;
+    ``labels`` gives its display name (``Profile.custom_skills`` and
+    ``Profile.skill_labels``). Called whenever the profile is loaded or saved,
+    so a skill added in Settings is read in job ads and checked by the
+    validator like a shipped one.
     """
-    wanted = {
-        key: Skill(key=key, label=label, group="custom",
-                   aliases=tuple(dict.fromkeys(a.strip().lower() for a in (label, *aliases)
-                                               if a and a.strip())),
-                   difficulty=_difficulty_rules()[0])
-        for key, (label, aliases) in custom.items()
-    }
+    labels = labels or {}
+    wanted = {}
+    for key, aliases in custom.items():
+        label = labels.get(key) or key.removeprefix(CUSTOM_PREFIX).replace("_", " ")
+        names = dict.fromkeys(a.strip().lower() for a in (label, *aliases) if a and a.strip())
+        wanted[key] = Skill(key=key, label=label, group="custom", aliases=tuple(names),
+                            difficulty=_difficulty_rules()[0])
     if wanted == _CUSTOM:
         return
     _CUSTOM.clear()

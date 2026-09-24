@@ -11,6 +11,8 @@ default: whether automated access is acceptable is a decision for the person
 running the software on their own behalf, under their own jurisdiction and the
 site's terms — not a default the project should make for them.
 
-If you enable one, keep `request_delay` generous, keep `respect_robots` on, and
-use it at the volume of a person doing their own job search.
+If you enable one, keep `request_delay` generous and use it at the volume of a
+person doing their own job search. These adapters do not consult `robots.txt`
+(see `JobSource.get`): the sites disallow every automated visitor there, and
+switching one on is the decision that file would otherwise make.
 """

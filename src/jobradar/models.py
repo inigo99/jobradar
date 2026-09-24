@@ -19,8 +19,6 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from .taxonomy import label_for as taxonomy_label
-
 # A mapping of ISO-639-1 language code -> text.
 LocalizedText = dict[str, str]
 
@@ -280,8 +278,8 @@ class Profile(BaseModel):
         return {k for k, v in self.evidence.items() if v > 0.0}
 
     def label_for(self, key: str) -> str:
-        """The skill's name as the user sees it: their own label, else the taxonomy's."""
-        return self.skill_labels.get(key) or taxonomy_label(key)
+        """The skill's display name, as set when the evidence was derived."""
+        return self.skill_labels.get(key, key.replace("_", " "))
 
     def years_of_experience(self, today: date | None = None) -> float:
         """Approximate total professional experience, in years.

@@ -18,6 +18,9 @@ country: ES              # ISO-3166 alpha-2; picks currency and default sources
 default_language: en     # used when the ad's language cannot be determined
 cv_template: classic     # classic | compact | modern
 cv_max_pages: 1
+cv_pdf_engine: auto      # auto: print the template with Chromium, the built-in
+                         # writer when it is missing; builtin: always the latter
+banned_phrases: []       # phrases you never use, flagged in letters and answers
 
 search:
   titles:                # sent verbatim to every source as a query
@@ -52,15 +55,17 @@ prune_after_days: 45             # close untouched jobs older than this; empty =
 sources:
   enabled: []                    # empty == every non-restricted source
   disabled: []
+  weekly: []                     # sources that run only once a week…
+  weekly_day: 0                  # …on this day, 0 = Monday … 6 = Sunday
   company_domains:
     - stripe.com
     - greenhouse:airbnb
   request_delay: 1.0             # seconds between requests to one host
   max_results_per_source: 100
   timeout: 20.0
-  respect_robots: true
+  respect_robots: true           # open and credentials sources; restricted ones skip it
   cache_ttl_minutes: 60
-  scrapling_real_chrome: false    # true: LinkedIn/InfoJobs/Tecnoempleo use your
+  scrapling_real_chrome: false    # true: the restricted sources use your
                                   # own installed Chrome instead of Scrapling's
                                   # bundled browser — faster, but only sensible
                                   # on a machine you use interactively
@@ -82,6 +87,21 @@ notifications:
   email_enabled: false
   telegram_enabled: false
   min_score: 55                  # only notify about jobs scoring this well
+
+mail:                            # replies in your inbox; server in .env
+  enabled: false
+  days_back: 30                  # how far back the first check looks
+  check_after_search: true
+
+families:                        # only your changes to resources/families.yaml
+  healthcare:
+    priority: 1.4                # above 1 moves the family up the board
+  software_it:
+    enabled: false               # never classify anything as this family
+  pet_care:                      # a family of your own
+    label: Pet care
+    keywords: [dog groomer, peluquero canino, pet sitter]
+    bands: {junior: [18000, 22000], mid: [21000, 26000], senior: [25000, 31000], lead: [29000, 36000]}
 ```
 
 ## The filters in detail
@@ -142,6 +162,59 @@ one under a new id is recognised as a duplicate rather than shown as new.
 **Freshness.** `keep_undated: true` matters more than it looks: most aggregators
 omit the publication date entirely, and a strict reading would discard them all.
 
+## Job families
+
+Every job is put in one family — 23 ship in `resources/families.yaml`, for
+any kind of work, plus *General* for what fits none. The family comes from the
+words in the title (worth three points) and the first lines of the ad (one
+point); a keyword ending in `*` matches a prefix. It does three things:
+
+- it groups the Insights funnel ("do my healthcare applications get replies?");
+- it sets the starting band of a salary estimate;
+- with a `priority` other than 1 it moves the family up or down the board.
+  The match score never changes: a priority says what you would rather do, not
+  how well you fit.
+
+Under `families`, only what you change is stored, so a family you only
+re-prioritised keeps getting keyword improvements from later versions. A key
+the catalogue does not have is a family of your own and needs a `label` and
+`keywords`. The CV can also be shaped per family: see
+[CV_TAILORING.md](CV_TAILORING.md#a-cv-per-job-family).
+
+## Salary estimates
+
+An ad that publishes a salary is never second-guessed. For the rest, the
+estimate is built in steps, each shown in the job's salary note:
+
+1. the family's band for the seniority the title implies;
+2. × the hiring country's multiplier — the country that employs you, which
+   for a remote job abroad is not yours;
+3. × the kind of employer: public sector, non-profit, staffing agency or
+   consultancy, large company, startup, small business;
+4. × at most two signals from the ad: many years asked for, few years asked
+   for, a high level of English, an unnamed client, a regulated sector;
+5. rounded to thousands, and converted to your currency.
+
+A published band in another currency that falls below your floor only
+because of the exchange rate — within 10 % of it — is kept with a note to
+check today's rate, instead of being dropped on a rounding.
+
+## Replies in your inbox
+
+With `mail.enabled` and the `JOBRADAR_IMAP_*` variables set, **Check email**
+(or `jobradar mail`, or the end of each search) reads the messages received
+since the last check. The mailbox is opened read-only: nothing is marked as
+read, moved or deleted. Each message is matched to an application by the
+sender's domain, the company named in it and the job title; a match is
+classified as a *rejection*, a *next step* or an *acknowledgement* (an
+automatic "we received your application", which does not count as a reply),
+with the sentence it was decided on quoted. A proposed interview date and
+time becomes a calendar file to add by hand.
+
+Nothing changes an application on its own: a rejection is offered as a
+button, not applied. Replies about jobs not marked as applied are listed
+apart, as they are usually applications made elsewhere.
+
 ## Environment variables
 
 Copy `.env.example` to `.env`. Nothing here is stored in the database or
@@ -158,6 +231,7 @@ included in an export.
 | `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` | Adzuna |
 | `JOOBLE_API_KEY` | Jooble |
 | `JOBRADAR_SMTP_*` | Email digest |
+| `JOBRADAR_IMAP_HOST`, `JOBRADAR_IMAP_USER`, `JOBRADAR_IMAP_PASSWORD` | Reading replies (use an app password); `JOBRADAR_IMAP_PORT` (993) and `JOBRADAR_IMAP_FOLDER` (INBOX) are optional |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Telegram digest |
 
 ## Editable data files
@@ -166,10 +240,16 @@ included in an export.
 a group and the aliases matched against ad text. It ships cross-industry, but
 if your field is thin, add keys here; the scorer, the validator and the linter
 all pick them up automatically. Write aliases with enough context to avoid
-false positives — that is why the alias for Go is `golang`, not `go`.
+false positives — that is why the alias for Go is `golang`, not `go`. A skill
+only you need is simpler to add in **Settings → Your skills**: it is stored
+with your profile and read in ads from then on.
 
-**`src/jobradar/resources/salary_bands.yaml`** — reference bands by role family
-and seniority, plus a per-country multiplier. Used only when an ad publishes
+**`src/jobradar/resources/families.yaml`** — the job families: label, title
+keywords and a salary band per seniority. Override any of it in Settings.
+
+**`src/jobradar/resources/salary_bands.yaml`** — how an estimate is adjusted:
+seniority, per-country multipliers, the kind of employer, the signals in the
+ad, and the currency-conversion margin. Used only when an ad publishes
 nothing, always labelled as an estimate. The shipped numbers are conservative
 and are meant to be replaced with what you know about your market.
 
@@ -192,7 +272,11 @@ of this number that stays true without maintenance.
 
 `years_margin` splits the rejections in two. An ad asking for one year more than
 you have is worth a direct email naming the gap; an ad asking for six more is
-not. Both are kept under **Filtered out** either way, labelled differently.
+not. Both are kept, but **Filtered out** lists only the first kind, in a table
+of their own (what they ask, how far short you are, family, salary); the rest
+are counted. The split is recomputed from today's settings every time, and
+saving settings that now cover an ad's years puts it straight back on the
+board.
 
 **An ad that states no minimum is never filtered on years.** Most ads state
 none, and treating silence as a rejection would throw away most of the board.

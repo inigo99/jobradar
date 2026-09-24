@@ -8,6 +8,68 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- **Job families for any kind of work.** 23 families (healthcare, care,
+  education, logistics, hospitality, retail, trades, construction, finance,
+  software and more, plus *General*) in `resources/families.yaml`, assigned
+  from the title and the start of the ad. Rename, re-word, switch off or add
+  families in Settings, and give one a priority to move it up or down the
+  board (the match score never changes).
+- **Salary estimates that know who is hiring.** The family's band × the
+  hiring country (not yours, for a remote job abroad) × the kind of employer
+  (public sector, non-profit, staffing agency, large company, startup, small
+  business) × at most two signals from the ad; rounded to thousands. A
+  published band that misses the floor only through the exchange rate (within
+  10 %) is kept with a note.
+- **Replies in your inbox** (`jobradar mail`, *Check email*, or after each
+  search): read-only IMAP, each reply matched to its application and classed
+  as rejection, next step or automatic acknowledgement, with the sentence it
+  was decided on. Proposed interview times become a calendar file. Replies to
+  jobs not marked as applied are listed apart. Nothing changes a stage on its
+  own. Configure with `JOBRADAR_IMAP_*`.
+- **Insights** tab and `jobradar insights`: replies by source, job family and
+  match-score band (rates from five applications up), median wait for a
+  reply, companies that never answer, the longest waits; per source over past
+  runs, what was fetched, kept, failed and skipped, what the filters removed
+  and how long runs take.
+- **Sources**: Manfred (open, public JSON with each skill's required level)
+  and Indeed (restricted, 25 countries, through Scrapling's stealth browser).
+  Any source can run **once a week** on a chosen day. LinkedIn reads the
+  work-mode badge of ads whose text does not settle it, and pages through
+  results ten at a time as the guest endpoint does.
+- **A CV per job family**: a fixed headline, which achievements lead or are
+  left out, which skill groups come first or are left out, and extra skills —
+  only selecting and ordering what the profile holds. An "Also" line names up
+  to four skills the ad asks for that the profile proves and the groups shown
+  omit.
+- **A PDF without a browser.** A built-in PDF writer prints the CV (with the
+  same shrink-to-fit) when Chromium is missing or fails, or always with
+  `cv_pdf_engine: builtin`. Cover letters and emails are editable, saved, and
+  download as PDF.
+- **Form answers and the answer bank.** A thread per job for the free-text
+  questions of application forms: the form's limit in characters or words,
+  refinements in the same thread, `[pending: …]` instead of invented figures,
+  hand edits. Saved answers come back as precedents for similar questions at
+  other companies.
+- **Warnings on letters, emails and answers** (never blocking, re-checked
+  whenever a saved text is shown): figures in neither the profile nor the ad,
+  inflated years, unproven skills, template phrases plus your own
+  (`banned_phrases`), a company never named, an email without subject or
+  `[name]`, brackets still to fill, answers over the limit.
+- **+ Job**: add a job found elsewhere; it is read like a board's ad, scored,
+  and tracked with a starting status, stage and notes.
+- **Delete jobs**, one or a selection: everything attached goes, a search
+  does not bring the ad back, and it can be undone for a week.
+- **Just short on years**: *Filtered out* lists ads within your years margin
+  in their own table, recomputed live; the ones far out of reach are only
+  counted. Saving settings that now cover an ad's years puts it back at once.
+- **Your skills in Settings**: edit the CV's skill groups; add, edit and
+  delete skills with their evidence and ceiling. Unknown names become your own
+  skills (with other names they go by in ads) and are read in ads from then
+  on. Deleted skills stay deleted, even through a new CV import, which also
+  keeps your own skills, tuned ceilings and CVs per job family.
+- **Linter rules on the evidence model**: `position-without-achievements`,
+  `unproven-evidence`, `impossible-ceiling`, `unknown-listed-skills`.
+- `MailError` joins the exception hierarchy.
 - **Google Gemini as a language model**, selectable in the dashboard's
   Settings or with `JOBRADAR_LLM_PROVIDER=gemini` and `GEMINI_API_KEY` (or
   `GOOGLE_API_KEY`). The default model is `gemini-3.5-flash`. Thinking is
@@ -46,6 +108,23 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- **LinkedIn, InfoJobs and Indeed returned no jobs.** Three causes stacked:
+  Scrapling rejected `retries=0`, their `robots.txt` disallows every
+  automated visitor (restricted sources, which the user switches on
+  deliberately, no longer consult it), and a Playwright upgrade left Scrapling
+  without the browser build it expects (another installed Chromium is now
+  used). A blocked page or a missing browser is reported once per run instead
+  of an empty result.
+- The CV's education section: dates and notes on their own line are joined to
+  the entry above; an undated entry no longer reads "present"; a
+  certification's year is no longer printed twice; "CI/CD" in a skills list
+  stays one skill.
+- A generated CV or letter vanished from the job card as soon as the board
+  refreshed. Clicking *Cover letter* again rewrote the letter over your edits;
+  it now opens the saved one.
+- The office-suite skill matched the plain words "word" and "outlook".
+- Data attributes and ARIA attributes on dashboard elements were set as
+  properties and lost, so the evidence and ceiling editor saved nothing.
 - **A CV imported with a language model had no usable skills.** The prompt
   did not say which skill keys exist, so a model named its own
   (`languages`, `data-ml`); nothing matched any ad, scores were wrong, and

@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from datetime import date
 
 from ..models import Bullet, LintFinding, Profile, Severity, _parse_month, localized
-from ..taxonomy import find_skills
+from ..taxonomy import find_skills, label_for
 
 log = logging.getLogger(__name__)
 
@@ -420,6 +420,11 @@ def _flat(text: str) -> str:
     return re.sub(r"[^a-z0-9]", "", text.lower())
 
 
+def _label(profile: Profile, key: str) -> str:
+    """The profile's name for a skill, else the taxonomy's (a key set by hand has none)."""
+    return profile.skill_labels.get(key) or label_for(key)
+
+
 def rule_unproven_evidence(profile: Profile, language: str) -> Iterator[LintFinding]:
     """A skill marked as demonstrated (1.0) must appear in an achievement.
 
@@ -437,11 +442,11 @@ def rule_unproven_evidence(profile: Profile, language: str) -> Iterator[LintFind
     mentioned = set(find_skills(joined)) | tagged
     flat = _flat(joined)
     for key, value in sorted(profile.evidence.items()):
-        if value < 1.0 or key in mentioned or _flat(profile.label_for(key)) in flat:
+        if value < 1.0 or key in mentioned or _flat(_label(profile, key)) in flat:
             continue
         yield finding(
             "unproven-evidence", Severity.WARNING,
-            f"'{profile.label_for(key)}' is marked as demonstrated but no achievement mentions it.",
+            f"'{_label(profile, key)}' is marked as demonstrated but no achievement mentions it.",
             hint="Either the achievement that proved it changed, or it is written differently "
                  "in the CV. Until then, matching counts it as proven: lower its evidence in "
                  "Settings, or name it in the achievement that shows it.",
@@ -455,7 +460,7 @@ def rule_impossible_ceiling(profile: Profile, language: str) -> Iterator[LintFin
         if base == 0.0 and cap > 0.0:
             yield finding(
                 "impossible-ceiling", Severity.ERROR,
-                f"'{profile.label_for(key)}' has a ceiling of {cap:g} and no evidence.",
+                f"'{_label(profile, key)}' has a ceiling of {cap:g} and no evidence.",
                 hint="A skill your CV does not show can never be raised, so this ceiling is "
                      "ignored — but it says you could claim something you do not have. "
                      "Remove it, or add the evidence first.",
@@ -463,7 +468,7 @@ def rule_impossible_ceiling(profile: Profile, language: str) -> Iterator[LintFin
         elif cap < base:
             yield finding(
                 "impossible-ceiling", Severity.WARNING,
-                f"'{profile.label_for(key)}' has a ceiling of {cap:g}, below its evidence "
+                f"'{_label(profile, key)}' has a ceiling of {cap:g}, below its evidence "
                 f"of {base:g}.",
                 hint="A tailored CV never lowers what is already proven, so this ceiling "
                      "means nothing. Set it at least to the evidence.",
@@ -476,7 +481,7 @@ def rule_unknown_listed_skills(profile: Profile, language: str) -> Iterator[Lint
     They do not count when matching, so an ad asking for one shows a gap that
     is not really there.
     """
-    known = {_flat(profile.label_for(key)) for key in profile.evidence} | {
+    known = {_flat(_label(profile, key)) for key in profile.evidence} | {
         _flat(key) for key in profile.evidence}
     unknown: list[str] = []
     for group in profile.skills:

@@ -13,6 +13,13 @@ you learn to ignore, and then you miss the one that matters.
 Set `notifications.min_score` in Settings so only jobs worth your attention
 trigger a message.
 
+Two things need no extra schedule entry. Sources marked *weekly* in Settings
+run only on their weekday, so a daily run is right for them too. And with
+**Settings → Email** on, the same `search` reads the replies received since the
+last check at the end of the run; a mail server that is down is reported and
+never fails the search. `jobradar mail` does it on its own if you prefer a
+separate entry.
+
 ## cron (Linux, macOS)
 
 ```cron

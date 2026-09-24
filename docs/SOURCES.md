@@ -21,22 +21,46 @@ national boards are where the jobs are, and a tool that ignores them is not
 useful. The reason it is off by default is that whether automated access is
 acceptable is a decision for the person running the software, under their own
 jurisdiction and the site's terms — not a default this project should make on
-their behalf. If you enable one, keep `request_delay` generous, leave
-`respect_robots` on, and use it at the volume of a person doing their own job
-search.
+their behalf. If you enable one, keep `request_delay` generous and use it at
+the volume of a person doing their own job search.
+
+Shipped restricted adapters: LinkedIn (guest endpoint), InfoJobs, Tecnoempleo
+and Indeed. Manfred is `open`: it serves its offers as public JSON.
 
 ## Being a good citizen
 
 `sources/base.Fetcher` enforces this for every adapter, so you get it for free:
 
 - one request per second per host (`request_delay`, raise it if you like);
-- `robots.txt` checked before any fetch (`respect_robots`, on by default);
+- `robots.txt` checked before any fetch (`respect_robots`, on by default) —
+  except for `restricted` sources, which skip it (see below);
 - responses cached on disk for an hour (`cache_ttl_minutes`);
 - exponential backoff on HTTP 429, and a bounded retry on transport errors;
 - an honest user agent naming the project.
 
 A board that blocks the default user agent because someone hammered it hurts
 every user of the project. The defaults are deliberately slow.
+
+**Why restricted sources skip `robots.txt`.** LinkedIn, InfoJobs and Indeed
+disallow every automated visitor in it, so honouring it meant the adapters a
+user had deliberately switched on fetched nothing at all, silently. Switching
+a restricted source on *is* the decision `robots.txt` would otherwise make, and
+it is made by the person running the software, having read the warning.
+`JobSource.get()` passes `obey_robots=False` for the restricted tier only; an
+adapter calling `self.fetcher.get` directly keeps the check.
+
+**Problems are reported, once.** A blocked page (403, a challenge), a missing
+browser or a browser build Scrapling cannot launch is added to
+`Fetcher.problems` once per run and shown in the run summary and the run
+history — the alternative, an empty result, looks exactly like "no jobs today".
+
+## Sources that run once a week
+
+A source that publishes a handful of ads a week is not worth a request every
+day. `settings.sources.weekly` lists sources that run only on
+`settings.sources.weekly_day` (0 = Monday); on other days they are skipped
+with a note in the run, and `jobradar sources` shows them as "on (Mondays
+only)". `jobradar sweep` still checks their ads every day.
 
 ## Browser-backed fetching for a blocked `restricted` source
 
@@ -58,8 +82,13 @@ body = self.fetcher.get(url, params=params, browser="dynamic")
 Both go through [Scrapling](https://github.com/D4Vinci/Scrapling), a
 mandatory dependency whose browsers are a separate, one-time download
 (`scrapling install`) — everything else about the call, including the cache,
-the throttle and the `robots.txt` check, stays exactly the same as the plain
+the throttle and the `robots.txt` rule, stays exactly the same as the plain
 path, so nothing downstream of `self.fetcher.get(...)` needs to change.
+
+If the browser build Scrapling expects is not installed (a Playwright upgrade
+is the usual cause), the fetcher tries the other Chromium builds it can find —
+or the one in `JOBRADAR_CHROMIUM_PATH` — and remembers the one that worked for
+the rest of the run.
 Start with `"dynamic"`; it is faster and is enough for most anti-bot walls.
 Reach for `"stealthy"` only for the specific requests that need it — see
 `sources/optional/infojobs.py`, where the listing uses `"dynamic"` but the ad
@@ -148,6 +177,16 @@ Nothing else changes. The pipeline, the filters, the dashboard's source list and
 a summary. The pipeline calls it for any job whose description is short, and
 re-derives work mode, remote scope, minimum years and salary from what you
 return.
+
+`resolve_work_mode(job)` — the board's own work-mode label, for jobs the board
+calls remote but whose text says nothing either way (the job carries
+`raw["remote_unconfirmed"]`). LinkedIn overrides it to read the badge on the
+ad page with one extra request, instead of leaving an alert on the job.
+
+Structured requirements — when a board publishes the skills an ad asks for
+and at what level (Manfred does), build `job.requirements` from them in
+`search` and set `job.raw["structured_requirements"] = True`: enrichment then
+keeps them instead of re-reading the text.
 
 `check_open(job)` — used by `jobradar sweep`. The default treats a 404 as gone
 and anything else as open. Override it when the board leaves a tombstone page
