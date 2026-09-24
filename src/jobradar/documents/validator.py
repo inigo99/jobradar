@@ -84,11 +84,42 @@ def _canonical(raw: str) -> str:
     return str(int(value)) if value.is_integer() else str(value)
 
 
+#: Words that turn a sentence naming a skill into an admission of not having
+#: it ("I have not worked with Terraform"), in the languages letters are
+#: written in. "not only" is a claim, so it is excluded first.
+_NEGATION = re.compile(
+    r"\b(?:not|no|never|without|lack(?:ing|s)?|haven't|hasn't|don't|doesn't|didn't|yet to|"
+    r"new to|sin|nunca|todav[ií]a no|a[uú]n no|kein(?:e|en)?|nicht|ohne|noch nie|"
+    r"pas|sans|jamais)\b",
+    re.IGNORECASE,
+)
+_NOT_ONLY = re.compile(r"\b(?:not only|no s[oó]lo|nicht nur|non seulement)\b", re.IGNORECASE)
+#: Clause boundaries: a negation covers its own clause, not the whole
+#: sentence ("Although I lack Rust, I have years of Kubernetes" claims Kubernetes).
+_CLAUSE = re.compile(r"[.!?;:,\n]+|\s[–—-]\s|\b(?:but|however|pero|sin embargo|aber|mais)\b",
+                     re.IGNORECASE)
+
+
+def claimed_skills(text: str) -> set[str]:
+    """Skill keys the text claims, leaving out the ones it only says it lacks.
+
+    A letter is asked to be honest about the gaps, and "I have not worked with
+    MLOps yet" names MLOps without claiming it. A skill counts as claimed when
+    at least one clause names it without a negation.
+    """
+    claimed: set[str] = set()
+    for clause in _CLAUSE.split(text):
+        keys = set(find_skills(clause))
+        if keys and not _NEGATION.search(_NOT_ONLY.sub(" ", clause)):
+            claimed |= keys
+    return claimed
+
+
 def check_invented_skills(text: str, profile: Profile) -> list[LintFinding]:
     """Technologies claimed in the document that the profile cannot support."""
     permitted = allowed_terms(profile)
     findings: list[LintFinding] = []
-    for key in find_skills(text):
+    for key in sorted(claimed_skills(text)):
         if key in permitted:
             continue
         findings.append(

@@ -158,6 +158,11 @@ pip install -e ".[parse]"       # + importing a PDF or DOCX CV
 pip install -e ".[excel]"       # + .xlsx export
 ```
 
+Run `playwright install chromium` again after upgrading Playwright: each
+version expects its own browser build. If it cannot download one, JobRadar
+prints the PDF with any other Chromium it finds (an older Playwright build or
+a system Chromium/Chrome), or the one named in `JOBRADAR_CHROMIUM_PATH`.
+
 Either way, `pip install` alone is enough for every `open`/`credentials`
 source. **`scrapling install`** is the one extra, one-time step, and it only
 matters if you plan to switch on LinkedIn, InfoJobs or Tecnoempleo: it
@@ -311,10 +316,30 @@ Everything works without one. With `provider = "none"` JobRadar reads ads with a
 A model improves four things: reading an ambiguous ad, importing a CV into a structured profile, writing the tailored summary, and writing letters. It is spoken to over plain HTTP, so enabling it adds no Python dependency.
 
 ```bash
-JOBRADAR_LLM_PROVIDER=anthropic          # or openai, openai-compatible, ollama
+JOBRADAR_LLM_PROVIDER=anthropic          # or openai, gemini, openai-compatible, ollama
 JOBRADAR_LLM_MODEL=claude-sonnet-4-5
 ANTHROPIC_API_KEY=...
 ```
+
+For Google Gemini, get a key from Google AI Studio and set:
+
+```bash
+JOBRADAR_LLM_PROVIDER=gemini
+JOBRADAR_LLM_MODEL=                      # blank = gemini-3.5-flash
+GEMINI_API_KEY=...
+```
+
+The provider can also be picked in the dashboard's Settings; variables set in
+`.env` win over it. `jobradar doctor` shows which provider is in use and
+whether it is usable.
+
+Gemini's free tier allows only a few dozen requests a day **per model**, and
+its newest models are often refused with "high demand". JobRadar retries busy
+answers, and when a model is still busy, retired or out of its daily quota it
+moves on to the next one in `JOBRADAR_LLM_FALLBACK_MODELS` (by default
+`gemini-3.6-flash`, `gemini-3.5-flash-lite`, `gemini-3.1-flash-lite`). When
+every model is spent the run carries on without one. For daily searches that
+read dozens of ads, lower `max_calls_per_run` or use a paid key.
 
 `ollama` and `openai-compatible` point at a local server, so you can run the whole thing offline. `max_calls_per_run` caps the spend of an unattended run; `jobradar search --no-llm` forces the deterministic path for one run.
 

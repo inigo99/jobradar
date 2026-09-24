@@ -41,3 +41,22 @@ def test_letters_may_quote_the_advertisement():
     report = validate_document("Your ad mentions a team of 40 engineers.", build_profile(),
                                strict_numbers=False)
     assert report.ok
+
+
+def test_admitting_a_gap_is_not_claiming_it():
+    profile = build_profile()
+    letter = ("While I have not worked with Kubernetes yet, I cut checkout errors by 47% "
+              "using Python.")
+    assert validate_document(letter, profile, strict_numbers=False).ok
+
+
+def test_a_negation_only_covers_its_own_clause():
+    report = validate_document("Although I lack Rust, I am a Kubernetes specialist.",
+                               build_profile(), strict_numbers=False)
+    assert not report.ok
+
+
+def test_not_only_is_a_claim():
+    report = validate_document("Not only do I know Kubernetes, I also ship Python.",
+                               build_profile(), strict_numbers=False)
+    assert not report.ok

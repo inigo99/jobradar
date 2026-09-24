@@ -30,6 +30,7 @@ from ..config import Paths, Settings
 from ..errors import RenderError, describe_os_error
 from ..models import Job, Profile, localized
 from ..textutils import slugify
+from .browser import CHROMIUM_PATH_VARIABLE, launch_chromium
 from .tailor import TailoredCV
 
 log = logging.getLogger(__name__)
@@ -226,12 +227,13 @@ def _measure_and_print(html: str, pdf_path: Path, max_pages: int) -> tuple[int, 
     """Print ``html`` to PDF with headless Chromium and report the page count.
 
     Playwright is an optional dependency; without it the caller keeps the HTML,
-    which every browser can print to PDF by hand.
+    which every browser can print to PDF by hand. When the browser build it
+    expects is missing, another installed Chromium is used — see ``browser``.
     """
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch()
+        browser = launch_chromium(playwright)
         page = browser.new_page()
         page.set_content(html, wait_until="load")
         height = page.evaluate("document.documentElement.scrollHeight")
@@ -267,7 +269,8 @@ def _pdf_failure(exc: Exception) -> str:
     first_line = (str(exc).strip().splitlines() or [type(exc).__name__])[0]
     message = f"PDF rendering failed, so only the HTML was produced: {first_line}"
     if "executable doesn't exist" in str(exc).lower() or "playwright install" in str(exc).lower():
-        message += " — install the browser with: playwright install chromium"
+        message += (" — install the browser with 'playwright install chromium', or point "
+                    f"{CHROMIUM_PATH_VARIABLE} at an installed Chromium or Chrome")
     return message
 
 

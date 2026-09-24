@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -212,7 +213,7 @@ def cmd_search(args: argparse.Namespace) -> int:
     settings = database.load_settings()
     _require_onboarded(settings)
     if args.no_llm:
-        settings.llm.provider = "none"
+        settings.llm.switched_off = True
 
     out("Searching…")
     result = run_search(settings=settings, paths=database.paths, database=database,
@@ -286,7 +287,7 @@ def cmd_tailor(args: argparse.Namespace) -> int:
         raise SetupRequiredError("No profile yet.",
                                  hint="Import a CV first: jobradar init --cv path/to/cv.pdf")
     if args.no_llm:
-        settings.llm.provider = "none"
+        settings.llm.switched_off = True
 
     if args.job_id:
         job = database.get_job(args.job_id)
@@ -471,8 +472,6 @@ def cmd_notify(args: argparse.Namespace) -> int:
 
 def cmd_sources(args: argparse.Namespace) -> int:
     """Show every source and its status."""
-    import os
-
     database = _database(args)
     settings = database.load_settings()
     from .sources import resolve_enabled
@@ -521,6 +520,27 @@ def _scrapling_browsers_installed() -> bool:
         return False
 
 
+def _pdf_browser_check() -> tuple[str, bool, str]:
+    """Whether a Chromium is there to print the CV, and which one."""
+    from .documents.browser import (
+        CHROMIUM_PATH_VARIABLE,
+        expected_executable,
+        fallback_executables,
+    )
+
+    label = "Browser for the PDF"
+    expected = expected_executable()
+    if expected is None:
+        return label, False, "install Playwright first (see PDF rendering)"
+    fallbacks = fallback_executables()
+    if os.environ.get(CHROMIUM_PATH_VARIABLE) or not expected.exists():
+        if fallbacks and fallbacks[0].exists():
+            return f"{label} ({fallbacks[0]})", True, ""
+        return label, False, (f"run 'playwright install chromium', or set {CHROMIUM_PATH_VARIABLE} "
+                              "to a Chromium or Chrome executable")
+    return label, True, ""
+
+
 def cmd_doctor(args: argparse.Namespace) -> int:
     """Check the installation and report what is missing."""
     database = _database(args)
@@ -544,6 +564,8 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         except ImportError:
             checks.append((label, False, hint))
 
+    checks.append(_pdf_browser_check())
+
     checks.append((
         "Scrapling browsers (LinkedIn / InfoJobs / Tecnoempleo)",
         _scrapling_browsers_installed(),
@@ -551,7 +573,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     ))
 
     llm = build_client(settings.llm)
-    checks.append((f"Language model ({settings.llm.provider})", llm is not None,
+    checks.append((f"Language model ({settings.llm.effective().provider})", llm is not None,
                    "optional — everything works without one"))
     if llm:
         llm.close()

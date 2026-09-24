@@ -66,8 +66,11 @@ sources:
                                   # on a machine you use interactively
 
 llm:
-  provider: none                 # none | anthropic | openai | openai-compatible | ollama
+  provider: none                 # none | anthropic | openai | gemini | openai-compatible | ollama
   model: ""
+  fallback_models: null          # models tried in order when `model` is busy,
+                                 # retired or out of quota; null = the provider's
+                                 # own list (gemini has one), [] = none
   base_url: ""
   max_calls_per_run: 60
   temperature: 0.2
@@ -148,8 +151,10 @@ included in an export.
 |---|---|
 | `JOBRADAR_HOME` | Where the data lives (default `./data`) |
 | `JOBRADAR_ALLOWED_HOSTS` | Extra host names the dashboard answers to, comma-separated (see the README's privacy section) |
-| `JOBRADAR_LLM_PROVIDER`, `JOBRADAR_LLM_MODEL`, `JOBRADAR_LLM_BASE_URL` | Language model |
-| `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` | Model keys |
+| `JOBRADAR_LLM_PROVIDER`, `JOBRADAR_LLM_MODEL`, `JOBRADAR_LLM_BASE_URL` | Language model; when set, they override the provider stored in Settings |
+| `JOBRADAR_LLM_FALLBACK_MODELS` | Comma-separated models tried when the chosen one is busy, retired or out of quota (`none` to switch it off) |
+| `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) | Model keys |
+| `JOBRADAR_CHROMIUM_PATH` | Chromium or Chrome used for the PDF when Playwright's own browser is missing |
 | `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` | Adzuna |
 | `JOOBLE_API_KEY` | Jooble |
 | `JOBRADAR_SMTP_*` | Email digest |
