@@ -25,6 +25,7 @@ import re
 import httpx
 
 from ..config import LLMSettings
+from ..errors import LLMError  # noqa: F401  (re-exported for callers of this module)
 
 log = logging.getLogger(__name__)
 
@@ -46,8 +47,16 @@ DEFAULT_BASE_URLS = {
 }
 
 
-class LLMError(RuntimeError):
-    """Raised when the provider is misconfigured; never during normal failure."""
+#: Environment variable(s) holding each hosted provider's key, first wins.
+KEY_VARIABLES = {
+    "anthropic": ("ANTHROPIC_API_KEY",),
+    "openai": ("OPENAI_API_KEY",),
+    "openai-compatible": ("OPENAI_API_KEY",),
+    "gemini": ("GEMINI_API_KEY", "GOOGLE_API_KEY"),
+    "google": ("GEMINI_API_KEY", "GOOGLE_API_KEY"),
+}
+#: Providers that refuse every request without a key.
+KEY_REQUIRED = frozenset({"anthropic", "openai", "gemini", "google"})
 
 
 class LLMClient:
@@ -66,28 +75,43 @@ class LLMClient:
         self.calls_made = 0
         self._client = httpx.Client(timeout=120.0)
         self._api_key = self._resolve_key()
+        #: Set when the provider refused us in a way retrying cannot fix (bad
+        #: key, unknown model), so the rest of the run stops asking.
+        self._fatal: str | None = None
 
     # -- configuration -----------------------------------------------------
 
     def _resolve_key(self) -> str:
-        if self.provider == "anthropic":
-            return os.environ.get("ANTHROPIC_API_KEY", "")
-        if self.provider in ("openai", "openai-compatible"):
-            return os.environ.get("OPENAI_API_KEY", "")
-        if self.provider in ("gemini", "google"):
-            return os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY", "")
-        return ""  # ollama needs none
+        for name in KEY_VARIABLES.get(self.provider, ()):  # ollama needs none
+            if os.environ.get(name):
+                return os.environ[name]
+        return ""
 
     @property
     def budget_left(self) -> int:
         return max(0, self.settings.max_calls_per_run - self.calls_made)
 
+    def problem(self) -> str | None:
+        """Why this client cannot be used, in words, or None if it can."""
+        if not self.settings.enabled:
+            return "no provider is configured"
+        if self.provider not in DEFAULT_MODELS:
+            return (f"unknown provider '{self.settings.provider}' "
+                    f"(expected one of: {', '.join(sorted(DEFAULT_MODELS))})")
+        if not self.model:
+            return f"no model is set for provider '{self.provider}'"
+        if not self.base_url:
+            return f"no base URL is set for provider '{self.provider}'"
+        if self.provider in KEY_REQUIRED and not self._api_key:
+            return f"{' or '.join(KEY_VARIABLES[self.provider])} is not set"
+        if self._fatal:
+            return self._fatal
+        if self.budget_left <= 0:
+            return f"the budget of {self.settings.max_calls_per_run} calls per run is spent"
+        return None
+
     def usable(self) -> bool:
-        if not self.settings.enabled or not self.model:
-            return False
-        if self.provider in ("anthropic", "openai", "gemini", "google") and not self._api_key:
-            return False
-        return self.budget_left > 0
+        return self.problem() is None
 
     # -- the one public call ----------------------------------------------
 
@@ -103,12 +127,34 @@ class LLMClient:
             if self.provider in ("gemini", "google"):
                 return self._gemini(system, user, tokens)
             return self._openai_shaped(system, user, tokens)
-        except httpx.HTTPError as exc:
-            log.warning("Language model request failed: %s", exc)
+        except httpx.HTTPStatusError as exc:
+            log.warning("Language model request failed: %s", self._explain_status(exc.response))
             return None
-        except (KeyError, IndexError, ValueError, TypeError) as exc:
+        except httpx.TimeoutException:
+            log.warning("The language model at %s did not answer in time.", self.base_url)
+            return None
+        except httpx.HTTPError as exc:
+            log.warning("Cannot reach the language model at %s: %s", self.base_url, exc)
+            return None
+        except (KeyError, IndexError, ValueError, TypeError, AttributeError) as exc:
             log.warning("Unexpected response from the language model: %s", exc)
             return None
+
+    def _explain_status(self, response: httpx.Response) -> str:
+        """A readable reason for an error status; stops the run for fatal ones."""
+        status = response.status_code
+        if status in (401, 403):
+            self._fatal = f"{self.provider} rejected the API key (HTTP {status})"
+            return self._fatal + " — check the key; no more calls will be made this run."
+        if status == 404:
+            self._fatal = (f"{self.provider} does not know model '{self.model}' "
+                           f"or the endpoint {self.base_url} (HTTP 404)")
+            return self._fatal + " — check llm.model and llm.base_url."
+        if status == 429:
+            return f"{self.provider} is rate-limiting requests or the quota is spent (HTTP 429)."
+        if status >= 500:
+            return f"{self.provider} had a server error (HTTP {status}); try again later."
+        return f"{self.provider} answered HTTP {status}: {response.text[:200]}"
 
     def complete_json(self, system: str, user: str, max_tokens: int | None = None) -> dict | list | None:
         """Same as :meth:`complete`, but parses a JSON object out of the reply."""
@@ -197,12 +243,14 @@ def build_client(settings: LLMSettings) -> LLMClient | None:
     if not settings.enabled:
         return None
     client = LLMClient(settings)
-    if not client.usable():
-        log.info(
-            "Language model configured (%s) but not usable — missing key or model. "
-            "Continuing with the deterministic pipeline.",
-            settings.provider,
+    problem = client.problem()
+    if problem:
+        log.warning(
+            "Language model '%s' is configured but cannot be used: %s. "
+            "Continuing without it.",
+            settings.provider, problem,
         )
+        client.close()
         return None
     return client
 

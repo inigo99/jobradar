@@ -58,7 +58,7 @@ JUNIOR_CLAIMS: tuple[tuple[str, float], ...] = (
 
 #: Noise that job titles carry and CVs should not.
 TITLE_NOISE = re.compile(
-    r"\((?:m/f/d\vert{}m/w/d\vert{}h/f\vert{}f/m/x\vert{}remote\vert{}hybrid\vert{}[^)]{0,25}\%[^)]*)\)|"
+    r"\((?:m/f/d|m/w/d|h/f|f/m/x|remote|hybrid|[^)]{0,25}%[^)]*)\)|"
     r"\b(?:remote|100%\s*remote|teletrabajo|full[- ]time|part[- ]time)\b|"
     r"[–—-]\s*(?:remote|madrid|barcelona|berlin|london|spain|españa).*$",
     re.IGNORECASE,
@@ -116,7 +116,8 @@ class TailoredCV:
 
 def clean_title(title: str | None) -> str:
     """Strip the noise job boards add to titles."""
-    title_no_tags = re.sub(r"(?i)\([mfdwx/]+\)", "", title or "")
+    # Any ordering of the gender tags, e.g. "(f/m/d)" or "(w/m/x)".
+    title_no_tags = re.sub(r"(?i)\([mfdwhx/]+\)", "", title or "")
     cleaned = TITLE_NOISE.sub(" ", title_no_tags)
     cleaned = re.sub(r"\s{2,}", " ", cleaned).strip(" -–—|,")
     return " ".join(cleaned.split()[:6])

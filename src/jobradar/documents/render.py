@@ -24,9 +24,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-from jinja2.exceptions import TemplateNotFound
+from jinja2.exceptions import TemplateError, TemplateNotFound
 
 from ..config import Paths, Settings
+from ..errors import RenderError, describe_os_error
 from ..models import Job, Profile, localized
 from ..textutils import slugify
 from .tailor import TailoredCV
@@ -100,7 +101,7 @@ def format_period(start: str, end: str | None, language: str) -> str:
         try:
             month_index = int(parts[1]) - 1
             if month_index < 0:
-                raise ValueError("El mes 00 es inválido")
+                raise ValueError("month 00 does not exist")
             month = MONTHS.get(language, MONTHS["en"])[month_index]
         except (ValueError, IndexError):
             return year
@@ -204,9 +205,21 @@ def render_html(context: dict, template_name: str = "classic", scale: float = 1.
     try:
         template = env.get_template(f"{template_name}.html")
     except TemplateNotFound:
-        log.warning(f"La plantilla '{template_name}' no existe, usando 'classic.html' por defecto.")
-        template = env.get_template("classic.html")
-    return template.render(**context, scale=scale)
+        log.warning("CV template '%s' does not exist; using 'classic' instead.", template_name)
+        try:
+            template = env.get_template("classic.html")
+        except TemplateNotFound as exc:
+            raise RenderError(
+                "The CV templates are missing from the installation.",
+                hint="Reinstall JobRadar.",
+            ) from exc
+    try:
+        return template.render(**context, scale=scale)
+    except TemplateError as exc:
+        raise RenderError(
+            f"The CV template '{template.name}' could not be rendered: {exc}",
+            hint="If you edited the template, check its syntax.",
+        ) from exc
 
 
 def _measure_and_print(html: str, pdf_path: Path, max_pages: int) -> tuple[int, bool]:
@@ -234,6 +247,30 @@ def _measure_and_print(html: str, pdf_path: Path, max_pages: int) -> tuple[int, 
     return pages, pages <= max_pages
 
 
+def _write(path: Path, html: str) -> None:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(html, encoding="utf-8")
+    except OSError as exc:
+        raise RenderError(
+            f"Cannot write the CV to {path}: {describe_os_error(exc)}.",
+            hint="Check that the data directory is writable and the disk is not full.",
+        ) from exc
+
+
+def _pdf_failure(exc: Exception) -> str:
+    """One readable line for a failed PDF render, with the fix when known.
+
+    Playwright's own messages run to a boxed banner of a dozen lines; the
+    first line says what happened and the rest is the advice given here.
+    """
+    first_line = (str(exc).strip().splitlines() or [type(exc).__name__])[0]
+    message = f"PDF rendering failed, so only the HTML was produced: {first_line}"
+    if "executable doesn't exist" in str(exc).lower() or "playwright install" in str(exc).lower():
+        message += " — install the browser with: playwright install chromium"
+    return message
+
+
 def render_cv(
     profile: Profile,
     tailored: TailoredCV,
@@ -244,13 +281,12 @@ def render_cv(
     """Render, shrink to fit, and write the CV next to the other generated files."""
     context = build_context(profile, tailored, job)
     stem = f"CV_{slugify(job.company or 'company', 28)}__{slugify(job.title or 'job', 34)}"
-    paths.cv_dir.mkdir(parents=True, exist_ok=True)
     html_path = paths.cv_dir / f"{stem}.html"
     pdf_path = paths.cv_dir / f"{stem}.pdf"
     warnings: list[str] = []
 
     html = render_html(context, settings.cv_template, 1.0)
-    html_path.write_text(html, encoding="utf-8")
+    _write(html_path, html)
 
     try:
         import playwright  # noqa: F401
@@ -264,11 +300,12 @@ def render_cv(
     pages, fitted, used_scale = None, False, 1.0
     for scale in SCALES:
         html = render_html(context, settings.cv_template, scale)
-        html_path.write_text(html, encoding="utf-8")
+        _write(html_path, html)
         try:
             pages, fitted = _measure_and_print(html, pdf_path, settings.cv_max_pages)
-        except Exception as exc:
-            warnings.append(f"PDF rendering failed: {exc}")
+        except Exception as exc:  # Playwright raises its own errors, and browsers crash
+            log.warning("PDF rendering failed: %s", exc)
+            warnings.append(_pdf_failure(exc))
             return RenderResult(html_path, None, None, scale, False, warnings)
         used_scale = scale
         if fitted:

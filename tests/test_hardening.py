@@ -56,7 +56,7 @@ def test_pipeline_survives_null_fields(database, profile, configured):
 
     source = CountingSource([malformed])
     source.fetch_description = cast(Any, lambda job: None)
-    
+
     result = SearchPipeline(configured, profile, database, sources=[source], today=TODAY).run()
     assert result is not None
     assert len(result.run.errors) == 0

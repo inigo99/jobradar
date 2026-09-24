@@ -468,16 +468,3 @@ def parse_date(value: object) -> date | None:
         days = amount * (7 if unit.startswith("w") else (1 / 24 if unit.startswith("h") else 1))
         return (datetime.now(timezone.utc) - timedelta(days=days)).date()
     return None
-
-
-def annual_from_text(text: str) -> int | None:
-    """Best-effort annual figure from a phrase like '3.500 € / month'."""
-    match = re.search(r"(\d[\d.,]{2,})", str(text or ""))
-    if not match:
-        return None
-    digits = match.group(1).replace(".", "").replace(",", "")
-    try:
-        value = int(digits)
-    except ValueError:
-        return None
-    return value * 12 if value < 12_000 else value

@@ -26,6 +26,7 @@ import logging
 import re
 from pathlib import Path
 
+from ..errors import MissingDependencyError, ProfileError, describe_os_error
 from ..llm import LLMClient
 from ..llm.prompts import parse_cv
 from ..models import (
@@ -78,40 +79,96 @@ SECTION_HEADINGS: dict[str, tuple[str, ...]] = {
 # ---------------------------------------------------------------------------
 
 
+#: Formats people commonly try that cannot be read, with what to do instead.
+UNSUPPORTED_SUFFIXES = {
+    ".doc": "Old Word .doc files cannot be read; save it as .docx or PDF.",
+    ".odt": "OpenDocument files cannot be read; export it as PDF or .docx.",
+    ".pages": "Pages files cannot be read; export it as PDF or .docx.",
+    ".png": "Images cannot be read; upload the PDF or Word version of your CV.",
+    ".jpg": "Images cannot be read; upload the PDF or Word version of your CV.",
+    ".jpeg": "Images cannot be read; upload the PDF or Word version of your CV.",
+}
+
+
 def extract_text(path: str | Path) -> str:
     """Plain text from a PDF, DOCX, HTML, Markdown or text CV.
 
     The optional parsers are imported lazily so that a user who only ever
-    uploads a ``.txt`` CV never has to install them.
+    uploads a ``.txt`` CV never has to install them. Every failure is raised
+    as a :class:`ProfileError` (or :class:`MissingDependencyError`) that says
+    what to do about it.
     """
     path = Path(path)
     suffix = path.suffix.lower()
 
+    if not path.exists():
+        raise ProfileError(f"The CV file {path} does not exist.", hint="Check the path.")
+    if path.is_dir():
+        raise ProfileError(f"{path} is a folder, not a CV file.", hint="Pass the file itself.")
+    if suffix in UNSUPPORTED_SUFFIXES:
+        raise ProfileError(f"Cannot read {path.name}.", hint=UNSUPPORTED_SUFFIXES[suffix])
+
     if suffix == ".pdf":
         try:
             from pypdf import PdfReader
+            from pypdf.errors import PyPdfError
         except ImportError as exc:
-            raise RuntimeError(
-                "Reading PDF CVs needs the 'parse' extra: pip install 'jobradar[parse]'"
+            raise MissingDependencyError(
+                "Reading PDF CVs needs the 'parse' extra.",
+                hint="pip install 'jobradar[parse]'",
             ) from exc
-        reader = PdfReader(str(path))
-        return "\n".join(page.extract_text() or "" for page in reader.pages)
+        try:
+            reader = PdfReader(str(path))
+            if reader.is_encrypted:
+                raise ProfileError(
+                    f"{path.name} is password-protected.",
+                    hint="Save an unprotected copy of the PDF and upload that.",
+                )
+            return "\n".join(page.extract_text() or "" for page in reader.pages)
+        except ProfileError:
+            raise
+        except (PyPdfError, ValueError, KeyError, TypeError) as exc:
+            raise ProfileError(
+                f"{path.name} could not be read as a PDF: {exc}",
+                hint="Re-export it from your editor, or upload the .docx version.",
+            ) from exc
+        except OSError as exc:
+            raise ProfileError(f"Cannot read {path}: {describe_os_error(exc)}.") from exc
 
     if suffix in (".docx", ".dotx"):
         try:
             import docx
+            from docx.opc.exceptions import PackageNotFoundError
         except ImportError as exc:
-            raise RuntimeError(
-                "Reading Word CVs needs the 'parse' extra: pip install 'jobradar[parse]'"
+            raise MissingDependencyError(
+                "Reading Word CVs needs the 'parse' extra.",
+                hint="pip install 'jobradar[parse]'",
             ) from exc
-        document = docx.Document(str(path))
+        try:
+            document = docx.Document(str(path))
+        except (PackageNotFoundError, ValueError, KeyError) as exc:
+            raise ProfileError(
+                f"{path.name} could not be read as a Word document.",
+                hint="Open it in Word and save it again as .docx, or upload a PDF.",
+            ) from exc
+        except OSError as exc:
+            raise ProfileError(f"Cannot read {path}: {describe_os_error(exc)}.") from exc
         parts = [paragraph.text for paragraph in document.paragraphs]
         for table in document.tables:
             for row in table.rows:
                 parts.extend(cell.text for cell in row.cells)
         return "\n".join(parts)
 
-    text = path.read_text(encoding="utf-8", errors="replace")
+    try:
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise ProfileError(f"Cannot read {path}: {describe_os_error(exc)}.") from exc
+    if b"\x00" in raw[:4096]:
+        raise ProfileError(
+            f"{path.name} is not a text file.",
+            hint="Supported formats: PDF, DOCX, HTML, Markdown or plain text.",
+        )
+    text = raw.decode("utf-8", errors="replace")
     return strip_html(text) if suffix in (".html", ".htm") else text
 
 
@@ -461,13 +518,25 @@ def import_profile(source: str | Path, llm: LLMClient | None = None) -> tuple[Pr
     silently wrong profile poisons every document generated afterwards.
     """
     text = str(source)
-    if isinstance(source, Path) or ("\n" not in text and len(text) < 400):
+    if isinstance(source, Path):
+        text = extract_text(source)
+    elif "\n" not in text and len(text) < 400:
         try:
             candidate = Path(text)
-            if candidate.exists():
-                text = extract_text(candidate)
-        except OSError:  # not a usable path — treat the input as raw CV text
-            pass
+            exists = candidate.exists()
+        except (OSError, ValueError):  # not a usable path — treat it as raw CV text
+            exists = False
+        if exists:
+            text = extract_text(candidate)
+        elif candidate.suffix.lower() in (".pdf", ".docx", ".dotx", *UNSUPPORTED_SUFFIXES):
+            # Clearly meant as a file name, not as the text of a CV.
+            raise ProfileError(f"The CV file {text} does not exist.", hint="Check the path.")
+
+    if not text.strip():
+        raise ProfileError(
+            "No text could be read from the CV.",
+            hint="If it is a scanned PDF, export a text PDF or paste the text instead.",
+        )
 
     notes: list[str] = []
     if len(text.strip()) < 200:

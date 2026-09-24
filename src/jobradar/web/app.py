@@ -31,14 +31,18 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from pydantic import ValidationError
 from starlette.requests import Request
 
 from .. import __version__
-from ..config import Paths, countries, load_dotenv
+from ..config import Paths, countries, load_dotenv, validation_summary
 from ..documents import generate_cover_letter, generate_email, render_cv, tailor
+from ..errors import JobRadarError, ProfileError, StorageError, describe_os_error
 from ..lint import lint_profile, lint_tailored
 from ..llm import build_client
 from ..models import Application, Job, MatchScore, Profile
@@ -62,6 +66,36 @@ log = logging.getLogger(__name__)
 
 TEMPLATES = Path(__file__).parent / "templates"
 STATIC = Path(__file__).parent / "static"
+
+#: Largest CV upload accepted. A CV is a few hundred KB; anything near this
+#: is not a CV, and reading it would only fill the disk.
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+
+
+async def save_upload(upload: UploadFile, directory: Path) -> Path:
+    """Store an uploaded CV under ``directory`` and return its path.
+
+    Only the base name of the client's file name is used: a name such as
+    ``../../.bashrc`` must not write outside the uploads folder.
+    """
+    name = Path((upload.filename or "").replace("\\", "/")).name.strip()
+    if not name or name.startswith("."):
+        raise ProfileError("The uploaded file has no usable name.",
+                           hint="Rename the file (e.g. cv.pdf) and upload it again.")
+    content = await upload.read(MAX_UPLOAD_BYTES + 1)
+    if not content:
+        raise ProfileError(f"{name} is empty.", hint="Upload the CV file itself.")
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise ProfileError(f"{name} is larger than {MAX_UPLOAD_BYTES // (1024 * 1024)} MB.",
+                           hint="Upload a smaller export of your CV (PDF or DOCX).")
+    target = directory / name
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(content)
+    except OSError as exc:
+        raise StorageError(f"Cannot save the upload: {describe_os_error(exc)}.",
+                           hint="Check that the data directory is writable.") from exc
+    return target
 
 
 def _job_view(job: Job, score: MatchScore | None, application: Application,
@@ -143,8 +177,10 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
     """
     load_dotenv()
     paths = (paths or Paths.resolve()).ensure()
-    # Connections are now isolated per-thread in the Database wrapper,
-    # ensuring safety for concurrent background tasks.
+    # One Database object for the whole app: it keeps one SQLite connection
+    # per thread, so a search running in a worker thread cannot interleave
+    # its transactions with the page's reads, and settings the CLI wrote are
+    # immediately visible.
     database = Database(paths)
 
     @asynccontextmanager
@@ -155,10 +191,42 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
     app = FastAPI(title="JobRadar", version=__version__, docs_url="/api/docs", lifespan=lifespan)
     hosts = None if allowed_hosts is None else frozenset(h.lower() for h in allowed_hosts)
 
+    @app.exception_handler(JobRadarError)
+    async def expected_error(request: Request, exc: JobRadarError):
+        """A failure JobRadar knows how to explain: say what it is and what to do."""
+        log.warning("%s %s failed: %s", request.method, request.url.path, exc.message)
+        return JSONResponse(status_code=exc.status_code, content=exc.to_dict())
+
+    @app.exception_handler(RequestValidationError)
+    async def invalid_request(request: Request, exc: RequestValidationError):
+        # FastAPI's default body is a list the page cannot show; keep it and
+        # add a sentence that it can.
+        parts = []
+        for error in exc.errors()[:3]:
+            location = ".".join(str(p) for p in error.get("loc", ()) if p != "body")
+            parts.append(f"{location or 'request'}: {error.get('msg', 'invalid')}")
+        return JSONResponse(status_code=422, content={
+            "detail": "Invalid request — " + "; ".join(parts),
+            "error": "ValidationError",
+            "errors": jsonable_encoder(exc.errors()),
+        })
+
+    @app.exception_handler(ValidationError)
+    async def invalid_payload(request: Request, exc: ValidationError):
+        return JSONResponse(status_code=422, content={
+            "detail": f"Invalid data — {validation_summary(exc)}",
+            "error": "ValidationError",
+        })
+
     @app.exception_handler(Exception)
-    async def global_exception_handler(request: Request, exc: Exception):
-        log.exception(f"Error en {request.method} {request.url}")
-        return JSONResponse(status_code=500, content={"detail": str(exc)})
+    async def unexpected_error(request: Request, exc: Exception):
+        """A bug. The traceback goes to the server log, never to the browser."""
+        log.exception("Unexpected error on %s %s", request.method, request.url.path)
+        return JSONResponse(status_code=500, content={
+            "detail": "Something went wrong on the server. The details are in the "
+                      "terminal running 'jobradar serve'.",
+            "error": "InternalError",
+        })
 
     @app.middleware("http")
     async def refuse_foreign_requests(request: Request, call_next):
@@ -211,11 +279,14 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
     # -- state ------------------------------------------------------------
 
     @app.get("/api/state")
-    def state(limit: int = Query(500, description="Max jobs to load"), offset: int = Query(0)):
+    def state(
+        limit: int = Query(500, ge=1, le=5000, description="Max jobs to load"),
+        offset: int = Query(0, ge=0),
+    ):
         """Everything the page needs in one request.
-        
-        A limit protects browser memory by dropping the oldest un-actioned jobs
-        from the initial payload once the database grows too large.
+
+        ``limit`` protects browser memory once the database grows large: the
+        most recently seen jobs are loaded first.
         """
         settings = database.load_settings()
         profile = database.load_profile()
@@ -312,9 +383,7 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
         notes: list[str] = []
         source: str | Path | None = None
         if cv_file is not None and cv_file.filename:
-            target = paths.uploads_dir / cv_file.filename
-            target.write_bytes(await cv_file.read())
-            source = target
+            source = await save_upload(cv_file, paths.uploads_dir)
         elif data.cv_text.strip():
             source = data.cv_text
 
@@ -322,8 +391,6 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
             llm = build_client(settings.llm)
             try:
                 profile, notes = import_profile(source, llm)
-            except RuntimeError as exc:  # a missing optional parser
-                raise HTTPException(status_code=400, detail=str(exc)) from exc
             finally:
                 if llm:
                     llm.close()
@@ -380,8 +447,7 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
         if not cv_file.filename:
             raise HTTPException(status_code=400, detail="No file provided")
         settings = database.load_settings()
-        target = paths.uploads_dir / cv_file.filename
-        target.write_bytes(await cv_file.read())
+        target = await save_upload(cv_file, paths.uploads_dir)
         llm = build_client(settings.llm)
         try:
             profile, notes = import_profile(target, llm)
@@ -457,9 +523,12 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
     @app.get("/api/jobs/{job_id}/cv/download")
     def download_cv(job_id: str):
         document = database.get_document(job_id, "cv")
-        if not document or not document.path or not Path(document.path).exists():
+        if not document or not document.path:
             raise HTTPException(status_code=404, detail="Generate the CV first")
         path = Path(document.path)
+        if not path.is_file():
+            raise HTTPException(status_code=404,
+                                detail="The CV file is gone from disk — generate it again")
         return FileResponse(path, filename=path.name)
 
     @app.post("/api/jobs/{job_id}/documents/{kind}")

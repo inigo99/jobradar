@@ -94,8 +94,13 @@ def company_key(name: str) -> str:
     return " ".join(words) or normalise(name)
 
 
-def title_tokens(title: str | None) -> set[str]:
-    """The title words that actually tell one vacancy from another."""
+def title_tokens(title: str) -> set[str]:
+    """The title words that actually tell one vacancy from another.
+
+    When nothing survives the noise list ("Software Engineer" is all generic
+    words), the plain words are returned: an empty set would match every other
+    empty set at the same company, which is exactly the false merge to avoid.
+    """
     plain = _TITLE_TAIL.sub("", title or "")
     words = [w for w in normalise(plain).split() if len(w) > 1 and not w.isdigit()]
     useful = {w for w in words if w not in TITLE_NOISE}
@@ -104,23 +109,27 @@ def title_tokens(title: str | None) -> set[str]:
 
 def job_key(job: Job) -> str:
     """Company + title, normalised. Two jobs with the same key are one job."""
-    return f"{company_key(job.company or '')}|{' '.join(sorted(title_tokens(job.title)))}"
+    return f"{company_key(job.company)}|{' '.join(sorted(title_tokens(job.title)))}"
 
 
 def _url(job: Job) -> str:
-    """The ad URL as a dedupe signal, scoped to the employer."""
+    """The ad URL as a dedupe signal, scoped to the employer.
+
+    The query string is kept (ATS boards tell jobs apart with it) and the
+    company is part of the key, so a generic careers page shared by many ads
+    cannot merge them.
+    """
     url = (job.apply_url or job.url or "").strip().rstrip("/").lower()
-    return f"{company_key(job.company or '')}@{url}" if url else ""
+    return f"{company_key(job.company)}@{url}" if url else ""
 
 
 def _informativeness(job: Job) -> tuple[int, int, int, int]:
     """Sort key: the higher, the better a record is worth keeping."""
-    salary_obj = getattr(job, "salary", None)
     return (
-        1 if salary_obj and salary_obj.origin == SalaryOrigin.PUBLISHED else 0,
+        1 if job.salary.origin == SalaryOrigin.PUBLISHED else 0,
         1 if job.posted_at else 0,
         len(job.description or ""),
-        len(job.requirements or []),
+        len(job.requirements),
     )
 
 
@@ -142,23 +151,15 @@ def _merge(winner: Job, loser: Job) -> Job:
         winner.apply_url = loser.link
     if not winner.description and loser.description:
         winner.description = loser.description
-        
-    winner_salary = getattr(winner, "salary", None)
-    loser_salary = getattr(loser, "salary", None)
-    if (not winner_salary or winner_salary.origin != SalaryOrigin.PUBLISHED) and (loser_salary and loser_salary.origin == SalaryOrigin.PUBLISHED):
+    if winner.salary.origin != SalaryOrigin.PUBLISHED and loser.salary.origin == SalaryOrigin.PUBLISHED:
         winner.salary = loser.salary
-        
     if not winner.posted_at and loser.posted_at:
         winner.posted_at = loser.posted_at
     if winner.min_years_experience is None:
         winner.min_years_experience = loser.min_years_experience
-        
-    if winner.alerts is None:
-        winner.alerts = []
-    for alert in (loser.alerts or []):
+    for alert in loser.alerts:
         if alert not in winner.alerts:
             winner.alerts.append(alert)
-            
     seen_also = winner.raw.setdefault("also_seen_on", [])
     if loser.source not in seen_also and loser.source != winner.source:
         seen_also.append(loser.source)
@@ -186,38 +187,35 @@ def deduplicate(jobs: list[Job]) -> list[Job]:
 
     by_key: dict[str, Job] = {}
     for job in by_url.values():
-        # Prevent jobs with null fields from generating identical keys
-        if job.title is None or job.company is None:
+        # With no employer, or no title to tell it apart, the key says nothing
+        # about which vacancy this is: two anonymous "Engineer" ads from two
+        # agencies are not one job. Only the id and the URL can merge them.
+        if not job.company or not title_tokens(job.title):
             by_key[f"id:{job.id}"] = job
             continue
-            
         key = job_key(job)
-        if not key:
-            by_key[f"id:{job.id}"] = job
-            continue
-            
         existing = by_key.get(key)
         by_key[key] = _merge(existing, job) if existing else job
 
     survivors: list[Job] = []
     for job in by_key.values():
-        # Skip similarity checks for records with insufficient data
-        if job.title is None or job.company is None:
-            survivors.append(job)
-            continue
-            
         for kept in survivors:
-            if kept.title is not None and kept.company is not None and _same_job(kept, job):
+            if _same_job(kept, job):
                 _merge(kept, job)
                 break
         else:
             survivors.append(job)
-            
     return survivors
 
 
 def split_known(jobs: list[Job], known: Iterable[Job]) -> tuple[list[Job], list[tuple[Job, Job]]]:
-    """Separate new ids that are really a job already on file."""
+    """Separate new ids that are really a job already on file.
+
+    Returns ``(fresh, duplicates)`` where each duplicate is ``(job, known_job)``.
+    A job whose *id* is already known is not a duplicate — it is the same ad
+    seen again, and passes through. ``known`` should include closed and aged-out
+    jobs: a reposted ad that was retired must not come back as new.
+    """
     known = list(known)
     known_ids = {job.id for job in known}
     by_url: dict[str, Job] = {}
@@ -228,7 +226,7 @@ def split_known(jobs: list[Job], known: Iterable[Job]) -> tuple[list[Job], list[
         if url:
             by_url.setdefault(url, job)
         by_key.setdefault(job_key(job), job)
-        by_company.setdefault(company_key(job.company or ""), []).append(job)
+        by_company.setdefault(company_key(job.company), []).append(job)
 
     fresh: list[Job] = []
     duplicates: list[tuple[Job, Job]] = []

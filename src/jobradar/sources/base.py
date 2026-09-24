@@ -110,7 +110,12 @@ class Fetcher:
         self.settings = settings
         self.cache_dir = cache_dir
         if cache_dir:
-            cache_dir.mkdir(parents=True, exist_ok=True)
+            try:
+                cache_dir.mkdir(parents=True, exist_ok=True)
+            except OSError as exc:  # no cache is slower, not broken
+                log.warning("Cannot create the cache directory %s (%s); caching is off.",
+                            cache_dir, exc)
+                self.cache_dir = None
         self._last_request: dict[str, float] = {}
         self._robots: dict[str, urllib.robotparser.RobotFileParser | None] = {}
         self._client = httpx.Client(
@@ -146,10 +151,10 @@ class Fetcher:
                 self._robots[origin] = None
                 return True
             self._robots[origin] = parser
-        parser = self._robots[origin]
-        if parser is None:
+        rules = self._robots[origin]
+        if rules is None:
             return True
-        return parser.can_fetch(self.settings.user_agent, url)
+        return rules.can_fetch(self.settings.user_agent, url)
 
     def _cache_path(self, url: str, body: str = "") -> Path | None:
         if not self.cache_dir:
@@ -164,7 +169,7 @@ class Fetcher:
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
             stored = datetime.fromisoformat(payload["at"])
-        except (json.JSONDecodeError, KeyError, ValueError):
+        except (OSError, KeyError, TypeError, ValueError):  # a bad cache entry is a miss
             return None
         if datetime.now(timezone.utc) - stored > ttl:
             return None
@@ -173,13 +178,30 @@ class Fetcher:
     def _write_cache(self, path: Path | None, body: str) -> None:
         if not path:
             return
-        path.write_text(
-            json.dumps({"at": datetime.now(timezone.utc).isoformat(), "body": body}),
-            encoding="utf-8",
-        )
+        try:
+            path.write_text(
+                json.dumps({"at": datetime.now(timezone.utc).isoformat(), "body": body}),
+                encoding="utf-8",
+            )
+        except OSError as exc:  # the page was fetched; failing to cache it is not fatal
+            log.warning("Could not write the cache file %s: %s", path, exc)
 
     def _browser_get(self, url: str, *, headers: dict | None, mode: str) -> str | None:
-        """Fetch ``url`` through Scrapling's browser engines instead of ``httpx``."""
+        """Fetch ``url`` through Scrapling's browser engines instead of ``httpx``.
+
+        Only called by :meth:`get` when a ``restricted`` source passes
+        ``browser=``. ``mode`` is ``"dynamic"`` — a plain headless browser,
+        enough to get past a check for a real browser fingerprint, such as
+        LinkedIn's guest endpoints — or ``"stealthy"`` — fingerprint spoofing
+        plus Cloudflare-style challenge solving, for a page that answers a
+        plain browser with a block instead of the content, such as
+        InfoJobs' ad pages (they return HTTP 405 behind a CAPTCHA challenge
+        to ``"dynamic"``, and load normally under ``"stealthy"``).
+
+        Returns ``None`` — same contract as :meth:`get` itself — if the
+        ``scrapling`` package's browsers are not installed
+        (``scrapling install``, once) or the fetch fails for any reason.
+        """
         try:
             from scrapling.fetchers import DynamicFetcher, StealthyFetcher
         except ImportError:
@@ -193,6 +215,8 @@ class Fetcher:
             "headless": True,
             "real_chrome": self.settings.scrapling_real_chrome,
             "extra_headers": headers or None,
+            # Fetcher.get() already retries whole attempts with backoff below;
+            # a nested retry here would just double the wait on a dead page.
             "retries": 0,
         }
         if mode == "stealthy":
@@ -212,7 +236,17 @@ class Fetcher:
     def get(self, url: str, *, params: dict | None = None, retries: int = 2,
             use_cache: bool = True, headers: dict | None = None,
             browser: str | None = None) -> str | None:
-        """GET ``url``, returning the body or None if it could not be fetched."""
+        """GET ``url``, returning the body or None if it could not be fetched.
+
+        Sources are expected to treat None as "this query yielded nothing" and
+        carry on: one dead board must never abort a whole run.
+
+        ``browser`` routes the request through a real browser instead of a
+        plain HTTP request — pass ``"dynamic"`` or ``"stealthy"``, see
+        :meth:`_browser_get`. Leave it ``None`` (the default) for every
+        ``open``/``credentials`` source: plain HTTP is faster and all of them
+        answer it correctly.
+        """
         full = str(httpx.URL(url, params=params or {}))
         cache_path = self._cache_path(full) if use_cache else None
         cached = self._read_cache(cache_path)

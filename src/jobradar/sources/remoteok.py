@@ -52,7 +52,7 @@ class RemoteOKSource(JobSource):
                     )
                 except (ValueError, TypeError):
                     pass
-                    
+
             jobs.append(
                 self.make_job(
                     str(entry.get("id") or entry.get("slug") or ""),

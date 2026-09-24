@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
+from ..errors import ExportError, describe_os_error
 from ..storage import Database
 
 COLUMNS = [
@@ -56,9 +57,23 @@ def rows(database: Database) -> list[dict]:
 
 
 def export_csv(database: Database, path: Path) -> Path:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="", encoding="utf-8-sig") as handle:
-        writer = csv.DictWriter(handle, fieldnames=COLUMNS)
-        writer.writeheader()
-        writer.writerows(rows(database))
+    data = rows(database)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("w", newline="", encoding="utf-8-sig") as handle:
+            writer = csv.DictWriter(handle, fieldnames=COLUMNS)
+            writer.writeheader()
+            writer.writerows(data)
+    except OSError as exc:
+        raise export_failure(path, exc) from exc
     return path
+
+
+def export_failure(path: Path, exc: OSError) -> ExportError:
+    """The error for an export file that cannot be written."""
+    if path.is_dir():
+        return ExportError(f"{path} is a folder.", hint="Pass a file name to --output.")
+    return ExportError(
+        f"Cannot write {path}: {describe_os_error(exc)}.",
+        hint="Close the file if a spreadsheet has it open, and check the folder is writable.",
+    )

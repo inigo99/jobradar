@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ..errors import MissingDependencyError
 from ..storage import Database
-from .csv_export import COLUMNS, rows
+from .csv_export import COLUMNS, export_failure, rows
 
 
 def export_excel(database: Database, path: Path) -> Path:
@@ -15,8 +16,9 @@ def export_excel(database: Database, path: Path) -> Path:
         from openpyxl.styles import Alignment, Font, PatternFill
         from openpyxl.utils import get_column_letter
     except ImportError as exc:
-        raise RuntimeError(
-            "Excel export needs the 'excel' extra: pip install 'jobradar[excel]'"
+        raise MissingDependencyError(
+            "Excel export needs the 'excel' extra.",
+            hint="pip install 'jobradar[excel]', or export to CSV with --format csv.",
         ) from exc
 
     workbook = Workbook()
@@ -56,6 +58,9 @@ def export_excel(database: Database, path: Path) -> Path:
     for index, width in enumerate([20, 20, 40, 10, 14, 8, 8, 50], start=1):
         history.column_dimensions[get_column_letter(index)].width = width
 
-    path.parent.mkdir(parents=True, exist_ok=True)
-    workbook.save(path)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        workbook.save(path)
+    except OSError as exc:
+        raise export_failure(path, exc) from exc
     return path
