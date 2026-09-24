@@ -12,7 +12,7 @@ from datetime import date
 from pydantic import BaseModel, Field
 
 from ..config import Filters, Settings
-from ..models import ApplicationStage, ApplicationStatus, CvVariant, LimitUnit
+from ..models import ApplicationStage, ApplicationStatus, CvVariant, LimitUnit, WorkMode
 
 
 class OnboardingPayload(BaseModel):
@@ -87,6 +87,37 @@ class BankEditPayload(BaseModel):
     answer: str = Field(min_length=1)
 
 
+class ManualJobPayload(BaseModel):
+    """A job the user found themselves: a referral, a newspaper ad, a company page.
+
+    The ad's text is read the same way as a board's (by the language model
+    when one is configured, by rules otherwise) to find its family,
+    requirements, years asked for and anything worth asking about.
+    """
+
+    title: str = Field(min_length=1, max_length=300)
+    company: str = Field(default="", max_length=300)
+    url: str = Field(default="", max_length=2000)
+    location: str = Field(default="", max_length=300)
+    work_mode: WorkMode = WorkMode.UNKNOWN
+    description: str = Field(default="", max_length=60_000)
+    #: A family key to force; empty lets JobRadar classify the job.
+    family: str = ""
+    salary_min: int | None = Field(default=None, ge=0)
+    salary_max: int | None = Field(default=None, ge=0)
+    salary_currency: str = "EUR"
+    status: ApplicationStatus = ApplicationStatus.ACTIVE
+    stage: ApplicationStage | None = None
+    applied_on: date | None = None
+    notes: str = ""
+
+
+class JobIdsPayload(BaseModel):
+    """Several jobs at once, for bulk deletion and its undo."""
+
+    ids: list[str] = Field(min_length=1, max_length=2000)
+
+
 class JobView(BaseModel):
     """One row of the board, flattened for the browser."""
 
@@ -147,3 +178,10 @@ class FilteredView(BaseModel):
     reason_shape: str = ""
     category: str = "other"
     filtered_at: str = ""
+    min_years: int | None = None
+    family: str = ""
+    family_label: str = ""
+    salary_min: int | None = None
+    salary_max: int | None = None
+    salary_currency: str = "EUR"
+    salary_origin: str = "unknown"

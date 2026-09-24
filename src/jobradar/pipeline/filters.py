@@ -187,7 +187,7 @@ def _check_salary(job: Job, filters: Filters, rates: ExchangeRates | None) -> Fi
     )
 
 
-def _experience_ceiling(filters: Filters, profile_years: float | None) -> float | None:
+def experience_ceiling(filters: Filters, profile_years: float | None) -> float | None:
     """How many years the candidate can defend.
 
     An explicit ``max_years_experience`` wins, because a user who typed a
@@ -201,7 +201,7 @@ def _experience_ceiling(filters: Filters, profile_years: float | None) -> float 
     return None
 
 
-def _check_experience(
+def check_experience(
     job: Job, filters: Filters, profile_years: float | None = None
 ) -> FilterOutcome | None:
     """Years asked for against years held — with a band for "just short".
@@ -210,7 +210,7 @@ def _check_experience(
     and treating silence as a rejection would throw away the majority of the
     board to save the reader a sentence.
     """
-    ceiling = _experience_ceiling(filters, profile_years)
+    ceiling = experience_ceiling(filters, profile_years)
     if ceiling is None or job.min_years_experience is None:
         return None
     short_by = job.min_years_experience - ceiling
@@ -264,7 +264,7 @@ def apply_filters(
         _check_work_mode(job, filters),
         _check_geography(job, filters),
         _check_salary(job, filters, rates),
-        _check_experience(job, filters, profile_years),
+        check_experience(job, filters, profile_years),
         _check_keywords(job, filters),
     )
     for outcome in checks:

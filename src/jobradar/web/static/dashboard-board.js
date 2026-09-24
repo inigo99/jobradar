@@ -53,6 +53,8 @@ function render() {
 
   const isPanel = Object.prototype.hasOwnProperty.call(PANELS, TAB);
   $("#toolbar").hidden = isPanel;
+  selectionBar();
+  if ($("#selection-bar")) $("#selection-bar").hidden = isPanel || !SELECTED.size;
   if (isPanel) { board.append(PANELS[TAB]()); return; }
 
   const predicate = TABS.find(t => t[0] === TAB)[2];
@@ -177,7 +179,18 @@ function renderFiltered() {
           el("span", {}, text)))));
   }
 
-  const rows = entries.map(entry => el("tr", {},
+  const { near, far } = experienceSplit(entries);
+  const shortTable = justShortTable(near);
+  if (shortTable) panel.append(shortTable);
+  const listed = entries.filter(entry => !near.includes(entry) && !far.includes(entry));
+  if (far.length) {
+    const one = far.length === 1;
+    panel.append(el("p", { className: "hint" },
+      `${far.length} ad${one ? " asks" : "s ask"} for well over your years and ` +
+      `${one ? "is" : "are"} not listed one by one; they are counted above.`));
+  }
+
+  const rows = listed.map(entry => el("tr", {},
     el("td", {}, el("b", {}, entry.company || "\u2014")),
     el("td", {}, entry.title || "\u2014"),
     el("td", {}, entry.reason),
@@ -185,15 +198,71 @@ function renderFiltered() {
     el("td", {},
       entry.url ? el("a", { href: entry.url, target: "_blank", rel: "noopener" }, "Open") : null,
       " ",
-      button("Put back", async () => {
-        await api(`/api/filtered/${encodeURIComponent(entry.id)}/restore`, { method: "POST" });
-        toast("Back on the board. The filter that rejected it is still on.");
-        await refresh();
-      }))));
+      button("Put back", () => putBack(entry)))));
 
-  panel.append(el("table", { className: "ftable" },
-    el("thead", {}, el("tr", {},
-      ...["Company", "Title", "Why it was rejected", "Source", ""].map(h => el("th", {}, h)))),
-    el("tbody", {}, ...rows)));
+  if (rows.length) {
+    panel.append(el("h3", {}, "Everything else"), el("table", { className: "ftable" },
+      el("thead", {}, el("tr", {},
+        ...["Company", "Title", "Why it was rejected", "Source", ""].map(h => el("th", {}, h)))),
+      el("tbody", {}, ...rows)));
+  }
   return panel;
+}
+
+async function putBack(entry) {
+  await api(`/api/filtered/${encodeURIComponent(entry.id)}/restore`, { method: "POST" });
+  toast("Back on the board. The filter that rejected it is still on.");
+  await refresh();
+}
+
+/* Ads set aside for years, split by how far off they are — recomputed from
+   today's settings, so changing the margin shows at once. */
+function experienceSplit(entries) {
+  const held = STATE.experience && STATE.experience.held;
+  const margin = (STATE.experience && STATE.experience.margin) || 0;
+  const near = [], far = [];
+  if (held == null) return { near, far };
+  for (const entry of entries) {
+    if (entry.category !== "experience" || entry.min_years == null) continue;
+    const short = entry.min_years - held;
+    if (short <= 0.001) continue;
+    (short <= margin + 0.001 ? near : far).push(entry);
+  }
+  near.sort((a, b) => a.min_years - b.min_years);
+  return { near, far };
+}
+
+function filteredSalary(entry) {
+  if (!entry.salary_min) return "\u2014";
+  const fmt = value => new Intl.NumberFormat(undefined, { style: "currency",
+    currency: entry.salary_currency || "EUR", maximumFractionDigits: 0 }).format(value);
+  const range = entry.salary_max && entry.salary_max !== entry.salary_min
+    ? `${fmt(entry.salary_min)}\u2013${fmt(entry.salary_max)}` : fmt(entry.salary_min);
+  return entry.salary_origin === "estimated" ? `${range} (est.)` : range;
+}
+
+function justShortTable(near) {
+  if (!near.length) return null;
+  const held = STATE.experience.held, margin = STATE.experience.margin;
+  return el("div", {},
+    el("h3", {}, `Just short on years (${near.length})`),
+    el("p", { className: "lede" },
+      `Your CV adds up to ${held} years and these ask for more, but within your margin of ` +
+      `${margin} year${margin === 1 ? "" : "s"}. A form would filter you out; a direct email ` +
+      "that names the gap often does not. Nothing here is deleted: raise your years or the " +
+      "margin in Settings (or let time pass — the years come from your CV) and they return " +
+      "to the board on their own."),
+    el("table", { className: "ftable" },
+      el("thead", {}, el("tr", {},
+        ...["Company", "Title", "Asks for", "Short by", "Family", "Salary", ""].map(h => el("th", {}, h)))),
+      el("tbody", {}, ...near.map(entry => el("tr", {},
+        el("td", {}, el("b", {}, entry.company || "\u2014")),
+        el("td", {}, entry.title || "\u2014"),
+        el("td", {}, `${entry.min_years} years`),
+        el("td", {}, `${Math.round((entry.min_years - held) * 10) / 10}`),
+        el("td", {}, entry.family_label || ""),
+        el("td", {}, filteredSalary(entry)),
+        el("td", {},
+          entry.url ? el("a", { href: entry.url, target: "_blank", rel: "noopener" }, "Open") : null,
+          " ", button("Put back", () => putBack(entry))))))));
 }

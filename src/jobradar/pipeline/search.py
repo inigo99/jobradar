@@ -150,12 +150,17 @@ class SearchPipeline:
     def _prefilter(
         self, jobs: list[Job]
     ) -> tuple[list[Job], dict[str, str], list[tuple[Job, str]]]:
-        """Cheap rejections that need no ad body: age and known-closed ads."""
+        """Cheap rejections that need no ad body: deleted, known-closed and old ads."""
         known_closed = self.database.closed_job_ids()
+        deleted = self.database.deleted_job_ids()
         rejected: dict[str, str] = {}
         filtered: list[tuple[Job, str]] = []
         survivors: list[Job] = []
         for job in jobs:
+            if job.id in deleted:
+                # The user deleted this ad from the board; it stays gone.
+                rejected[job.id] = "deleted by you"
+                continue
             if job.id in known_closed:
                 # Not a filter decision: the ad is gone, and it is already
                 # recorded in closed_jobs. Nothing to reconsider.

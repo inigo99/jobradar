@@ -27,6 +27,10 @@ $("#btn-sweep").onclick = async () => {
 };
 
 $("#btn-mail").onclick = checkMail;
+$("#btn-add-job").onclick = () => {
+  if (!STATE.onboarded) { toast("Finish setting up first."); return; }
+  showManualJob();
+};
 
 $("#btn-settings").onclick = () => {
   $("#settings-body").innerHTML = "";

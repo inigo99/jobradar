@@ -79,6 +79,7 @@ function jobCard(job) {
   const card = el("article", { className: "job" + (job.closed ? " closed" : "") });
 
   card.append(el("div", { className: "job-head" },
+    selectBox(job),
     el("div", { style: "flex:1" },
       el("h3", {}, job.title),
       el("div", { className: "meta" },
@@ -141,6 +142,10 @@ function jobCard(job) {
     actions.append(button("Mark as applied", () =>
       track(job, { status: "applied", stage: "applied", applied_on: localDateString() })));
   }
+  const remove = button("Delete", () => deleteJobs([job.id]));
+  remove.className = "ghost danger";
+  remove.title = "Take it off the board; a later search will not bring it back (undo for a week)";
+  actions.append(remove);
   card.append(actions);
 
   /* Tracking controls, only once the user has actually applied. */

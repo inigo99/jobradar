@@ -23,6 +23,7 @@ server as its own origin. Two checks close both:
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 from collections.abc import Iterable
 from contextlib import asynccontextmanager
@@ -58,14 +59,19 @@ from ..mail.imap import configured as mail_configured
 from ..models import (
     AnswerThread,
     Application,
+    ApplicationStatus,
     CvVariant,
     GeneratedDocument,
     Job,
     MatchScore,
     Profile,
+    Salary,
+    SalaryOrigin,
     localized,
 )
 from ..pipeline import run_search, sweep_closed
+from ..pipeline.enrich import enrich_job
+from ..pipeline.filters import check_experience, experience_ceiling
 from ..pipeline.focus import focus_for
 from ..pipeline.salary import ExchangeRates
 from ..pipeline.scoring import score_job
@@ -79,7 +85,9 @@ from .api import (
     BankEditPayload,
     DocumentTextPayload,
     FilteredView,
+    JobIdsPayload,
     JobView,
+    ManualJobPayload,
     OnboardingPayload,
     ProfilePatch,
     QuestionPayload,
@@ -353,8 +361,14 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
             "mail_configured": mail_configured(),
             "countries": {code: entry.get("name", code) for code, entry in countries().items()},
             "runs": runs,
-            "filtered": [FilteredView(**entry).model_dump(mode="json")
+            "filtered": [FilteredView(**entry, family_label=family_label(entry.get("family", ""),
+                                                                          families)
+                                      if entry.get("family") else "").model_dump(mode="json")
                          for entry in database.list_filtered()],
+            # For the "just short on years" table, recomputed live so a
+            # change of margin shows at once.
+            "experience": {"held": experience_ceiling(settings.filters, profile_years),
+                           "margin": settings.filters.years_margin},
             "filtered_tally": database.filtered_tally(),
             "running": app.state.running,
             "version": __version__,
@@ -468,7 +482,26 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
         settings.onboarded = True
         settings.filters.home_country = settings.country
         database.save_settings(settings)
-        return {"ok": True, "settings": settings.model_dump(mode="json")}
+        return {"ok": True, "settings": settings.model_dump(mode="json"),
+                "restored": restore_now_in_reach(settings)}
+
+    def restore_now_in_reach(settings) -> int:
+        """Put back ads set aside for years that the new settings now allow.
+
+        Raising the years (or the ceiling rising with the CV's dates) should
+        bring those ads back at once, not on the next search.
+        """
+        profile = database.load_profile()
+        years = profile.years_of_experience() if profile else None
+        restored = 0
+        for entry in database.list_filtered():
+            if entry["category"] != "experience":
+                continue
+            job = database.get_filtered_job(entry["id"])
+            if job is not None and check_experience(job, settings.filters, years) is None:
+                database.restore_filtered(job.id)
+                restored += 1
+        return restored
 
     @app.put("/api/profile")
     def update_profile(patch: ProfilePatch):
@@ -525,6 +558,65 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
             )
         )
         return {"ok": True}
+
+    # -- adding and deleting jobs by hand -------------------------------------
+
+    @app.post("/api/jobs")
+    def add_job(payload: ManualJobPayload):
+        """Put a job the user found elsewhere on the board, read like any other."""
+        settings = database.load_settings()
+        key = payload.url.strip() or f"{payload.company}|{payload.title}|{payload.description[:200]}"
+        job = Job(
+            source="manual",
+            native_id=hashlib.sha1(key.strip().lower().encode("utf-8")).hexdigest()[:12],
+            title=payload.title.strip(),
+            company=payload.company.strip(),
+            url=payload.url.strip(),
+            location=payload.location.strip(),
+            work_mode=payload.work_mode,
+            description=payload.description.strip(),
+            posted_at=date.today(),
+        )
+        job.ensure_id()
+        if payload.salary_min or payload.salary_max:
+            job.salary = Salary(minimum=payload.salary_min or payload.salary_max,
+                                maximum=payload.salary_max or payload.salary_min,
+                                currency=payload.salary_currency.upper() or "EUR",
+                                origin=SalaryOrigin.PUBLISHED, basis="typed in by you")
+        if payload.family:
+            if payload.family not in families_for(settings):
+                raise HTTPException(status_code=400, detail=f"Unknown job family '{payload.family}'")
+            job.family = payload.family
+            job.raw["family_set_by_user"] = True
+        llm = build_client(settings.llm)
+        try:
+            enrich_job(job, settings, llm=llm, rates=ExchangeRates.load(paths.cache_dir))
+        finally:
+            if llm:
+                llm.close()
+        database.restore_deleted([job.id])  # adding it again undoes an earlier deletion
+        database.upsert_jobs([job])
+        profile = database.load_profile()
+        if profile is not None:
+            database.save_score(job.id, score_job(job, profile))
+        if payload.status != ApplicationStatus.ACTIVE or payload.notes or payload.stage:
+            database.save_application(Application(
+                job_id=job.id, status=payload.status, stage=payload.stage,
+                applied_on=payload.applied_on or (date.today() if payload.status ==
+                                                  ApplicationStatus.APPLIED else None),
+                notes=payload.notes, updated_at=datetime.now(timezone.utc)))
+        return {"ok": True, "id": job.id, "family": job.family}
+
+    @app.post("/api/jobs/delete")
+    def delete_jobs(payload: JobIdsPayload):
+        """Take jobs off the board for good (they can be brought back for a week)."""
+        deleted = database.delete_jobs(payload.ids)
+        return {"ok": True, "deleted": deleted, "undo_days": database.UNDO_DAYS}
+
+    @app.post("/api/jobs/undelete")
+    def undelete_jobs(payload: JobIdsPayload):
+        restored = database.restore_deleted(payload.ids)
+        return {"ok": True, "restored": restored}
 
     # -- documents --------------------------------------------------------
 

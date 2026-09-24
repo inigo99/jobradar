@@ -402,7 +402,7 @@ async function saveSettings() {
   settings.llm.base_url = value("s_baseurl");
   settings.llm.max_calls_per_run = Number(value("s_calls") || 60);
 
-  await api("/api/settings", { method: "PUT", body: JSON.stringify({ settings }) });
+  const saved = await api("/api/settings", { method: "PUT", body: JSON.stringify({ settings }) });
 
   const evidence = {}, ceiling = {};
   document.querySelectorAll(".ev").forEach(n => evidence[n.dataset.key] = Number(n.value));
@@ -421,5 +421,8 @@ async function saveSettings() {
   }
   $("#settings").close();
   await refresh();
-  toast("Settings saved");
+  toast(saved.restored
+    ? `Settings saved. ${saved.restored} ad${saved.restored === 1 ? "" : "s"} set aside for years ` +
+      "now within reach, back on the board."
+    : "Settings saved");
 }

@@ -174,13 +174,24 @@ def _model(model: Any, payload: str, what: str) -> Any:
         ) from exc
 
 
-def _url_of(payload: str) -> str:
-    """The ``url`` field of a stored job, or "" if the payload is damaged."""
+def _listing_fields(payload: str) -> dict[str, Any]:
+    """What the filtered-out list shows from a stored job; empty if damaged."""
     try:
         data = json.loads(payload)
     except (TypeError, ValueError):
-        return ""
-    return str(data.get("url", "")) if isinstance(data, dict) else ""
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    salary: dict[str, Any] = data["salary"] if isinstance(data.get("salary"), dict) else {}
+    return {
+        "url": str(data.get("url") or ""),
+        "min_years": data.get("min_years_experience"),
+        "family": str(data.get("family") or ""),
+        "salary_min": salary.get("minimum"),
+        "salary_max": salary.get("maximum"),
+        "salary_currency": salary.get("currency") or "EUR",
+        "salary_origin": salary.get("origin") or "unknown",
+    }
 
 
 def _storage_error(exc: sqlite3.Error, path: Path) -> StorageError:
@@ -488,6 +499,106 @@ class Database:
         """Ids that must never be re-added by a later search run."""
         return {r["job_id"] for r in self._execute("SELECT job_id FROM closed_jobs")}
 
+    # -- deleting jobs ---------------------------------------------------------
+
+    #: How long a deleted job can still be brought back with "Undo".
+    UNDO_DAYS = 7
+
+    def delete_jobs(self, job_ids: Iterable[str]) -> int:
+        """Remove jobs and everything attached to them, keeping a copy for undo.
+
+        Unlike *discarding* (a status the board keeps showing), deleting takes
+        the job off the board entirely. Its id is remembered so a later search
+        does not bring the same ad back, and a snapshot is kept for
+        :data:`UNDO_DAYS` so :meth:`restore_deleted` can undo the deletion.
+        Returns how many jobs were deleted.
+        """
+        trash = self._get_doc("deleted_jobs") or {}
+        mail = self.mail_news()
+        deleted = 0
+        for job_id in dict.fromkeys(job_ids):
+            job = self.get_job(job_id)
+            if job is None:
+                continue
+            score = self.get_score(job_id)
+            trash[job_id] = {
+                "deleted_at": _now(),
+                "snapshot": {
+                    "job": job.model_dump(mode="json"),
+                    "closed_reason": job.closed_reason if job.closed else None,
+                    "application": self.get_application(job_id).model_dump(mode="json")
+                    if job_id in self.tracked_job_ids() else None,
+                    "score": score.model_dump(mode="json") if score else None,
+                    "documents": [d.model_dump(mode="json")
+                                  for d in self.documents_for(job_id).values()],
+                    "answers": self.answer_thread(job_id).model_dump(mode="json"),
+                    "mail": mail[job_id].model_dump(mode="json") if job_id in mail else None,
+                },
+            }
+            mail.pop(job_id, None)
+            with self.transaction() as cursor:
+                for sql in ("DELETE FROM matches WHERE job_id = ?",
+                            "DELETE FROM applications WHERE job_id = ?",
+                            "DELETE FROM generated_documents WHERE job_id = ?",
+                            "DELETE FROM jobs WHERE id = ?"):
+                    cursor.execute(sql, (job_id,))
+                cursor.execute("DELETE FROM documents_kv WHERE key = ?", (f"answers:{job_id}",))
+            deleted += 1
+        self._put_doc("mail_news", {k: v.model_dump(mode="json") for k, v in mail.items()})
+        self._put_doc("deleted_jobs", self._expire_snapshots(trash))
+        return deleted
+
+    def _expire_snapshots(self, trash: dict) -> dict:
+        """Drop undo snapshots older than UNDO_DAYS; the ids stay remembered."""
+        limit = datetime.now(timezone.utc).timestamp() - self.UNDO_DAYS * 86400
+        for entry in trash.values():
+            try:
+                old = datetime.fromisoformat(entry.get("deleted_at", "")).timestamp() < limit
+            except ValueError:
+                old = True
+            if old:
+                entry.pop("snapshot", None)
+        return trash
+
+    def deleted_job_ids(self) -> set[str]:
+        """Ids the user deleted, which a search must not add back."""
+        return set(self._get_doc("deleted_jobs") or {})
+
+    def restore_deleted(self, job_ids: Iterable[str]) -> int:
+        """Undo :meth:`delete_jobs` for jobs whose snapshot is still kept."""
+        trash = self._get_doc("deleted_jobs") or {}
+        restored = 0
+        for job_id in job_ids:
+            snapshot = (trash.get(job_id) or {}).get("snapshot")
+            if not snapshot:
+                continue
+            try:
+                job = Job.model_validate(snapshot["job"])
+                self.upsert_jobs([job])
+                if snapshot.get("closed_reason") is not None:
+                    self.mark_closed(job_id, snapshot["closed_reason"])
+                if snapshot.get("application"):
+                    self.save_application(Application.model_validate(snapshot["application"]))
+                if snapshot.get("score"):
+                    self.save_score(job_id, MatchScore.model_validate(snapshot["score"]))
+                for document in snapshot.get("documents") or []:
+                    self.save_document(GeneratedDocument.model_validate(document))
+                thread = AnswerThread.model_validate(snapshot["answers"])
+                if thread.messages:
+                    self.save_answer_thread(thread)
+                if snapshot.get("mail"):
+                    self.save_mail_news([MailNews.model_validate(snapshot["mail"])])
+            except (KeyError, ValidationError) as exc:
+                raise StorageError(
+                    f"The deleted job {job_id} cannot be restored: its saved copy is unreadable "
+                    f"({exc}).",
+                    hint="It will come back on the next search if the ad is still published.",
+                ) from exc
+            del trash[job_id]
+            restored += 1
+        self._put_doc("deleted_jobs", trash)
+        return restored
+
     # -- filtered-out jobs --------------------------------------------------
 
     def save_filtered(self, entries: Iterable[tuple[Job, str, str]]) -> int:
@@ -525,7 +636,7 @@ class Database:
                 "source": r["source"], "posted_at": r["posted_at"],
                 "reason": r["reason"], "reason_shape": r["reason_shape"],
                 "category": r["category"], "filtered_at": r["filtered_at"],
-                "url": _url_of(r["payload"]),
+                **_listing_fields(r["payload"]),
             }
             for r in self._execute(
                 "SELECT * FROM filtered_jobs ORDER BY filtered_at DESC, company LIMIT ?",
