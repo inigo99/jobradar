@@ -58,13 +58,12 @@ function render() {
   if (isPanel) { board.append(PANELS[TAB]()); return; }
 
   const predicate = TABS.find(t => t[0] === TAB)[2];
-  const needle = $("#filter").value.trim().toLowerCase();
-  let jobs = STATE.jobs.filter(predicate);
-  if (needle) {
-    jobs = jobs.filter(job =>
-      `${job.title} ${job.company} ${job.strengths.join(" ")} ${job.requirements.join(" ")}`
-        .toLowerCase().includes(needle));
-  }
+  refreshFilterOptions();
+  applyPendingFilters();
+  const inTab = STATE.jobs.filter(predicate);
+  let jobs = inTab.filter(passesBoardFilters);
+  $("#f_count").textContent = filtersActive()
+    ? `${jobs.length} of ${inTab.length} shown` : `${inTab.length} in this tab`;
   const sort = $("#sort").value;
   jobs.sort((a, b) =>
     sort === "date" ? String(b.posted_at || "").localeCompare(String(a.posted_at || "")) :
@@ -77,9 +76,11 @@ function render() {
     if (orphans) board.append(orphans);
   }
   if (!jobs.length) {
-    board.append(el("div", { className: "empty" },
-      STATE.jobs.length ? "Nothing in this tab." :
-      "No jobs yet. Press \u201cSearch now\u201d to run the first search."));
+    board.append(inTab.length
+      ? el("div", { className: "empty" }, "No job in this tab matches the filters. ",
+           button("Clear filters", async () => clearFilters()))
+      : el("div", { className: "empty" }, STATE.jobs.length ? "Nothing in this tab." :
+           "No jobs yet. Press \u201cSearch now\u201d to run the first search."));
   } else {
     jobs.forEach(job => board.append(jobCard(job)));
   }

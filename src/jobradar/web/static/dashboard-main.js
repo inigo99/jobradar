@@ -41,7 +41,7 @@ $("#settings-close").onclick = () => $("#settings").close();
 $("#settings-save").onclick = async () => {
   try { await saveSettings(); } catch (error) { toast(error.message); }
 };
-$("#filter").oninput = () => render();
+wireFilters();
 $("#sort").onchange = () => render();
 
 (async () => {

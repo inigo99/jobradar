@@ -78,3 +78,15 @@ def test_application_tracking_round_trip(client, database):
     assert response.status_code == 200
     row = next(item for item in client.get("/api/state").json()["jobs"] if item["id"] == job.id)
     assert row["status"] == "applied" and row["stage"] == "interview"
+
+
+def test_where_groups_jobs_from_the_users_point_of_view():
+    from jobradar.config import Filters
+    from jobradar.web.app import where_for
+    from tests.conftest import make_job
+
+    filters = Filters(home_country="ES", local_areas=["Valencia"])
+    assert where_for(make_job(location="Valencia, Spain", country="ES"), filters) == "local"
+    assert where_for(make_job(location="Madrid", country="ES"), filters) == "home"
+    assert where_for(make_job(location="Berlin", country="DE"), filters) == "abroad"
+    assert where_for(make_job(location="Remote", country=""), filters) == "unknown"

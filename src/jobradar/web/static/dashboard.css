@@ -55,7 +55,18 @@
   .tabs button[aria-selected="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
 
   .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
-  .toolbar input[type="search"] { max-width: 280px; }
+  .filters { display: flex; gap: 10px 12px; align-items: flex-end; flex-wrap: wrap; width: 100%;
+             padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px;
+             background: var(--surface); }
+  .filters .fld { display: flex; flex-direction: column; gap: 4px; margin: 0; font-size: 12px;
+                  font-weight: 600; color: var(--ink-2); min-width: 130px; flex: 1 1 130px; }
+  .filters .fld.wide { flex: 2 1 220px; }
+  .filters .fld.range { flex: 1 1 170px; max-width: 240px; }
+  .filters .fld-head { display: flex; justify-content: space-between; gap: 6px; }
+  .filters .fld .hint { font-weight: 400; }
+  .filters select, .filters input[type="search"] { width: 100%; font-weight: 400; }
+  .filters input[type="range"] { width: 100%; padding: 0; margin: 9px 0; accent-color: var(--accent); }
+  @media (max-width: 620px) { .filters .fld { flex-basis: 100%; } }
 
   .job {
     background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
