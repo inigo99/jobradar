@@ -35,6 +35,15 @@ ECB_DAILY = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml"
 # ---------------------------------------------------------------------------
 
 
+def _read_text(path: Path) -> str | None:
+    """A cache file's content, or None if it cannot be read."""
+    try:
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        log.warning("Ignoring the unreadable cache file %s: %s", path, exc)
+        return None
+
+
 @dataclass
 class ExchangeRates:
     """Euro-based exchange rates, fetched once per day and cached on disk."""
@@ -52,25 +61,31 @@ class ExchangeRates:
         cache = (cache_dir / "ecb-rates.xml") if cache_dir else None
         body: str | None = None
         if cache and cache.exists() and _fresh(cache):
-            body = cache.read_text(encoding="utf-8")
+            body = _read_text(cache)
         if body is None:
             try:
                 response = httpx.get(ECB_DAILY, timeout=timeout)
                 response.raise_for_status()
                 body = response.text
-                if cache:
-                    cache.parent.mkdir(parents=True, exist_ok=True)
-                    cache.write_text(body, encoding="utf-8")
             except httpx.HTTPError as exc:
-                log.warning("Could not fetch ECB rates (%s); currency conversion disabled", exc)
-                if cache and cache.exists():
-                    body = cache.read_text(encoding="utf-8")
-                else:
+                log.warning("Could not fetch ECB rates (%s); using the cached rates if any", exc)
+                body = _read_text(cache) if cache and cache.exists() else None
+                if body is None:
+                    log.warning("No exchange rates available: salaries in other currencies "
+                                "will not be converted.")
                     return cls()
+            else:
+                if cache:
+                    try:
+                        cache.parent.mkdir(parents=True, exist_ok=True)
+                        cache.write_text(body, encoding="utf-8")
+                    except OSError as exc:  # a cache that cannot be written is only slower
+                        log.warning("Could not cache the exchange rates in %s: %s", cache, exc)
         return cls._parse(body)
 
     @classmethod
     def _parse(cls, xml: str) -> ExchangeRates:
+        """Rates from the ECB's XML; EUR-only if it cannot be parsed."""
         rates = {"EUR": 1.0}
         as_of: date | None = None
         try:
@@ -164,7 +179,12 @@ def infer_seniority(title: str | None, min_years: int | None) -> str:
 
 
 def estimate_salary(job: Job, target_currency: str = "EUR", rates: ExchangeRates | None = None) -> Salary:
-    """Estimate an annual gross band for a job that publishes none."""
+    """Estimate an annual gross band for a job that publishes none.
+
+    The result is always marked as an estimate and carries the reasoning, so
+    the user can see a guess for what it is — and override it if they know the
+    market better, which they usually do.
+    """
     config = salary_bands()
     families = config.get("families", {})
     multipliers = config.get("country_multipliers", {})

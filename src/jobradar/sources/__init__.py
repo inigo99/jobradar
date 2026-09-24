@@ -11,6 +11,7 @@ import logging
 from pathlib import Path
 
 from ..config import Settings, SourceSettings
+from ..errors import ConfigError
 from .adzuna import AdzunaSource
 from .arbeitnow import ArbeitnowSource
 from .ats import CompanyBoardsSource
@@ -69,6 +70,10 @@ def resolve_enabled(settings: SourceSettings) -> list[str]:
     always wins.
     """
     if settings.enabled:
+        unknown = [sid for sid in settings.enabled if sid not in BY_ID]
+        if unknown:
+            log.warning("Ignoring unknown source id(s) in sources.enabled: %s "
+                        "(see 'jobradar sources' for the valid ids).", ", ".join(unknown))
         chosen = [sid for sid in settings.enabled if sid in BY_ID]
     else:
         chosen = [cls.id for cls in REGISTRY if cls.tos_tier != "restricted"]
@@ -84,7 +89,8 @@ def build_sources(settings: Settings, cache_dir: Path | None = None) -> tuple[li
     """
     fetcher = Fetcher(settings.sources, cache_dir)
     sources: list[JobSource] = []
-    for source_id in resolve_enabled(settings.sources):
+    enabled = resolve_enabled(settings.sources)
+    for source_id in enabled:
         cls = BY_ID[source_id]
         options: dict = {}
         if cls is CompanyBoardsSource:
@@ -93,9 +99,18 @@ def build_sources(settings: Settings, cache_dir: Path | None = None) -> tuple[li
                 continue
         instance = cls(fetcher, options)
         if cls.required_env and not instance.credentials_present():
-            log.info("Skipping %s: missing %s", cls.name, ", ".join(cls.required_env))
+            # Asked for by name, it deserves a warning; on by default, a note.
+            report = log.warning if source_id in settings.sources.enabled else log.info
+            report("Skipping %s: set %s to use it.", cls.name, ", ".join(cls.required_env))
             continue
         sources.append(instance)
+    if not sources:
+        fetcher.close()
+        raise ConfigError(
+            "No job source can run with the current settings.",
+            hint="Enable at least one source (see 'jobradar sources'), or set the API keys "
+                 "the enabled ones need.",
+        )
     return sources, fetcher
 
 

@@ -4,6 +4,49 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/).
 
+## Unreleased
+
+### Added
+
+- **Errors that say what to do.** A new `jobradar.errors` module gives every
+  failure a user can cause or fix its own exception — `ConfigError`,
+  `SetupRequiredError`, `NotFoundError`, `MissingDependencyError`,
+  `ProfileError`, `StorageError`, `RenderError`, `ExportError`, `LLMError` —
+  with a message and a hint. The command line prints them to stderr and exits
+  non-zero instead of showing a traceback (`-v` still shows it). The dashboard
+  returns them as JSON with a matching HTTP status, and the page shows the hint.
+- Clear messages for: a missing, non-YAML or invalid settings file (naming the
+  field); an unwritable data directory; a locked, read-only or damaged
+  database; corrupt stored records (one bad job is skipped, not the board);
+  missing, encrypted, corrupt or unsupported CV files (`.doc`, images); an
+  export path that is a folder or cannot be written; an unknown LLM provider or
+  a missing API key (naming the variable); a rejected key or unknown model
+  (the run stops calling the provider); SMTP and Telegram failures by cause;
+  unknown source ids in `sources.enabled`; and settings that leave no source
+  able to run.
+- `--limit`, `--top` and `--port` reject values that make no sense.
+
+### Fixed
+
+- **Security: CV uploads could be written outside the uploads folder** through
+  a file name such as `../../x`. Only the base name is used now, and uploads
+  are capped at 10 MB.
+- **Security: the dashboard returned internal error text to the browser.**
+  Unexpected errors now return a generic message; the details go to the
+  server log.
+- Job titles kept board noise such as "(Remote)" and "(80% remote)": the
+  pattern that strips it had been corrupted.
+- Two anonymous ads (no company) with the same title were merged into one
+  when the board sent `""` rather than `null`. Without a company or a title,
+  ads are now only merged by id or URL.
+- `Job` fields that boards send as `null` are normalised to `""`, `[]` or an
+  unknown salary on the way in and on assignment, instead of being optional
+  everywhere.
+- The database closes the connections of every thread, not only the caller's.
+- A cache directory or exchange-rate cache that cannot be written no longer
+  stops a search.
+- Restored the design notes removed from docstrings and comments.
+
 ## 1.3.0 — 2026-09-23
 
 Most of these fixes come from a personal radar that shares its rules with

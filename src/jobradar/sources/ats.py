@@ -96,7 +96,11 @@ class CompanyBoardsSource(JobSource):
         return self._detect(entry)
 
     def _detect(self, domain: str) -> tuple[str | None, str | None]:
-        """Find which ATS ``domain`` uses by reading its careers page."""
+        """Find which ATS ``domain`` uses by reading its careers page.
+
+        Cached by the fetcher, so this costs at most a couple of requests the
+        first time a company is added and nothing afterwards.
+        """
         host = re.sub(r"^https?://", "", domain).strip("/").split("/")[0]
         if not host:
             return None, None

@@ -17,7 +17,7 @@ from datetime import date, datetime
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # A mapping of ISO-639-1 language code -> text.
 LocalizedText = dict[str, str]
@@ -328,14 +328,23 @@ class Salary(BaseModel):
 
 
 class Job(BaseModel):
-    """A job opening as collected from a source and enriched by the pipeline."""
+    """A job opening as collected from a source and enriched by the pipeline.
+
+    Boards leave fields out or send ``null`` for them all the time. Rather than
+    make every consumer guard against ``None``, the model normalises it on the
+    way in — and on assignment too, so a stage that writes ``None`` back cannot
+    reintroduce it: missing text becomes ``""``, a missing list ``[]`` and a
+    missing salary an empty, unknown-origin band.
+    """
+
+    model_config = ConfigDict(validate_assignment=True)
 
     id: str = ""  # "<source>:<native_id>", filled in by ``ensure_id``
     source: str
     native_id: str
-    title: str | None = None
-    company: str | None = None
-    location: str | None = None
+    title: str = ""
+    company: str = ""
+    location: str = ""
     country: str = ""  # ISO-3166 alpha-2 when known
     work_mode: WorkMode = WorkMode.UNKNOWN
     remote_scope: RemoteScope = RemoteScope.UNKNOWN
@@ -343,19 +352,46 @@ class Job(BaseModel):
     url: str = ""
     apply_url: str = ""  # overrides ``url`` when the ad lives elsewhere
     posted_at: date | None = None
-    description: str | None = None
+    description: str = ""
     language: str = "en"
-    salary: Salary | None = Field(default_factory=Salary)
+    salary: Salary = Field(default_factory=Salary)
     min_years_experience: int | None = None
-    requirements: list[Requirement] | None = Field(default_factory=list)
+    requirements: list[Requirement] = Field(default_factory=list)
     # Things the user must check before applying, e.g. "client not named".
-    alerts: list[str] | None = Field(default_factory=list)
+    alerts: list[str] = Field(default_factory=list)
     # Source-specific payload, kept for debugging and for re-enrichment.
     raw: dict[str, Any] = Field(default_factory=dict)
     first_seen: datetime | None = None
     last_seen: datetime | None = None
     closed: bool = False
     closed_reason: str = ""
+
+    @field_validator("id", "title", "company", "location", "country", "url", "apply_url",
+                     "description", "language", "closed_reason", mode="before")
+    @classmethod
+    def _text_or_empty(cls, value: Any) -> Any:
+        return "" if value is None else value
+
+    @field_validator("source", "native_id", mode="before")
+    @classmethod
+    def _identifier(cls, value: Any) -> Any:
+        # Boards send numeric ids; the id is always compared as text.
+        return str(value) if isinstance(value, int) and not isinstance(value, bool) else value
+
+    @field_validator("remote_regions", "requirements", "alerts", mode="before")
+    @classmethod
+    def _list_or_empty(cls, value: Any) -> Any:
+        return [] if value is None else value
+
+    @field_validator("salary", mode="before")
+    @classmethod
+    def _salary_or_unknown(cls, value: Any) -> Any:
+        return Salary() if value is None else value
+
+    @field_validator("raw", mode="before")
+    @classmethod
+    def _dict_or_empty(cls, value: Any) -> Any:
+        return {} if value is None else value
 
     def ensure_id(self) -> Job:
         if not self.id:

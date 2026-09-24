@@ -32,6 +32,7 @@ from pathlib import Path
 from . import __version__
 from .config import Paths, Settings, countries, load_dotenv
 from .documents import render_cv, tailor
+from .errors import JobRadarError, NotFoundError, SetupRequiredError
 from .exporters import export_csv, export_excel
 from .lint import lint_profile, lint_tailored
 from .llm import build_client
@@ -90,9 +91,29 @@ def _database(args: argparse.Namespace) -> Database:
 
 def _require_onboarded(settings: Settings) -> None:
     if not settings.onboarded:
-        out("[red]Not set up yet.[/red] Run [bold]jobradar init[/bold], or "
-            "[bold]jobradar demo[/bold] to look around with synthetic data.")
-        raise SystemExit(2)
+        raise SetupRequiredError(
+            "Not set up yet.",
+            hint="Run 'jobradar init', or 'jobradar demo' to look around with synthetic data.",
+        )
+
+
+def _positive_int(text: str) -> int:
+    """argparse type: a whole number of at least 1."""
+    try:
+        value = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"'{text}' is not a whole number") from None
+    if value < 1:
+        raise argparse.ArgumentTypeError(f"must be at least 1, not {value}")
+    return value
+
+
+def _port(text: str) -> int:
+    """argparse type: a TCP port number."""
+    value = _positive_int(text)
+    if value > 65535:
+        raise argparse.ArgumentTypeError(f"{value} is not a valid port (1-65535)")
+    return value
 
 
 # ---------------------------------------------------------------------------
@@ -125,15 +146,25 @@ def cmd_init(args: argparse.Namespace) -> int:
         settings.search.titles = [t.strip() for t in titles.split(",") if t.strip()]
         modes = _ask("Acceptable ways of working (remote,hybrid,onsite)",
                      ",".join(m.value for m in settings.filters.work_modes))
-        settings.filters.work_modes = [
-            WorkMode(m.strip()) for m in modes.split(",") if m.strip() in WorkMode._value2member_map_
-        ]
+        wanted = [m.strip().lower() for m in modes.split(",") if m.strip()]
+        unknown = [m for m in wanted if m not in WorkMode._value2member_map_]
+        if unknown:
+            out(f"[yellow]Ignoring unknown work mode(s): {', '.join(unknown)} "
+                "(use remote, hybrid or onsite).[/yellow]")
+        chosen = [WorkMode(m) for m in wanted if m in WorkMode._value2member_map_]
+        if chosen:
+            settings.filters.work_modes = chosen
+        else:
+            out("[yellow]No valid work mode given; keeping the current ones.[/yellow]")
         areas = _ask("Areas where hybrid/on-site is fine (comma separated, optional)",
                      ", ".join(settings.filters.local_areas))
         settings.filters.local_areas = [a.strip() for a in areas.split(",") if a.strip()]
         minimum = _ask("Minimum yearly salary (blank for none)",
                        str(settings.filters.min_salary or ""))
-        settings.filters.min_salary = int(minimum) if minimum.strip().isdigit() else None
+        cleaned = minimum.strip().replace(".", "").replace(",", "").replace(" ", "")
+        if cleaned and not cleaned.isdigit():
+            out(f"[yellow]'{minimum}' is not a whole number; no minimum salary set.[/yellow]")
+        settings.filters.min_salary = int(cleaned) if cleaned.isdigit() else None
         settings.onboarded = True
         database.save_settings(settings)
 
@@ -252,16 +283,17 @@ def cmd_tailor(args: argparse.Namespace) -> int:
     _require_onboarded(settings)
     profile = database.load_profile()
     if profile is None:
-        out("[red]No profile.[/red] Import a CV first: jobradar init --cv path/to/cv.pdf")
-        return 2
+        raise SetupRequiredError("No profile yet.",
+                                 hint="Import a CV first: jobradar init --cv path/to/cv.pdf")
     if args.no_llm:
         settings.llm.provider = "none"
 
     if args.job_id:
-        jobs = [job for job in database.list_jobs(True) if job.id == args.job_id]
-        if not jobs:
-            out(f"[red]No job with id {args.job_id}.[/red]")
-            return 2
+        job = database.get_job(args.job_id)
+        if job is None:
+            raise NotFoundError(f"No job with id {args.job_id}.",
+                                hint="List the ids with 'jobradar jobs --all'.")
+        jobs = [job]
     else:
         scores = database.all_scores()
         applications = database.all_applications()
@@ -312,8 +344,8 @@ def cmd_lint(args: argparse.Namespace) -> int:
     database = _database(args)
     profile = database.load_profile()
     if profile is None:
-        out("[red]No profile to check.[/red]")
-        return 2
+        raise SetupRequiredError("No profile to check.",
+                                 hint="Import a CV first: jobradar init --cv path/to/cv.pdf")
     result = lint_profile(profile, args.language)
     out(f"[bold]{result.summary()}[/bold]\n")
     for finding in result.findings:
@@ -332,7 +364,7 @@ def cmd_jobs(args: argparse.Namespace) -> int:
     applications = database.all_applications()
     profile = database.load_profile()
     years = profile.years_of_experience() if profile else None
-    rows = []
+    rows: list[tuple[float, list[str]]] = []
     for job in database.list_jobs(include_closed=args.all):
         application = applications.get(job.id)
         status = application.status.value if application else "active"
@@ -340,8 +372,7 @@ def cmd_jobs(args: argparse.Namespace) -> int:
             continue
         score = scores.get(job.id)
         focus, _reason = focus_for(job, score, max_years=years)
-        rows.append([
-            focus,
+        rows.append((focus, [
             f"{focus:.0f}",
             f"{score.tailored:.0f}%" if score else "—",
             status,
@@ -350,11 +381,11 @@ def cmd_jobs(args: argparse.Namespace) -> int:
             (job.location or "")[:22],
             f"{salary.minimum:,}" if (salary := getattr(job, "salary", None)) and salary.minimum else "—",
             job.id,
-        ])
+        ]))
     rows.sort(key=lambda row: -row[0])
     table(f"{len(rows)} jobs",
           ["Focus", "Match", "Status", "Company", "Title", "Where", "Salary", "Id"],
-          [row[1:] for row in rows[: args.limit]])
+          [cells for _focus, cells in rows[: args.limit]])
     database.close()
     return 0
 
@@ -369,9 +400,9 @@ def cmd_filtered(args: argparse.Namespace) -> int:
     if args.restore:
         job = database.restore_filtered(args.restore)
         if job is None:
-            out("[red]Not in the filtered list.[/red]")
             database.close()
-            return 1
+            raise NotFoundError(f"{args.restore} is not in the filtered list.",
+                                hint="See the ids with 'jobradar filtered'.")
         profile = database.load_profile()
         if profile is not None:
             database.save_score(job.id, score_job(job, profile))
@@ -414,11 +445,9 @@ def cmd_export(args: argparse.Namespace) -> int:
     )
     try:
         path = export_excel(database, destination) if args.format == "excel" else export_csv(database, destination)
-    except RuntimeError as exc:
-        out(f"[red]{exc}[/red]")
-        return 2
+    finally:
+        database.close()
     out(f"Written to [bold]{path}[/bold]")
-    database.close()
     return 0
 
 
@@ -569,12 +598,12 @@ def build_parser() -> argparse.ArgumentParser:
     search.set_defaults(func=cmd_search)
 
     sweep = sub.add_parser("sweep", help="Retire ads that have closed")
-    sweep.add_argument("--limit", type=int, default=None, help="Check at most N jobs")
+    sweep.add_argument("--limit", type=_positive_int, default=None, help="Check at most N jobs")
     sweep.set_defaults(func=cmd_sweep)
 
     tailor_cmd = sub.add_parser("tailor", help="Generate tailored CVs")
     tailor_cmd.add_argument("job_id", nargs="?", help="Job id; omit to use --top")
-    tailor_cmd.add_argument("--top", type=int, default=5, help="Generate for the best N jobs")
+    tailor_cmd.add_argument("--top", type=_positive_int, default=5, help="Generate for the best N jobs")
     tailor_cmd.add_argument("--no-llm", action="store_true")
     tailor_cmd.set_defaults(func=cmd_tailor)
 
@@ -585,11 +614,11 @@ def build_parser() -> argparse.ArgumentParser:
     jobs = sub.add_parser("jobs", help="List the pipeline")
     jobs.add_argument("--status", choices=["active", "applied", "discarded"])
     jobs.add_argument("--all", action="store_true", help="Include closed ads")
-    jobs.add_argument("--limit", type=int, default=40)
+    jobs.add_argument("--limit", type=_positive_int, default=40)
     jobs.set_defaults(func=cmd_jobs)
 
     filtered = sub.add_parser("filtered", help="Show what the filters rejected")
-    filtered.add_argument("--limit", type=int, default=60)
+    filtered.add_argument("--limit", type=_positive_int, default=60)
     filtered.add_argument("--restore", metavar="JOB_ID",
                           help="Put one rejected ad back on the board")
     filtered.add_argument("--clear", action="store_true",
@@ -602,7 +631,7 @@ def build_parser() -> argparse.ArgumentParser:
     export.set_defaults(func=cmd_export)
 
     notify = sub.add_parser("notify", help="Send the digest")
-    notify.add_argument("--limit", type=int, default=15)
+    notify.add_argument("--limit", type=_positive_int, default=15)
     notify.add_argument("--dry-run", action="store_true", help="Print it instead of sending")
     notify.set_defaults(func=cmd_notify)
 
@@ -611,7 +640,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     serve_cmd = sub.add_parser("serve", help="Start the local dashboard")
     serve_cmd.add_argument("--host", default="127.0.0.1")
-    serve_cmd.add_argument("--port", type=int, default=8000)
+    serve_cmd.add_argument("--port", type=_port, default=8000)
     serve_cmd.set_defaults(func=cmd_serve)
 
     doctor = sub.add_parser("doctor", help="Check the installation")
@@ -633,7 +662,42 @@ def main(argv: list[str] | None = None) -> int:
     except KeyboardInterrupt:
         out("\nInterrupted.")
         return 130
+    except EOFError:
+        # ``input()`` with stdin closed: ``jobradar init`` run unattended.
+        _report("No answer could be read: standard input is closed.",
+                "Run 'jobradar init' in a terminal, or pass --config settings.yaml.")
+        return 2
+    except JobRadarError as exc:
+        if args.verbose:
+            logging.getLogger("jobradar").exception("%s", type(exc).__name__)
+        _report(exc.message, exc.hint)
+        return exc.exit_code
+    except Exception as exc:  # a bug: say so plainly instead of dumping a traceback
+        if args.verbose:
+            logging.getLogger("jobradar").exception("Unexpected error")
+        detail = "the traceback above" if args.verbose else "the traceback from a rerun with -v"
+        _report(
+            f"Unexpected error ({type(exc).__name__}): {exc}",
+            f"This is a bug in JobRadar; please report it with {detail} at "
+            "https://github.com/inigo99/jobradar/issues",
+        )
+        return 1
 
+
+def _report(message: str, hint: str = "") -> None:
+    """Print an error to stderr, where scripts and cron mail look for it."""
+    try:
+        from rich.console import Console
+        from rich.markup import escape
+    except ImportError:  # pragma: no cover - rich is a dependency
+        print(f"Error: {message}", file=sys.stderr)
+        if hint:
+            print(f"Hint: {hint}", file=sys.stderr)
+        return
+    err = Console(stderr=True, soft_wrap=True)  # never break a path mid-line
+    err.print(f"[bold red]Error:[/bold red] {escape(message)}")
+    if hint:
+        err.print(f"[yellow]Hint:[/yellow] {escape(hint)}")
 
 if __name__ == "__main__":
     sys.exit(main())

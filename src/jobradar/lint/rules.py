@@ -165,8 +165,11 @@ def rule_dates(profile: Profile, language: str) -> Iterator[LintFinding]:
 
 def rule_chronology(profile: Profile, language: str) -> Iterator[LintFinding]:
     """Positions must run newest first; anything else looks like concealment."""
-    dated = [(experience, _parse_month(experience.start)) for experience in profile.experience]
-    dated = [(experience, start) for experience, start in dated if start]
+    dated = [
+        (experience, start)
+        for experience in profile.experience
+        if (start := _parse_month(experience.start)) is not None
+    ]
     for (first, first_start), (second, second_start) in zip(dated, dated[1:], strict=False):
         if first_start < second_start:
             yield finding(

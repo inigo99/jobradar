@@ -15,16 +15,20 @@ imported at ``jobradar init`` time for unattended installs.
 
 from __future__ import annotations
 
+import logging
 import os
 from functools import lru_cache
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
+from .errors import ConfigError, StorageError, describe_os_error
 from .models import WorkMode
 
 RESOURCES = Path(__file__).parent / "resources"
+
+log = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -81,7 +85,13 @@ class Paths(BaseModel):
             self.exports_dir,
             self.uploads_dir,
         ):
-            directory.mkdir(parents=True, exist_ok=True)
+            try:
+                directory.mkdir(parents=True, exist_ok=True)
+            except OSError as exc:
+                raise StorageError(
+                    f"Cannot create the data directory {directory}: {describe_os_error(exc)}.",
+                    hint="Point --home (or JOBRADAR_HOME) at a folder you can write to.",
+                ) from exc
         return self
 
 
@@ -275,14 +285,73 @@ class Settings(BaseModel):
     @classmethod
     def from_yaml(cls, path: str | Path) -> Settings:
         """Load settings from a YAML file (for unattended installs)."""
-        data = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
-        return cls.model_validate(data)
+        file = Path(path)
+        try:
+            text = file.read_text(encoding="utf-8")
+        except FileNotFoundError as exc:
+            raise ConfigError(
+                f"The settings file {file} does not exist.",
+                hint="Check the path passed to --config.",
+            ) from exc
+        except UnicodeDecodeError as exc:
+            raise ConfigError(
+                f"The settings file {file} is not UTF-8 text.",
+                hint="Save it as UTF-8 and try again.",
+            ) from exc
+        except OSError as exc:
+            raise ConfigError(
+                f"Cannot read the settings file {file}: {describe_os_error(exc)}."
+            ) from exc
+        try:
+            data = yaml.safe_load(text) or {}
+        except yaml.YAMLError as exc:
+            mark = getattr(exc, "problem_mark", None)
+            where = f" (line {mark.line + 1}, column {mark.column + 1})" if mark else ""
+            raise ConfigError(
+                f"The settings file {file} is not valid YAML{where}.",
+                hint="Check the indentation and quoting around that line.",
+            ) from exc
+        if not isinstance(data, dict):
+            raise ConfigError(
+                f"The settings file {file} must contain a mapping of settings, "
+                f"not a {type(data).__name__}.",
+                hint="See docs/CONFIGURATION.md for the expected layout.",
+            )
+        return cls.validated(data, origin=str(file))
+
+    @classmethod
+    def validated(cls, data: dict, origin: str = "settings") -> Settings:
+        """``model_validate`` with the errors rewritten for a person to read."""
+        try:
+            return cls.model_validate(data)
+        except ValidationError as exc:
+            raise ConfigError(
+                f"Invalid {origin}: {validation_summary(exc)}",
+                hint="See docs/CONFIGURATION.md for the accepted values.",
+            ) from exc
 
     def to_yaml(self, path: str | Path) -> None:
-        Path(path).write_text(
-            yaml.safe_dump(self.model_dump(mode="json"), sort_keys=False, allow_unicode=True),
-            encoding="utf-8",
-        )
+        try:
+            Path(path).write_text(
+                yaml.safe_dump(self.model_dump(mode="json"), sort_keys=False, allow_unicode=True),
+                encoding="utf-8",
+            )
+        except OSError as exc:
+            raise ConfigError(
+                f"Cannot write the settings file {path}: {describe_os_error(exc)}."
+            ) from exc
+
+
+def validation_summary(exc: ValidationError, limit: int = 3) -> str:
+    """The first few Pydantic errors as ``field.path: message; ...``."""
+    parts = []
+    for error in exc.errors()[:limit]:
+        location = ".".join(str(part) for part in error.get("loc", ())) or "value"
+        parts.append(f"{location}: {error.get('msg', 'invalid')}")
+    more = len(exc.errors()) - limit
+    if more > 0:
+        parts.append(f"and {more} more")
+    return "; ".join(parts)
 
 
 # ---------------------------------------------------------------------------
@@ -290,16 +359,43 @@ class Settings(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+def load_resource(name: str) -> dict:
+    """A YAML file shipped in ``resources/``, which must be a mapping.
+
+    These files are part of the package, so a failure here means a broken
+    installation rather than anything the user configured.
+    """
+    path = RESOURCES / name
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except OSError as exc:
+        raise ConfigError(
+            f"The packaged resource {name} cannot be read: {describe_os_error(exc)}.",
+            hint="The installation looks incomplete; reinstall JobRadar.",
+        ) from exc
+    except yaml.YAMLError as exc:
+        raise ConfigError(
+            f"The packaged resource {name} is not valid YAML.",
+            hint="If you edited it, undo the change; otherwise reinstall JobRadar.",
+        ) from exc
+    if not isinstance(data, dict):
+        raise ConfigError(
+            f"The packaged resource {name} must be a mapping.",
+            hint="If you edited it, undo the change; otherwise reinstall JobRadar.",
+        )
+    return data
+
+
 @lru_cache(maxsize=1)
 def countries() -> dict[str, dict]:
     """The country registry from ``resources/countries.yaml``."""
-    return yaml.safe_load((RESOURCES / "countries.yaml").read_text(encoding="utf-8")) or {}
+    return load_resource("countries.yaml")
 
 
 @lru_cache(maxsize=1)
 def salary_bands() -> dict:
     """Reference salary bands from ``resources/salary_bands.yaml``."""
-    return yaml.safe_load((RESOURCES / "salary_bands.yaml").read_text(encoding="utf-8")) or {}
+    return load_resource("salary_bands.yaml")
 
 
 def country_info(code: str) -> dict:
@@ -318,9 +414,16 @@ def load_dotenv(path: str | Path = ".env") -> None:
     overrides working.
     """
     file = Path(path)
-    if not file.exists():
+    if not file.is_file():
         return
-    for line in file.read_text(encoding="utf-8").splitlines():
+    try:
+        text = file.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        # A broken .env must not stop the program: the variables it would
+        # have set can still come from the real environment.
+        log.warning("Ignoring %s: it cannot be read (%s).", file, exc)
+        return
+    for line in text.splitlines():
         line = line.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue

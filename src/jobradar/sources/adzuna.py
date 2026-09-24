@@ -80,7 +80,7 @@ class AdzunaSource(JobSource):
                 )
             except (ValueError, TypeError):
                 pass
-                
+
         scope, regions = detect_remote_scope(description)
         return self.make_job(
             str(entry.get("id") or ""),

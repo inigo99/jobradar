@@ -262,7 +262,15 @@ async function api(path, options = {}) {
     ...options,
   });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.detail || response.statusText);
+  if (!response.ok) {
+    // `detail` is a sentence for JobRadar's own errors, but a list for a
+    // request the framework rejected before it reached JobRadar.
+    let message = typeof payload.detail === "string" ? payload.detail
+      : Array.isArray(payload.detail) ? payload.detail.map(e => e.msg).join("; ")
+      : response.statusText || `Request failed (HTTP ${response.status})`;
+    if (payload.hint) message += ` — ${payload.hint}`;
+    throw new Error(message);
+  }
   return payload;
 }
 

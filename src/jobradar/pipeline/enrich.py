@@ -115,6 +115,10 @@ def derive_fields(job: Job) -> Job:
     if text:
         job.language = detect_language(text, job.language)
         detected_mode = detect_work_mode(text, job.location or "")
+        # The ad's own words beat the board's tag; boards mislabel hybrid roles
+        # as remote constantly. But silence is not a contradiction: when the
+        # text says nothing, a remote tag stays and is flagged, instead of the
+        # job being demoted to "unknown" or dropped.
         if detected_mode != WorkMode.UNKNOWN:
             job.work_mode = detected_mode
             job.raw.pop("remote_unconfirmed", None)
@@ -130,7 +134,7 @@ def derive_fields(job: Job) -> Job:
             job.raw["remote_scope_evidence"] = scope_sentence
         if job.min_years_experience is None:
             job.min_years_experience = extract_min_years(text)
-        
+
         salary_obj = getattr(job, "salary", None)
         if not salary_obj or salary_obj.origin != SalaryOrigin.PUBLISHED:
             currency = salary_obj.currency if salary_obj else "EUR"
@@ -162,11 +166,11 @@ def derive_alerts(job: Job) -> list[str]:
         alerts.append("Remote, but the ad does not say from which countries — confirm before applying.")
     if any(marker in lowered for marker in AGENCY_MARKERS):
         alerts.append("The end client is not named — ask who the employer actually is.")
-        
+
     salary_obj = getattr(job, "salary", None)
     if salary_obj and salary_obj.origin == SalaryOrigin.ESTIMATED:
         alerts.append("Salary is an estimate, not a published figure.")
-        
+
     if job.work_mode == WorkMode.UNKNOWN:
         alerts.append("Work mode unclear — check whether office days are expected.")
     if job.posted_at is None:
@@ -180,7 +184,11 @@ def derive_alerts(job: Job) -> list[str]:
 
 
 def _apply_model_reading(job: Job, data: dict) -> None:
-    """Merge the model's reading of an ad into the job, defensively."""
+    """Merge the model's reading of an ad into the job, defensively.
+
+    Anything malformed is ignored rather than trusted: a model that returns a
+    salary of "competitive" must not be able to blank a published figure.
+    """
     requirements: list[Requirement] = []
     for entry in data.get("requirements") or []:
         try:
@@ -249,11 +257,15 @@ def enrich_job(
     rates: ExchangeRates | None = None,
     fetch_description=None,
 ) -> Job:
-    """Bring one job up to the standard the rest of the pipeline expects."""
+    """Bring one job up to the standard the rest of the pipeline expects.
+
+    ``fetch_description`` is the owning source's method, passed in rather than
+    looked up so this function stays testable without any network.
+    """
     if fetch_description and len(job.description or "") < 400:
         try:
             job.description = fetch_description(job) or job.description
-        except Exception as exc:
+        except Exception as exc:  # a source must never break a whole run
             log.debug("Could not fetch the full ad for %s: %s", job.id, exc)
 
     derive_fields(job)

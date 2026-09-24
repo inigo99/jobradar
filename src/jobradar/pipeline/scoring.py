@@ -26,7 +26,16 @@ STRONG = 0.7
 
 
 def promoted_prominence(key: str, profile: Profile, surfaced: set[str]) -> float:
-    """How strongly a tailored CV can present ``key``."""
+    """How strongly a tailored CV can present ``key``.
+
+    The three rules, in order:
+
+    1. Evidence 0.0 stays 0.0. The candidate does not have it; it is a gap, and
+       the tailored CV must not claim it. This is the lock.
+    2. A skill the tailored CV surfaces rises to its ceiling — how convincingly
+       the candidate could defend it in an interview.
+    3. Anything else keeps the evidence it already had.
+    """
     evidence = profile.evidence or {}
     ceiling = profile.ceiling or {}
     base = evidence.get(key, 0.0)
@@ -38,11 +47,17 @@ def promoted_prominence(key: str, profile: Profile, surfaced: set[str]) -> float
 
 
 def choose_surfaced(requirements: list[Requirement], profile: Profile, limit: int = 12) -> list[str]:
-    """Pick which owned skills the tailored CV should promote."""
+    """Pick which owned skills the tailored CV should promote.
+
+    Only requirements the candidate can actually evidence are eligible, and
+    they are ranked by how much promoting them would raise the score: a heavily
+    weighted requirement the CV currently only mentions in passing is worth far
+    more than one it already proves.
+    """
     candidates: list[tuple[float, str]] = []
     evidence = profile.evidence or {}
     ceiling = profile.ceiling or {}
-    
+
     for requirement in requirements:
         base = evidence.get(requirement.key, 0.0)
         if base <= 0.0:
@@ -50,7 +65,7 @@ def choose_surfaced(requirements: list[Requirement], profile: Profile, limit: in
         ceil = ceiling.get(requirement.key, base)
         gain = max(0.0, ceil - base) * requirement.weight
         candidates.append((gain, requirement.key))
-        
+
     candidates.sort(key=lambda item: (-item[0], item[1]))
     ordered: list[str] = []
     for _, key in candidates:
@@ -60,7 +75,13 @@ def choose_surfaced(requirements: list[Requirement], profile: Profile, limit: in
 
 
 def score_job(job: Job, profile: Profile) -> MatchScore:
-    """Score ``job`` against ``profile``."""
+    """Score ``job`` against ``profile``.
+
+    Both scores are percentages of the total requirement weight, so they are
+    comparable across jobs with different numbers of requirements. A job with
+    no parsed requirements scores zero rather than raising — that state means
+    "we could not read the ad", which the dashboard shows as such.
+    """
     requirements = job.requirements or []
     total = sum(requirement.weight for requirement in requirements)
     if not total:

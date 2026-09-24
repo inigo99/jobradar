@@ -19,6 +19,7 @@ Two design rules are enforced here and worth knowing about:
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 import threading
 from collections.abc import Iterable, Iterator
@@ -27,7 +28,10 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .config import Paths, Settings
+from pydantic import ValidationError
+
+from .config import Paths, Settings, validation_summary
+from .errors import ConfigError, StorageError, describe_os_error
 from .models import (
     Application,
     ApplicationStatus,
@@ -37,6 +41,8 @@ from .models import (
     Profile,
     SearchRun,
 )
+
+log = logging.getLogger(__name__)
 
 SCHEMA_VERSION = 1
 
@@ -143,26 +149,121 @@ def _json(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, default=str)
 
 
+def _load(raw: str, what: str) -> Any:
+    """Decode a stored JSON payload, naming what it was if it is corrupt."""
+    try:
+        return json.loads(raw)
+    except (TypeError, ValueError) as exc:
+        raise StorageError(
+            f"The stored {what} is corrupt and cannot be read.",
+            hint="Restore the database from a backup, or delete that record.",
+        ) from exc
+
+
+def _model(model: Any, payload: str, what: str) -> Any:
+    """Decode and validate one stored record of type ``model``."""
+    try:
+        return model.model_validate(_load(payload, what))
+    except ValidationError as exc:
+        raise StorageError(
+            f"The stored {what} is invalid: {validation_summary(exc)}",
+            hint="Restore the database from a backup, or regenerate that record.",
+        ) from exc
+
+
+def _url_of(payload: str) -> str:
+    """The ``url`` field of a stored job, or "" if the payload is damaged."""
+    try:
+        data = json.loads(payload)
+    except (TypeError, ValueError):
+        return ""
+    return str(data.get("url", "")) if isinstance(data, dict) else ""
+
+
+def _storage_error(exc: sqlite3.Error, path: Path) -> StorageError:
+    """Turn a SQLite exception into a message that says what to do."""
+    text = str(exc).lower()
+    if "locked" in text or "busy" in text:
+        return StorageError(
+            f"The database {path} is locked by another process.",
+            hint="Wait for the other JobRadar command (or the dashboard's search) to finish.",
+        )
+    if "readonly" in text or "read-only" in text:
+        return StorageError(
+            f"The database {path} is read-only.",
+            hint="Check the permissions of the data directory.",
+        )
+    if "disk" in text and ("full" in text or "i/o" in text):
+        return StorageError(
+            f"Could not write to the database {path}: {exc}.",
+            hint="Free some disk space and try again.",
+        )
+    if "not a database" in text or "malformed" in text or "corrupt" in text:
+        return StorageError(
+            f"The database {path} is damaged: {exc}.",
+            hint="Restore it from a backup, or move it aside to start afresh.",
+        )
+    if "unable to open" in text:
+        return StorageError(
+            f"Cannot open the database {path}.",
+            hint="Check that the data directory exists and that you can write to it.",
+        )
+    return StorageError(f"Database error on {path}: {exc}.")
+
+
 class Database:
-    """Dependency-free wrapper around the SQLite file, thread-safe."""
+    """Thin, dependency-free wrapper around the SQLite file, one connection per thread."""
 
     def __init__(self, paths: Paths | None = None, path: str | Path | None = None):
         self.paths = paths or Paths.resolve()
         self.paths.ensure()
         self.path = Path(path) if path else self.paths.db
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            raise StorageError(
+                f"Cannot create {self.path.parent}: {describe_os_error(exc)}.",
+                hint="Point --home (or JOBRADAR_HOME) at a folder you can write to.",
+            ) from exc
+        if self.path.is_dir():
+            raise StorageError(
+                f"{self.path} is a directory, not a database file.",
+                hint="Move it aside or choose another data directory.",
+            )
         self._local = threading.local()
+        # Every connection ever opened, whichever thread opened it, so
+        # ``close`` can release them all and not just the caller's own.
+        self._connections: list[sqlite3.Connection] = []
+        self._connections_lock = threading.Lock()
         self._migrate()
 
     def _get_conn(self) -> sqlite3.Connection:
-        """Returns a thread-local SQLite connection to avoid 'database is locked' errors."""
-        if not hasattr(self._local, "conn"):
-            conn = sqlite3.connect(self.path, timeout=20.0, check_same_thread=False)
-            conn.row_factory = sqlite3.Row
-            conn.execute("PRAGMA foreign_keys = ON")
-            conn.execute("PRAGMA journal_mode = WAL")
+        """This thread's connection, opened on first use.
+
+        One connection per thread: the dashboard runs searches in a worker
+        thread while the page keeps reading, and a shared connection would
+        interleave their transactions.
+        """
+        conn = getattr(self._local, "conn", None)
+        if conn is None:
+            try:
+                conn = sqlite3.connect(self.path, timeout=20.0, check_same_thread=False)
+                conn.row_factory = sqlite3.Row
+                conn.execute("PRAGMA foreign_keys = ON")
+                conn.execute("PRAGMA journal_mode = WAL")
+            except sqlite3.Error as exc:
+                raise _storage_error(exc, self.path) from exc
             self._local.conn = conn
-        return self._local.conn
+            with self._connections_lock:
+                self._connections.append(conn)
+        return conn
+
+    def _execute(self, sql: str, params: Iterable[Any] = ()) -> sqlite3.Cursor:
+        """Run a read query, reporting SQLite failures as :class:`StorageError`."""
+        try:
+            return self._get_conn().execute(sql, tuple(params))
+        except sqlite3.Error as exc:
+            raise _storage_error(exc, self.path) from exc
 
     # -- lifecycle ---------------------------------------------------------
 
@@ -181,16 +282,25 @@ class Database:
         try:
             yield cursor
             conn.commit()
-        except Exception:
+        except sqlite3.Error as exc:
+            conn.rollback()
+            raise _storage_error(exc, self.path) from exc
+        except BaseException:
             conn.rollback()
             raise
         finally:
             cursor.close()
 
     def close(self) -> None:
-        if hasattr(self._local, "conn"):
-            self._local.conn.close()
-            del self._local.conn
+        """Close every connection this object opened, in any thread."""
+        with self._connections_lock:
+            connections, self._connections = self._connections, []
+        for conn in connections:
+            try:
+                conn.close()
+            except sqlite3.Error as exc:  # closing must never raise
+                log.debug("Could not close a database connection: %s", exc)
+        self._local = threading.local()
 
     def __enter__(self) -> Database:
         return self
@@ -201,10 +311,18 @@ class Database:
     # -- key/value documents (settings, profile) ---------------------------
 
     def _get_doc(self, key: str) -> dict | None:
-        row = self._get_conn().execute(
+        row = self._execute(
             "SELECT value FROM documents_kv WHERE key = ?", (key,)
         ).fetchone()
-        return json.loads(row["value"]) if row else None
+        if not row:
+            return None
+        data = _load(row["value"], key)
+        if not isinstance(data, dict):
+            raise StorageError(
+                f"The stored {key} is not a JSON object.",
+                hint="Restore the database from a backup, or set it up again.",
+            )
+        return data
 
     def _put_doc(self, key: str, value: dict) -> None:
         with self.transaction() as cursor:
@@ -217,14 +335,28 @@ class Database:
     def load_settings(self) -> Settings:
         """Current settings, or freshly defaulted ones on a blank install."""
         data = self._get_doc("settings")
-        return Settings.model_validate(data) if data else Settings()
+        if not data:
+            return Settings()
+        try:
+            return Settings.validated(data, origin="stored settings")
+        except ConfigError as exc:
+            exc.hint = "Save the settings again from the dashboard, or rerun 'jobradar init'."
+            raise
 
     def save_settings(self, settings: Settings) -> None:
         self._put_doc("settings", settings.model_dump(mode="json"))
 
     def load_profile(self) -> Profile | None:
         data = self._get_doc("profile")
-        return Profile.model_validate(data) if data else None
+        if not data:
+            return None
+        try:
+            return Profile.model_validate(data)
+        except ValidationError as exc:
+            raise StorageError(
+                f"The stored profile is invalid: {validation_summary(exc)}",
+                hint="Import your CV again with 'jobradar init --cv <file>'.",
+            ) from exc
 
     def save_profile(self, profile: Profile) -> None:
         self._put_doc("profile", profile.model_dump(mode="json"))
@@ -275,38 +407,55 @@ class Database:
         return new, updated
 
     def get_job(self, job_id: str) -> Job | None:
-        row = self._get_conn().execute(
+        row = self._execute(
             "SELECT payload, first_seen, last_seen, closed, closed_reason FROM jobs WHERE id = ?",
             (job_id,),
         ).fetchone()
         return self._row_to_job(row) if row else None
 
-    def list_jobs(self, include_closed: bool = False, limit: int | None = None, offset: int = 0) -> list[Job]:
+    def list_jobs(
+        self, include_closed: bool = False, limit: int | None = None, offset: int = 0
+    ) -> list[Job]:
         sql = "SELECT payload, first_seen, last_seen, closed, closed_reason FROM jobs"
-        params = []
+        params: list[Any] = []
         if not include_closed:
             sql += " WHERE closed = 0"
         sql += " ORDER BY first_seen DESC"
         if limit is not None:
             sql += " LIMIT ? OFFSET ?"
             params.extend([limit, offset])
-        return [self._row_to_job(row) for row in self._get_conn().execute(sql, params)]
+        jobs: list[Job] = []
+        for row in self._execute(sql, params):
+            # One damaged row must not hide the whole board: skip it, loudly.
+            try:
+                jobs.append(self._row_to_job(row))
+            except StorageError as exc:
+                log.warning("Skipping a stored job: %s", exc)
+        return jobs
 
     @staticmethod
     def _row_to_job(row: sqlite3.Row) -> Job:
-        job = Job.model_validate(json.loads(row["payload"]))
+        data = _load(row["payload"], "job")
+        try:
+            job = Job.model_validate(data)
+        except ValidationError as exc:
+            job_id = data.get("id", "?") if isinstance(data, dict) else "?"
+            raise StorageError(
+                f"The stored job {job_id} is invalid: {validation_summary(exc)}",
+                hint="Run the search again; the job will be re-read from its board.",
+            ) from exc
         job.closed = bool(row["closed"])
         job.closed_reason = row["closed_reason"] or ""
         return job
 
     def known_job_ids(self) -> set[str]:
-        return {r["id"] for r in self._get_conn().execute("SELECT id FROM jobs")}
+        return {r["id"] for r in self._execute("SELECT id FROM jobs")}
 
     def known_fingerprints(self) -> dict[str, str]:
         """fingerprint -> job id, for cross-source duplicate detection."""
         return {
             r["fingerprint"]: r["id"]
-            for r in self._get_conn().execute("SELECT id, fingerprint FROM jobs")
+            for r in self._execute("SELECT id, fingerprint FROM jobs")
         }
 
     def mark_closed(self, job_id: str, reason: str) -> None:
@@ -334,7 +483,7 @@ class Database:
 
     def closed_job_ids(self) -> set[str]:
         """Ids that must never be re-added by a later search run."""
-        return {r["job_id"] for r in self._get_conn().execute("SELECT job_id FROM closed_jobs")}
+        return {r["job_id"] for r in self._execute("SELECT job_id FROM closed_jobs")}
 
     # -- filtered-out jobs --------------------------------------------------
 
@@ -373,9 +522,9 @@ class Database:
                 "source": r["source"], "posted_at": r["posted_at"],
                 "reason": r["reason"], "reason_shape": r["reason_shape"],
                 "category": r["category"], "filtered_at": r["filtered_at"],
-                "url": json.loads(r["payload"]).get("url", ""),
+                "url": _url_of(r["payload"]),
             }
-            for r in self._get_conn().execute(
+            for r in self._execute(
                 "SELECT * FROM filtered_jobs ORDER BY filtered_at DESC, company LIMIT ?",
                 (limit,),
             )
@@ -389,14 +538,14 @@ class Database:
         """
         by_category = [
             (r["category"], r["n"])
-            for r in self._get_conn().execute(
+            for r in self._execute(
                 "SELECT category, COUNT(*) AS n FROM filtered_jobs "
                 "GROUP BY category ORDER BY n DESC"
             )
         ]
         by_shape = [
             (r["reason_shape"], r["n"])
-            for r in self._get_conn().execute(
+            for r in self._execute(
                 "SELECT reason_shape, COUNT(*) AS n FROM filtered_jobs "
                 "GROUP BY reason_shape ORDER BY n DESC LIMIT 12"
             )
@@ -404,13 +553,29 @@ class Database:
         return {"by_category": by_category, "by_shape": by_shape}
 
     def get_filtered_job(self, job_id: str) -> Job | None:
-        row = self._get_conn().execute(
+        row = self._execute(
             "SELECT payload FROM filtered_jobs WHERE id = ?", (job_id,)
         ).fetchone()
-        return Job.model_validate(json.loads(row["payload"])) if row else None
+        return self._row_to_job_payload(row["payload"]) if row else None
+
+    @staticmethod
+    def _row_to_job_payload(payload: str) -> Job:
+        data = _load(payload, "filtered job")
+        try:
+            return Job.model_validate(data)
+        except ValidationError as exc:
+            raise StorageError(
+                f"The stored filtered job is invalid: {validation_summary(exc)}",
+                hint="Empty the filtered list with 'jobradar filtered --clear'.",
+            ) from exc
 
     def restore_filtered(self, job_id: str) -> Job | None:
-        """Move one rejected job back onto the board."""
+        """Move one rejected job back onto the board.
+
+        The filter that rejected it still exists, so a later run would reject
+        it again; the point is that the decision is now the user's and visible,
+        not a silent drop.
+        """
         job = self.get_filtered_job(job_id)
         if job is None:
             return None
@@ -439,37 +604,43 @@ class Database:
             )
 
     def get_score(self, job_id: str) -> MatchScore | None:
-        row = self._get_conn().execute(
+        row = self._execute(
             "SELECT payload FROM matches WHERE job_id = ?", (job_id,)
         ).fetchone()
-        return MatchScore.model_validate(json.loads(row["payload"])) if row else None
+        return _model(MatchScore, row["payload"], "match score") if row else None
 
     def all_scores(self) -> dict[str, MatchScore]:
         return {
-            r["job_id"]: MatchScore.model_validate(json.loads(r["payload"]))
-            for r in self._get_conn().execute("SELECT job_id, payload FROM matches")
+            r["job_id"]: _model(MatchScore, r["payload"], "match score")
+            for r in self._execute("SELECT job_id, payload FROM matches")
         }
 
     # -- applications (user-owned) -----------------------------------------
 
     def get_application(self, job_id: str) -> Application:
-        row = self._get_conn().execute(
+        row = self._execute(
             "SELECT * FROM applications WHERE job_id = ?", (job_id,)
         ).fetchone()
         if not row:
             return Application(job_id=job_id)
-        return Application(
-            job_id=row["job_id"],
-            status=ApplicationStatus(row["status"]),
-            stage=row["stage"] or None,
-            applied_on=date.fromisoformat(row["applied_on"]) if row["applied_on"] else None,
-            notes=row["notes"] or "",
-            updated_at=datetime.fromisoformat(row["updated_at"]),
-        )
+        try:
+            return Application(
+                job_id=row["job_id"],
+                status=ApplicationStatus(row["status"]),
+                stage=row["stage"] or None,
+                applied_on=date.fromisoformat(row["applied_on"]) if row["applied_on"] else None,
+                notes=row["notes"] or "",
+                updated_at=datetime.fromisoformat(row["updated_at"]),
+            )
+        except (ValueError, ValidationError) as exc:
+            raise StorageError(
+                f"The tracking record for job {job_id} is invalid: {exc}",
+                hint="Set its status again from the dashboard.",
+            ) from exc
 
     def all_applications(self) -> dict[str, Application]:
         result: dict[str, Application] = {}
-        for row in self._get_conn().execute("SELECT job_id FROM applications"):
+        for row in self._execute("SELECT job_id FROM applications"):
             result[row["job_id"]] = self.get_application(row["job_id"])
         return result
 
@@ -493,7 +664,7 @@ class Database:
 
     def tracked_job_ids(self) -> set[str]:
         """Jobs the user has touched — these are never removed automatically."""
-        return {r["job_id"] for r in self._get_conn().execute("SELECT job_id FROM applications")}
+        return {r["job_id"] for r in self._execute("SELECT job_id FROM applications")}
 
     # -- generated documents ------------------------------------------------
 
@@ -506,18 +677,18 @@ class Database:
             )
 
     def get_document(self, job_id: str, kind: str) -> GeneratedDocument | None:
-        row = self._get_conn().execute(
+        row = self._execute(
             "SELECT payload FROM generated_documents WHERE job_id = ? AND kind = ?",
             (job_id, kind),
         ).fetchone()
-        return GeneratedDocument.model_validate(json.loads(row["payload"])) if row else None
+        return _model(GeneratedDocument, row["payload"], "document") if row else None
 
     def documents_for(self, job_id: str) -> dict[str, GeneratedDocument]:
-        rows = self._get_conn().execute(
+        rows = self._execute(
             "SELECT kind, payload FROM generated_documents WHERE job_id = ?", (job_id,)
         )
         return {
-            r["kind"]: GeneratedDocument.model_validate(json.loads(r["payload"])) for r in rows
+            r["kind"]: _model(GeneratedDocument, r["payload"], "document") for r in rows
         }
 
     # -- run log ------------------------------------------------------------
@@ -527,7 +698,7 @@ class Database:
             cursor.execute("INSERT INTO runs(payload) VALUES (?)", (_json(run.model_dump(mode="json")),))
 
     def recent_runs(self, limit: int = 20) -> list[SearchRun]:
-        rows = self._get_conn().execute(
+        rows = self._execute(
             "SELECT payload FROM runs ORDER BY id DESC LIMIT ?", (limit,)
         )
-        return [SearchRun.model_validate(json.loads(r["payload"])) for r in rows]
+        return [_model(SearchRun, r["payload"], "search run") for r in rows]
