@@ -12,7 +12,7 @@ from datetime import date
 from pydantic import BaseModel, Field
 
 from ..config import Filters, Settings
-from ..models import ApplicationStage, ApplicationStatus
+from ..models import ApplicationStage, ApplicationStatus, CvVariant
 
 
 class OnboardingPayload(BaseModel):
@@ -57,6 +57,14 @@ class ProfilePatch(BaseModel):
     summary: str | None = None
     evidence: dict[str, float] | None = None
     ceiling: dict[str, float] | None = None
+    #: The CV variant per job family; replaces the stored set when given.
+    family_variants: dict[str, CvVariant] | None = None
+
+
+class DocumentTextPayload(BaseModel):
+    """The user's edited text of a cover letter or application email."""
+
+    text: str
 
 
 class JobView(BaseModel):

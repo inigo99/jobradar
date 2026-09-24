@@ -26,6 +26,10 @@ function settingsBody() {
       el("label", {}, "CV template"),
       selectFrom("s_template", settings.cv_template,
         [["classic","Classic"],["compact","Compact"],["modern","Modern"]]),
+      el("label", {}, "CV PDF"),
+      selectFrom("s_pdfengine", settings.cv_pdf_engine,
+        [["auto", "Print the template with Chromium (built-in writer if it is missing)"],
+         ["builtin", "Always the built-in writer (plainer, needs no browser)"]]),
     ),
 
     el("fieldset", {},
@@ -188,9 +192,91 @@ function settingsBody() {
       el("div", { className: "skill-row" },
         el("b", {}, "Skill"), el("b", {}, "Evidence"), el("b", {}, "Ceiling")),
       skills,
-    ));
+    ), variantsFieldset(profile));
   }
   return body;
+}
+
+/* --------------------------------------------------------------------------
+   CV per job family. A variant only selects and orders what the profile
+   already holds (see CvVariant in jobradar/models.py): it can never add a
+   fact. VARIANTS keeps every family's edits while the user switches between
+   families; saveSettings() sends the whole set.
+-------------------------------------------------------------------------- */
+let VARIANTS = {};
+const EMPTY_VARIANT = () => ({ headline: "", lead_bullets: [], hidden_bullets: [], skill_groups: [],
+                               hidden_skill_groups: [], extra_skills: [] });
+
+function choiceSelect(className, id, value, options) {
+  const select = el("select", { className, "data-id": id },
+    ...options.map(([v, text]) => el("option", { value: v }, text)));
+  select.value = value;
+  return select;
+}
+
+function variantForm(profile, family) {
+  const variant = VARIANTS[family] || EMPTY_VARIANT();
+  const bulletChoice = id => variant.lead_bullets.includes(id) ? "lead"
+    : variant.hidden_bullets.includes(id) ? "hide" : "";
+  const groupChoice = key => variant.skill_groups.includes(key) ? "lead"
+    : variant.hidden_skill_groups.includes(key) ? "hide" : "";
+  const choices = [["", "As ranked"], ["lead", "Put first"], ["hide", "Leave out"]];
+  return el("div", { id: "s_variant", "data-family": family },
+    el("label", {}, "Headline for this family"),
+    el("input", { id: "s_v_headline", value: variant.headline,
+                  placeholder: "empty = the ad's own title, e.g. \"Registered nurse\"" }),
+    el("label", {}, "Achievements"),
+    ...profile.experience.map(experience => el("div", {},
+      el("div", { className: "hint" }, `${experience.title} — ${experience.organization}`),
+      ...experience.bullets.map(bullet => el("div", { className: "variant-row" },
+        choiceSelect("v_bullet", bullet.id, bulletChoice(bullet.id), choices),
+        el("span", {}, bullet.text))))),
+    el("label", {}, "Skill groups"),
+    ...profile.skill_groups.map(group => el("div", { className: "variant-row" },
+      choiceSelect("v_group", group.key, groupChoice(group.key), choices),
+      el("span", {}, `${group.label}: ${group.items.join(", ")}`))),
+    el("label", {}, "Extra skills to name under \"Also\" (at most four, comma separated)"),
+    el("input", { id: "s_v_extra", value: variant.extra_skills.join(", "),
+                  placeholder: "Only skills your profile proves are printed" }),
+  );
+}
+
+/* Read the family shown on screen back into VARIANTS. */
+function collectVariant() {
+  const form = $("#s_variant");
+  if (!form) return;
+  const variant = EMPTY_VARIANT();
+  variant.headline = $("#s_v_headline").value.trim();
+  document.querySelectorAll("#s_variant .v_bullet").forEach(node => {
+    if (node.value === "lead") variant.lead_bullets.push(node.dataset.id);
+    if (node.value === "hide") variant.hidden_bullets.push(node.dataset.id);
+  });
+  document.querySelectorAll("#s_variant .v_group").forEach(node => {
+    if (node.value === "lead") variant.skill_groups.push(node.dataset.id);
+    if (node.value === "hide") variant.hidden_skill_groups.push(node.dataset.id);
+  });
+  variant.extra_skills = $("#s_v_extra").value.split(",").map(s => s.trim()).filter(Boolean).slice(0, 4);
+  VARIANTS[form.dataset.family] = variant;
+}
+
+function variantsFieldset(profile) {
+  VARIANTS = structuredClone(profile.family_variants || {});
+  const families = STATE.families.filter(f => f.enabled);
+  const start = families.find(f => VARIANTS[f.key]) || families[0];
+  const holder = el("div", {}, variantForm(profile, start.key));
+  const picker = selectFrom("s_v_family", start.key,
+    families.map(f => [f.key, f.label + (VARIANTS[f.key] ? " ✓" : "")]));
+  picker.addEventListener("change", () => {
+    collectVariant();
+    holder.replaceChildren(variantForm(profile, picker.value));
+  });
+  return el("fieldset", {},
+    el("legend", {}, "CV per job family"),
+    el("p", { className: "hint" },
+      "Shape every CV sent to one family of jobs: a fixed headline, which achievements lead or " +
+      "are left out, and which skill groups come first. This only selects and orders what your " +
+      "profile already holds — it cannot add anything to it."),
+    el("label", {}, "Family"), picker, holder);
 }
 
 /* --------------------------------------------------------------------------
@@ -274,6 +360,7 @@ async function saveSettings() {
   settings.country = value("s_country");
   settings.default_language = value("s_language");
   settings.cv_template = value("s_template");
+  settings.cv_pdf_engine = value("s_pdfengine") || "auto";
   settings.search.titles = list("s_titles");
   settings.search.keywords = list("s_keywords");
 
@@ -314,8 +401,10 @@ async function saveSettings() {
   const evidence = {}, ceiling = {};
   document.querySelectorAll(".ev").forEach(n => evidence[n.dataset.key] = Number(n.value));
   document.querySelectorAll(".ce").forEach(n => ceiling[n.dataset.key] = Number(n.value));
-  if (Object.keys(evidence).length) {
-    await api("/api/profile", { method: "PUT", body: JSON.stringify({ evidence, ceiling }) });
+  if (STATE.profile) {
+    collectVariant();
+    await api("/api/profile", { method: "PUT",
+                                body: JSON.stringify({ evidence, ceiling, family_variants: VARIANTS }) });
   }
   const picker = $("#s_cv");
   if (picker && picker.files.length) {

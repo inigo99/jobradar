@@ -113,6 +113,11 @@
     white-space: pre-wrap; background: var(--surface-2); border: 1px solid var(--line);
     border-radius: 8px; padding: 11px; font-size: 13px; margin-top: 8px; max-height: 380px; overflow: auto;
   }
+  .variant-row { display: grid; grid-template-columns: 130px 1fr; gap: 8px; align-items: start;
+                 font-size: 13px; margin: 4px 0; }
+  textarea.doc-text { width: 100%; box-sizing: border-box; color: var(--ink); font: inherit; font-size: 13px;
+                      resize: vertical; max-height: none; }
+  .job-output .actions { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 8px; }
   .track { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
 
   dialog {

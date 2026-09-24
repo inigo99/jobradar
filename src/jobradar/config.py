@@ -19,7 +19,7 @@ import logging
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, Field, ValidationError
@@ -362,6 +362,10 @@ class Settings(BaseModel):
     cv_template: str = "classic"
     #: Hard cap on CV length; the renderer shrinks type until it fits.
     cv_max_pages: int = 1
+    #: How the CV PDF is printed: "auto" uses a browser (Playwright) when one
+    #: is available and the built-in writer otherwise; "builtin" always uses
+    #: the built-in writer, which needs no browser but lays out more plainly.
+    cv_pdf_engine: Literal["auto", "builtin"] = "auto"
 
     @classmethod
     def from_yaml(cls, path: str | Path) -> Settings:

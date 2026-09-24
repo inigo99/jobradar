@@ -26,7 +26,7 @@ import asyncio
 import logging
 from collections.abc import Iterable
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -42,6 +42,8 @@ from starlette.requests import Request
 from .. import __version__
 from ..config import Paths, countries, load_dotenv, validation_summary
 from ..documents import generate_cover_letter, generate_email, render_cv, tailor
+from ..documents.letters import contact_line
+from ..documents.pdfwriter import letter_pdf
 from ..errors import JobRadarError, ProfileError, StorageError, describe_os_error
 from ..families import Family, catalogue_view, families_for
 from ..families import classify as classify_family
@@ -51,7 +53,15 @@ from ..lint import lint_profile, lint_tailored
 from ..llm import build_client
 from ..mail import check_mail, interview_ics
 from ..mail.imap import configured as mail_configured
-from ..models import Application, Job, MatchScore, Profile
+from ..models import (
+    Application,
+    CvVariant,
+    GeneratedDocument,
+    Job,
+    MatchScore,
+    Profile,
+    localized,
+)
 from ..pipeline import run_search, sweep_closed
 from ..pipeline.focus import focus_for
 from ..pipeline.salary import ExchangeRates
@@ -59,8 +69,10 @@ from ..pipeline.scoring import score_job
 from ..profile import import_profile
 from ..sources import available as available_sources
 from ..storage import Database
+from ..textutils import slugify
 from .api import (
     ApplicationPayload,
+    DocumentTextPayload,
     FilteredView,
     JobView,
     OnboardingPayload,
@@ -76,6 +88,8 @@ STATIC = Path(__file__).parent / "static"
 #: Largest CV upload accepted. A CV is a few hundred KB; anything near this
 #: is not a CV, and reading it would only fill the disk.
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+#: Documents written as plain text (the CV is rendered to a file instead).
+LETTER_KINDS = ("cover_letter", "email")
 
 
 async def save_upload(upload: UploadFile, directory: Path) -> Path:
@@ -352,10 +366,11 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
                 {
                     "id": experience.id,
                     "organization": experience.organization,
-                    "title": experience.title,
+                    "title": localized(experience.title, profile.default_language),
                     "start": experience.start,
                     "end": experience.end,
-                    "bullets": [{"id": b.id, "text": b.text} for b in experience.bullets],
+                    "bullets": [{"id": b.id, "text": localized(b.text, profile.default_language)}
+                                for b in experience.bullets],
                 }
                 for experience in profile.experience
             ],
@@ -364,6 +379,13 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
                  "evidence": value, "ceiling": profile.ceiling.get(key, value)}
                 for key, value in sorted(profile.evidence.items(), key=lambda item: -item[1])
             ],
+            "skill_groups": [
+                {"key": group.key, "label": localized(group.label, profile.default_language),
+                 "items": group.items}
+                for group in profile.skills
+            ],
+            "family_variants": {family: variant.model_dump(mode="json")
+                                for family, variant in profile.family_variants.items()},
             "years": profile.years_of_experience(),
             "lint": {
                 "score": lint.score(),
@@ -457,6 +479,11 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
                 base = profile.evidence.get(key, 0.0)
                 if base > 0.0:  # a skill with no evidence can never gain a ceiling
                     profile.ceiling[key] = max(base, min(1.0, value))
+        if patch.family_variants is not None:
+            profile.family_variants = {
+                family: variant for family, variant in patch.family_variants.items()
+                if variant != CvVariant()  # an untouched variant is no variant
+            }
         database.save_profile(profile)
         return {"ok": True, "profile": _profile_summary(profile)}
 
@@ -510,8 +537,6 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
             if llm:
                 llm.close()
 
-        from ..models import GeneratedDocument
-
         database.save_document(
             GeneratedDocument(
                 job_id=job_id,
@@ -553,7 +578,7 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
     @app.post("/api/jobs/{job_id}/documents/{kind}")
     def build_letter(job_id: str, kind: str):
         """Write the cover letter or the application email for one job."""
-        if kind not in ("cover_letter", "email"):
+        if kind not in LETTER_KINDS:
             raise HTTPException(status_code=400, detail="Unknown document type")
         job = job_or_404(job_id)
         profile = require_profile()
@@ -568,6 +593,43 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
                 llm.close()
         database.save_document(document)
         return {"ok": True, "document": document.model_dump(mode="json")}
+
+    def letter_or_404(job_id: str, kind: str) -> GeneratedDocument:
+        if kind not in LETTER_KINDS:
+            raise HTTPException(status_code=400, detail="Unknown document type")
+        document = database.get_document(job_id, kind)
+        if not document:
+            raise HTTPException(status_code=404, detail="Write the document first")
+        return document
+
+    @app.put("/api/jobs/{job_id}/documents/{kind}")
+    def save_letter(job_id: str, kind: str, payload: DocumentTextPayload):
+        """Keep the user's edits to a cover letter or email."""
+        job_or_404(job_id)
+        document = letter_or_404(job_id, kind)
+        document.text = payload.text.strip()
+        database.save_document(document)
+        return {"ok": True, "document": document.model_dump(mode="json")}
+
+    @app.get("/api/jobs/{job_id}/documents/{kind}/pdf")
+    def download_letter(job_id: str, kind: str):
+        """The saved letter or email as a PDF, built without a browser."""
+        job = job_or_404(job_id)
+        document = letter_or_404(job_id, kind)
+        profile = require_profile()
+        language = document.language
+        pdf = letter_pdf(
+            sender=profile.contact.name_for(language),
+            contact_line=contact_line(profile, language),
+            recipient=job.company,
+            kind=kind,
+            language=language,
+            date_text=date.today().isoformat(),
+            body=document.text,
+        )
+        name = f"{kind.replace('_', '-')}-{slugify(job.company or job.title)}.pdf"
+        return Response(pdf, media_type="application/pdf",
+                        headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
     @app.get("/api/jobs/{job_id}/documents")
     def list_documents(job_id: str):

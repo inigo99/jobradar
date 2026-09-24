@@ -197,6 +197,31 @@ class LanguageSkill(BaseModel):
     level: str = ""
 
 
+class CvVariant(BaseModel):
+    """How the tailored CV looks for one job family (see ``jobradar/families.py``).
+
+    A variant only *selects and orders* what the profile already holds: which
+    achievements lead or are left out, which skill groups come first or are
+    left out, and a few extra skills to name. It can never add a fact: an
+    extra skill is only printed when the profile has evidence for it.
+    """
+
+    #: Headline for every CV of this family instead of the ad's own title
+    #: (e.g. "Registered nurse", "Warehouse team lead"). Empty = the ad's
+    #: title, minus any seniority the profile cannot support.
+    headline: str = ""
+    #: Bullet ids to put first within their position, in this order.
+    lead_bullets: list[str] = Field(default_factory=list)
+    #: Bullet ids to leave out of CVs for this family.
+    hidden_bullets: list[str] = Field(default_factory=list)
+    #: Skill group keys to put first, in this order.
+    skill_groups: list[str] = Field(default_factory=list)
+    #: Skill group keys to leave out of CVs for this family.
+    hidden_skill_groups: list[str] = Field(default_factory=list)
+    #: Up to four skills to name under "Also", when the groups shown omit them.
+    extra_skills: list[str] = Field(default_factory=list)
+
+
 class Profile(BaseModel):
     """Everything JobRadar knows about the candidate.
 
@@ -228,6 +253,8 @@ class Profile(BaseModel):
     ceiling: dict[str, float] = Field(default_factory=dict)
     # Human-readable label for each skill key, used in the UI and in reports.
     skill_labels: dict[str, str] = Field(default_factory=dict)
+    #: Per job family (key), how the tailored CV selects and orders content.
+    family_variants: dict[str, CvVariant] = Field(default_factory=dict)
 
     @field_validator("evidence", "ceiling")
     @classmethod

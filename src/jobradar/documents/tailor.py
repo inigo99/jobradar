@@ -27,7 +27,7 @@ from ..config import Settings
 from ..llm import LLMClient
 from ..llm.prompts import tailor_cv
 from ..models import Job, MatchScore, Profile, localized
-from ..taxonomy import find_skills
+from ..taxonomy import find_skills, skill_for_name
 from .validator import validate_document
 
 #: Seniority words a headline may only keep if the profile supports at least
@@ -107,6 +107,11 @@ class TailoredCV:
     generated_by: str = "rules"
     #: Populated when the validator rejected a model draft.
     validation_notes: list[str] = field(default_factory=list)
+    #: Bullet ids and skill group keys this family's CV variant leaves out.
+    hidden_bullets: list[str] = field(default_factory=list)
+    hidden_skill_groups: list[str] = field(default_factory=list)
+    #: Skills named under "Also": owned, asked for, and not in the groups shown.
+    extra_skills: list[str] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -277,6 +282,78 @@ def _apply_model_draft(draft: dict, base: TailoredCV, profile: Profile) -> None:
             base.skill_order = proposed
 
 
+#: At most this many extra skills are named: more reads like padding.
+MAX_EXTRA_SKILLS = 4
+
+
+def owned_skill(profile: Profile, name: str) -> bool:
+    """Whether the profile has evidence for the skill ``name`` denotes.
+
+    A name the taxonomy does not know is accepted only if it already appears,
+    verbatim, among the profile's listed skills.
+    """
+    key = skill_for_name(name)
+    if key is not None:
+        return profile.evidence.get(key, 0.0) > 0.0
+    listed = {item.strip().lower() for group in profile.skills for item in group.items}
+    return name.strip().lower() in listed
+
+
+def auto_extra_skills(profile: Profile, job: Job, shown: list[str]) -> list[str]:
+    """Skills the ad asks for, the profile has, and the CV would not otherwise name.
+
+    The skill groups shown are the ones the family variant keeps; a skill
+    proved only inside an achievement, or listed in a hidden group, is worth
+    naming once for a reader skimming the skills block.
+    """
+    shown_keys = set(find_skills(", ".join(shown)))
+    extras: list[str] = []
+    for requirement in sorted(job.requirements, key=lambda r: -r.weight):
+        key = requirement.key
+        if key in shown_keys or profile.evidence.get(key, 0.0) <= 0.0:
+            continue
+        label = profile.label_for(key)
+        if label not in extras:
+            extras.append(label)
+    return extras
+
+
+def apply_variant(result: TailoredCV, profile: Profile, job: Job) -> TailoredCV:
+    """Apply the CV variant of ``job``'s family, then name the extra skills.
+
+    The variant is the user's explicit choice, so it overrides both the
+    automatic ranking and a model's proposed order. It can only select and
+    reorder: extra skills the profile has no evidence for are dropped.
+    """
+    variant = profile.family_variants.get(job.family) if job.family else None
+    if variant is not None:
+        lead = [bullet_id for bullet_id in variant.lead_bullets]
+        for experience_id, order in result.bullet_order.items():
+            leading = [b for b in lead if b in order]
+            result.bullet_order[experience_id] = leading + [b for b in order if b not in leading]
+        leading_groups = [g for g in variant.skill_groups if g in result.skill_order]
+        result.skill_order = leading_groups + [g for g in result.skill_order
+                                               if g not in leading_groups]
+        result.hidden_bullets = list(variant.hidden_bullets)
+        result.hidden_skill_groups = list(variant.hidden_skill_groups)
+
+    shown = [item for group in profile.skills if group.key not in result.hidden_skill_groups
+             for item in group.items]
+    chosen = [name for name in (variant.extra_skills if variant else [])
+              if owned_skill(profile, name) and name not in shown]
+    for name in auto_extra_skills(profile, job, shown):
+        if name not in chosen:
+            chosen.append(name)
+    result.extra_skills = chosen[:MAX_EXTRA_SKILLS]
+    return result
+
+
+def variant_headline(profile: Profile, job: Job) -> str:
+    """The family variant's headline, when it has one."""
+    variant = profile.family_variants.get(job.family) if job.family else None
+    return variant.headline.strip() if variant and variant.headline else ""
+
+
 def tailor(
     profile: Profile,
     job: Job,
@@ -306,6 +383,13 @@ def tailor(
         generated_by="rules",
     )
 
+    family_headline = variant_headline(profile, job)
+    if family_headline:
+        # The user's own headline for this family: who they are, rather than
+        # a copy of each ad's title.
+        result.headline = family_headline
+    apply_variant(result, profile, job)
+
     if not (llm and settings.llm.tailor_cv):
         return result
 
@@ -321,7 +405,8 @@ def tailor(
     report = validate_document(f"{candidate.headline}\n{candidate.summary}", profile, language)
     if report.ok:
         candidate.generated_by = "llm"
-        return candidate
+        # The model may have proposed its own order; the variant still wins.
+        return apply_variant(candidate, profile, job)
 
     # The draft claimed something the profile does not support. Keep the
     # deterministic version and record why, so the user can see it happened.

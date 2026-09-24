@@ -8,6 +8,8 @@
 --------------------------------------------------------------------------- */
 let STATE = null;
 let TAB = "today";
+/* job id -> the card's output block (generated CV result, letter editor). */
+const OUTPUTS = {};
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const el = (tag, props = {}, ...children) => {
@@ -166,7 +168,9 @@ function jobCard(job) {
     ));
   card.append(detail);
 
-  const output = el("div", { className: "job-output" });
+  // The same node across re-renders, so a generated CV or letter (and any
+  // unsaved edit to it) survives refresh().
+  const output = OUTPUTS[job.id] || (OUTPUTS[job.id] = el("div", { className: "job-output" }));
   card.append(output);
   return card;
 }
@@ -210,19 +214,35 @@ async function buildCv(job, card) {
 }
 
 async function buildDoc(job, kind, card) {
-  const result = await api(`/api/jobs/${encodeURIComponent(job.id)}/documents/${kind}`, { method: "POST" });
+  const url = `/api/jobs/${encodeURIComponent(job.id)}/documents/${kind}`;
+  const result = await api(url, { method: "POST" });
+  showDoc(job, kind, card, result.document);
+  await refresh();
+}
+
+/* The letter or email as an editable text box: edits are saved before the
+   PDF is downloaded, so the PDF always matches what is on screen. */
+function showDoc(job, kind, card, documentData) {
+  const url = `/api/jobs/${encodeURIComponent(job.id)}/documents/${kind}`;
   const output = $(".job-output", card);
-  const text = result.document.text;
+  const box = el("textarea", { className: "doc-text", rows: 14 });
+  box.value = documentData.text;
+  const save = async () => {
+    const saved = await api(url, { method: "PUT", body: JSON.stringify({ text: box.value }) });
+    return saved.document;
+  };
   output.innerHTML = "";
   output.append(
     el("h4", { style: "margin:14px 0 4px" }, kind === "email" ? "Application email" : "Cover letter"),
     el("p", { className: "hint" },
-      result.document.llm_generated ? "Written by the language model." :
+      documentData.llm_generated ? "Written by the language model. Edit it freely." :
       "Skeleton from your profile — the bracketed parts are yours to write."),
-    el("div", { className: "doc-text" }, text),
-    button("Copy", async () => { await navigator.clipboard.writeText(text); toast("Copied"); }),
+    box,
+    el("div", { className: "actions" },
+      button("Save", async () => { await save(); toast("Saved"); }),
+      button("Copy", async () => { await navigator.clipboard.writeText(box.value); toast("Copied"); }),
+      button("Download PDF", async () => { await save(); window.location.href = url + "/pdf"; })),
   );
-  await refresh();
 }
 
 function lintBlock(lint) {
