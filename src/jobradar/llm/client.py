@@ -32,8 +32,8 @@ log = logging.getLogger(__name__)
 DEFAULT_MODELS = {
     "anthropic": "claude-sonnet-4-5",
     "openai": "gpt-4o-mini",
-    "gemini": "gemini-2.5-flash",
-    "google": "gemini-2.5-flash",
+    "gemini": "gemini-3.8-flash",
+    "google": "gemini-3.8-flash",
     "openai-compatible": "",
     "ollama": "llama3.1",
 }
@@ -55,6 +55,24 @@ KEY_VARIABLES = {
     "gemini": ("GEMINI_API_KEY", "GOOGLE_API_KEY"),
     "google": ("GEMINI_API_KEY", "GOOGLE_API_KEY"),
 }
+def gemini_thinking(model: str) -> dict | None:
+    """The ``thinkingConfig`` to send to ``model``, or None for none.
+
+    Gemini "thinks" before answering, and those tokens count against
+    ``maxOutputTokens``: left at the default, a 1500-token budget can be spent
+    entirely on thinking and the answer come back empty or cut short.
+    JobRadar's tasks (reading an ad, writing a summary) need little of it, so
+    it is kept low. Gemini 2.5 sizes it in tokens (Pro cannot go below 128),
+    Gemini 3 and later by level, and older models do not think at all.
+    """
+    name = model.lower().removeprefix("models/")
+    if name.startswith(("gemini-1", "gemini-2.0")):
+        return None
+    if name.startswith("gemini-2.5"):
+        return {"thinkingBudget": 128 if "pro" in name else 0}
+    return {"thinkingLevel": "low"}
+
+
 #: Providers that refuse every request without a key.
 KEY_REQUIRED = frozenset({"anthropic", "openai", "gemini", "google"})
 
@@ -69,7 +87,7 @@ class LLMClient:
 
     def __init__(self, settings: LLMSettings):
         self.settings = settings
-        self.provider = settings.provider.lower()
+        self.provider = settings.provider.strip().lower()
         self.model = settings.model or DEFAULT_MODELS.get(self.provider, "")
         self.base_url = (settings.base_url or DEFAULT_BASE_URLS.get(self.provider, "")).rstrip("/")
         self.calls_made = 0
@@ -78,6 +96,8 @@ class LLMClient:
         #: Set when the provider refused us in a way retrying cannot fix (bad
         #: key, unknown model), so the rest of the run stops asking.
         self._fatal: str | None = None
+        #: Set once a Gemini model rejects ``thinkingConfig``.
+        self._gemini_thinking_refused = False
 
     # -- configuration -----------------------------------------------------
 
@@ -115,8 +135,13 @@ class LLMClient:
 
     # -- the one public call ----------------------------------------------
 
-    def complete(self, system: str, user: str, max_tokens: int | None = None) -> str | None:
-        """Return the model's text answer, or None if it could not be obtained."""
+    def complete(self, system: str, user: str, max_tokens: int | None = None,
+                 json_mode: bool = False) -> str | None:
+        """Return the model's text answer, or None if it could not be obtained.
+
+        ``json_mode`` asks providers that support it (Gemini) to return JSON
+        only; the others are told so in the prompt.
+        """
         if not self.usable():
             return None
         self.calls_made += 1
@@ -125,7 +150,7 @@ class LLMClient:
             if self.provider == "anthropic":
                 return self._anthropic(system, user, tokens)
             if self.provider in ("gemini", "google"):
-                return self._gemini(system, user, tokens)
+                return self._gemini(system, user, tokens, json_mode)
             return self._openai_shaped(system, user, tokens)
         except httpx.HTTPStatusError as exc:
             log.warning("Language model request failed: %s", self._explain_status(exc.response))
@@ -143,7 +168,12 @@ class LLMClient:
     def _explain_status(self, response: httpx.Response) -> str:
         """A readable reason for an error status; stops the run for fatal ones."""
         status = response.status_code
-        if status in (401, 403):
+        body = response.text[:2000]
+        # Gemini answers a bad key with 400, not 401.
+        bad_key = status in (401, 403) or (
+            status == 400 and ("API_KEY_INVALID" in body or "API key not valid" in body)
+        )
+        if bad_key:
             self._fatal = f"{self.provider} rejected the API key (HTTP {status})"
             return self._fatal + " — check the key; no more calls will be made this run."
         if status == 404:
@@ -159,7 +189,7 @@ class LLMClient:
     def complete_json(self, system: str, user: str, max_tokens: int | None = None) -> dict | list | None:
         """Same as :meth:`complete`, but parses a JSON object out of the reply."""
         raw = self.complete(system + "\n\nReply with JSON only. No prose, no code fences.",
-                            user, max_tokens)
+                            user, max_tokens, json_mode=True)
         return extract_json(raw) if raw else None
 
     # -- providers ---------------------------------------------------------
@@ -184,32 +214,53 @@ class LLMClient:
         blocks = response.json().get("content", [])
         return "".join(block.get("text", "") for block in blocks if block.get("type") == "text")
 
-    def _gemini(self, system: str, user: str, max_tokens: int) -> str:
+    def _gemini(self, system: str, user: str, max_tokens: int, json_mode: bool = False) -> str:
+        config: dict = {"temperature": self.settings.temperature, "maxOutputTokens": max_tokens}
+        if json_mode:
+            config["responseMimeType"] = "application/json"
+        thinking = gemini_thinking(self.model)
+        if thinking and not self._gemini_thinking_refused:
+            config["thinkingConfig"] = thinking
         body: dict = {
             "contents": [{"role": "user", "parts": [{"text": user}]}],
-            "generationConfig": {
-                "temperature": self.settings.temperature,
-                "maxOutputTokens": max_tokens,
-            },
+            "generationConfig": config,
         }
         if system:
             body["systemInstruction"] = {"parts": [{"text": system}]}
 
-        response = self._client.post(
-            f"{self.base_url}/models/{self.model}:generateContent",
-            headers={
-                "x-goog-api-key": self._api_key,
-                "content-type": "application/json",
-            },
-            json=body,
-        )
+        model = self.model.removeprefix("models/")
+        url = f"{self.base_url}/models/{model}:generateContent"
+        headers = {"x-goog-api-key": self._api_key, "content-type": "application/json"}
+        response = self._client.post(url, headers=headers, json=body)
+        if (response.status_code == 400 and "thinkingConfig" in config
+                and "thinking" in response.text.lower()):
+            # A model that does not take this thinking setting: ask again
+            # without it, and stop sending it for the rest of the run.
+            log.info("Gemini model %s refused the thinking setting; retrying without it.", model)
+            self._gemini_thinking_refused = True
+            del config["thinkingConfig"]
+            response = self._client.post(url, headers=headers, json=body)
         response.raise_for_status()
-        data = response.json()
-        candidates = data.get("candidates", [])
+        return self._gemini_text(response.json(), max_tokens)
+
+    def _gemini_text(self, data: dict, max_tokens: int) -> str:
+        """The answer text, with a logged reason whenever there is none or it is cut."""
+        candidates = data.get("candidates") or []
         if not candidates:
+            reason = (data.get("promptFeedback") or {}).get("blockReason", "no candidates")
+            log.warning("Gemini returned no answer (%s).", reason)
             return ""
-        parts = candidates[0].get("content", {}).get("parts", [])
-        return "".join(part.get("text", "") for part in parts if "text" in part)
+        candidate = candidates[0]
+        parts = (candidate.get("content") or {}).get("parts") or []
+        # Thought summaries are marked ``thought``; they are not the answer.
+        text = "".join(part.get("text", "") for part in parts if not part.get("thought"))
+        finish = candidate.get("finishReason", "STOP")
+        if finish == "MAX_TOKENS":
+            log.warning("Gemini's answer was cut off at the output limit (%s tokens); "
+                        "raise llm.max_output_tokens if this keeps happening.", max_tokens)
+        elif finish not in ("STOP", "FINISH_REASON_UNSPECIFIED") and not text:
+            log.warning("Gemini returned no answer (finish reason %s).", finish)
+        return text
 
     def _openai_shaped(self, system: str, user: str, max_tokens: int) -> str:
         headers = {"content-type": "application/json"}
@@ -239,7 +290,12 @@ class LLMClient:
 
 
 def build_client(settings: LLMSettings) -> LLMClient | None:
-    """Return a usable client, or None when the user is running without a model."""
+    """Return a usable client, or None when the user is running without a model.
+
+    ``JOBRADAR_LLM_*`` environment variables override the stored settings;
+    see :meth:`LLMSettings.effective`.
+    """
+    settings = settings.effective()
     if not settings.enabled:
         return None
     client = LLMClient(settings)

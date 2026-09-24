@@ -220,10 +220,34 @@ class LLMSettings(BaseModel):
     tailor_cv: bool = True
     #: Use the model for cover letters and recruiter emails (on demand only).
     write_letters: bool = True
+    #: Set by ``--no-llm`` for one run. Never stored, and it beats everything,
+    #: including the ``JOBRADAR_LLM_*`` environment variables.
+    switched_off: bool = Field(default=False, exclude=True)
 
     @property
     def enabled(self) -> bool:
-        return self.provider not in ("", "none")
+        return not self.switched_off and self.provider.strip().lower() not in ("", "none")
+
+    def effective(self) -> LLMSettings:
+        """These settings with the ``JOBRADAR_LLM_*`` environment variables applied.
+
+        The environment wins over what the dashboard stored, so a ``.env`` (or
+        a container's variables) can choose the model. An empty value, or a
+        provider of ``none``, leaves the stored setting alone. Naming a
+        different provider drops the stored model and base URL, which belong
+        to the old one, so that provider's defaults apply.
+        """
+        provider = os.environ.get("JOBRADAR_LLM_PROVIDER", "").strip().lower()
+        model = os.environ.get("JOBRADAR_LLM_MODEL", "").strip()
+        base_url = os.environ.get("JOBRADAR_LLM_BASE_URL", "").strip()
+        updates: dict[str, str] = {}
+        if provider and provider != "none" and provider != self.provider.strip().lower():
+            updates.update(provider=provider, model="", base_url="")
+        if model:
+            updates["model"] = model
+        if base_url:
+            updates["base_url"] = base_url
+        return self.model_copy(update=updates) if updates else self
 
 
 class NotificationSettings(BaseModel):
