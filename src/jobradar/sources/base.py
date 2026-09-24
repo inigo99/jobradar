@@ -29,6 +29,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import time
 import urllib.robotparser
 from abc import ABC, abstractmethod
@@ -41,7 +42,7 @@ from urllib.parse import urlparse
 import httpx
 
 from ..config import SourceSettings
-from ..models import Job
+from ..models import Job, WorkMode
 
 log = logging.getLogger(__name__)
 
@@ -118,6 +119,15 @@ class Fetcher:
                 self.cache_dir = None
         self._last_request: dict[str, float] = {}
         self._robots: dict[str, urllib.robotparser.RobotFileParser | None] = {}
+        #: Browser executable Scrapling launches, once one has been found to
+        #: work; ``None`` until then, meaning "Playwright's own build".
+        self._browser_executable: str | None = None
+        #: Hosts whose robots.txt was deliberately not consulted, logged once.
+        self._robots_skipped: set[str] = set()
+        #: Problems already reported, so a run of 50 failed pages logs once.
+        self._reported: set[str] = set()
+        #: Those problems' messages, in order, for the run log.
+        self.problems: list[str] = []
         self._client = httpx.Client(
             timeout=settings.timeout,
             follow_redirects=True,
@@ -198,44 +208,107 @@ class Fetcher:
         InfoJobs' ad pages (they return HTTP 405 behind a CAPTCHA challenge
         to ``"dynamic"``, and load normally under ``"stealthy"``).
 
-        Returns ``None`` — same contract as :meth:`get` itself — if the
-        ``scrapling`` package's browsers are not installed
-        (``scrapling install``, once) or the fetch fails for any reason.
+        When the Chromium build Playwright expects is not installed, the
+        browsers found by :func:`jobradar.documents.browser.fallback_executables`
+        are tried in turn and the first that starts is kept for the run.
+
+        Returns ``None`` — same contract as :meth:`get` itself — when the page
+        cannot be fetched; the reason is logged once as a warning, because a
+        restricted source that silently returns nothing looks exactly like a
+        board with no jobs.
         """
         try:
             from scrapling.fetchers import DynamicFetcher, StealthyFetcher
         except ImportError:
-            log.warning(
-                "scrapling is not installed — cannot fetch %s through a browser; "
-                "run `pip install jobradar` again or `scrapling install`", url,
+            self._report_once(
+                "scrapling-missing",
+                "The 'scrapling' package is not installed, so the restricted sources "
+                "(LinkedIn, InfoJobs, Tecnoempleo, Indeed) cannot fetch anything. "
+                "Reinstall JobRadar with: pip install -e .",
             )
             return None
+
         fetch = StealthyFetcher.fetch if mode == "stealthy" else DynamicFetcher.fetch
         kwargs: dict[str, Any] = {
             "headless": True,
             "real_chrome": self.settings.scrapling_real_chrome,
             "extra_headers": headers or None,
-            # Fetcher.get() already retries whole attempts with backoff below;
-            # a nested retry here would just double the wait on a dead page.
-            "retries": 0,
+            # Scrapling's minimum. Fetcher.get() already retries whole
+            # attempts with backoff; more here would only multiply the wait.
+            "retries": 1,
         }
         if mode == "stealthy":
             kwargs["solve_cloudflare"] = True
-        try:
-            page = fetch(url, **kwargs)
-        except Exception as exc:  # Playwright/browser errors, not one Scrapling type
-            log.debug("browser fetch %s failed: %s", url, exc)
+
+        page = None
+        for executable in self._browser_candidates():
+            attempt = dict(kwargs)
+            if executable:
+                attempt["executable_path"] = executable
+            try:
+                page = fetch(url, **attempt)
+            except Exception as exc:  # Playwright/browser errors, not one Scrapling type
+                if _browser_missing(exc):
+                    continue  # try the next installed browser
+                self._report_once(
+                    f"browser-error:{urlparse(url).netloc}",
+                    f"Fetching {urlparse(url).netloc} through a browser failed: "
+                    f"{_first_line(exc)}",
+                )
+                return None
+            self._browser_executable = executable
+            break
+        if page is None:
+            self._report_once(
+                "browser-missing",
+                "No browser could be started for the restricted sources. Run "
+                "'scrapling install' (or 'playwright install chromium'), or set "
+                "JOBRADAR_CHROMIUM_PATH to an installed Chromium or Chrome.",
+            )
             return None
         if page.status >= 400:
-            log.debug("%s returned HTTP %s via browser", url, page.status)
+            hint = (" — the site answered with a challenge page; the request delay may be "
+                    "too short, or the site now blocks automated browsers"
+                    if page.status in (403, 405, 429) else "")
+            self._report_once(
+                f"http-{page.status}:{urlparse(url).netloc}",
+                f"{urlparse(url).netloc} answered HTTP {page.status} to the browser{hint}.",
+            )
             return None
-        return page.body.decode("utf-8", errors="replace")
+        body = page.body
+        return body.decode(getattr(page, "encoding", None) or "utf-8", errors="replace") \
+            if isinstance(body, bytes) else str(body)
+
+    def _browser_candidates(self) -> list[str | None]:
+        """Executables to try for Scrapling, the one known to work first.
+
+        ``None`` stands for "whatever Playwright expects", which is right
+        whenever ``playwright install`` / ``scrapling install`` matched the
+        installed package; the fallbacks cover the case where it did not.
+        """
+        if self._browser_executable is not None or "browser-missing" in self._reported:
+            return [self._browser_executable]
+        from ..documents.browser import CHROMIUM_PATH_VARIABLE, fallback_executables
+
+        explicit = os.environ.get(CHROMIUM_PATH_VARIABLE, "").strip()
+        candidates: list[str | None] = [] if explicit else [None]
+        candidates += [str(path) for path in fallback_executables()]
+        return candidates
+
+    def _report_once(self, key: str, message: str) -> None:
+        """Log a problem as a warning the first time it happens in this run."""
+        if key in self._reported:
+            log.debug(message)
+            return
+        self._reported.add(key)
+        self.problems.append(message)
+        log.warning(message)
 
     # -- public API --------------------------------------------------------
 
     def get(self, url: str, *, params: dict | None = None, retries: int = 2,
             use_cache: bool = True, headers: dict | None = None,
-            browser: str | None = None) -> str | None:
+            browser: str | None = None, obey_robots: bool = True) -> str | None:
         """GET ``url``, returning the body or None if it could not be fetched.
 
         Sources are expected to treat None as "this query yielded nothing" and
@@ -246,13 +319,25 @@ class Fetcher:
         :meth:`_browser_get`. Leave it ``None`` (the default) for every
         ``open``/``credentials`` source: plain HTTP is faster and all of them
         answer it correctly.
+
+        ``obey_robots=False`` skips the ``robots.txt`` check. Only the
+        ``restricted`` sources pass it (through :meth:`JobSource.get`): their
+        sites disallow every automated client, so honouring it would make them
+        return nothing, and they only run when the user switched them on by
+        name after reading their terms note.
         """
         full = str(httpx.URL(url, params=params or {}))
         cache_path = self._cache_path(full) if use_cache else None
         cached = self._read_cache(cache_path)
         if cached is not None:
             return cached
-        if not self._allowed(full):
+        if not obey_robots:
+            host = urlparse(full).netloc
+            if host not in self._robots_skipped:
+                self._robots_skipped.add(host)
+                log.info("Not consulting robots.txt for %s: it is a restricted source you "
+                         "enabled explicitly.", host)
+        elif not self._allowed(full):
             log.warning("robots.txt disallows %s — skipping", full)
             return None
         for attempt in range(retries + 1):
@@ -351,6 +436,16 @@ class JobSource(ABC):
         """Full ad text for ``job``. Defaults to whatever ``search`` collected."""
         return job.description or ""
 
+    def resolve_work_mode(self, job: Job) -> WorkMode | None:
+        """The board's own work-mode label for ``job``, or None.
+
+        Called only for jobs still marked ``remote_unconfirmed`` after their
+        text was read — the board says remote, the ad says nothing — so a
+        source that can look up a more reliable label (LinkedIn's badge) can
+        settle it with one extra request instead of leaving an alert.
+        """
+        return None
+
     def check_open(self, job: Job) -> tuple[bool, str]:
         """Is the ad still accepting applications?
 
@@ -376,12 +471,31 @@ class JobSource(ABC):
         """Restricted sources are never on unless the user says so."""
         return self.tos_tier == "open"
 
+    def get(self, url: str, **kwargs: Any) -> str | None:
+        """Fetch ``url`` through the shared :class:`Fetcher`.
+
+        The one place a source's terms tier changes how it fetches:
+        ``restricted`` sources skip ``robots.txt`` (see :meth:`Fetcher.get`),
+        everything else honours it.
+        """
+        kwargs.setdefault("obey_robots", self.tos_tier != "restricted")
+        return self.fetcher.get(url, **kwargs)
+
     def make_job(self, native_id: str, **fields: Any) -> Job:
         """Build a :class:`Job` already stamped with this source's id."""
         job = Job(source=self.id, native_id=str(native_id), **fields)
         return job.ensure_id()
 
     def credentials_present(self) -> bool:
-        import os
-
         return all(os.environ.get(name) for name in self.required_env)
+
+
+def _browser_missing(exc: Exception) -> bool:
+    """Whether a browser launch failed because the executable is not installed."""
+    text = str(exc).lower()
+    return "executable doesn't exist" in text or "playwright install" in text
+
+
+def _first_line(exc: Exception) -> str:
+    """The first line of an exception message; Playwright's run to a boxed banner."""
+    return (str(exc).strip().splitlines() or [type(exc).__name__])[0]

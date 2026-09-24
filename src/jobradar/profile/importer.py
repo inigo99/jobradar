@@ -349,6 +349,13 @@ def _organisation_from(line: str) -> str:
     return parts[1].strip() if len(parts) > 1 else ""
 
 
+def _reads_like_a_note(line: str) -> bool:
+    """A sentence (thesis, honours…) rather than a degree heading."""
+    text = line.strip()
+    return text.endswith(".") or len(text) > 90 or text.lower().startswith(
+        ("thesis", "master's thesis", "tfm", "tfg", "trabajo fin", "honours", "grade", "nota"))
+
+
 def _parse_education(lines: list[str], language: str) -> list[Education]:
     education: list[Education] = []
     for index, line in enumerate(lines):
@@ -357,7 +364,14 @@ def _parse_education(lines: list[str], language: str) -> list[Education]:
             education[-1].note = {language: bullet.group(1)}
             continue
         dates = DATE_RANGE.search(line)
-        degree = re.split(r"\s+[—–|]\s+", line.strip())[0].strip()
+        if education and dates and len(DATE_RANGE.sub("", line).strip(" ·|—–-,")) < 5:
+            # A line holding only the dates belongs to the entry above it.
+            _apply_dates_to_education(education[-1], dates)
+            continue
+        if education and not dates and _reads_like_a_note(line):
+            education[-1].note = {language: line.strip()}
+            continue
+        degree = re.split(r"\s+[—–|]\s+", DATE_RANGE.sub("", line).strip(" ·|—–-,"))[0].strip()
         if len(degree) < 5:
             continue
         entry = Education(
@@ -379,7 +393,7 @@ def _parse_skills(lines: list[str], language: str) -> list[SkillGroup]:
         label, separator, items = text.partition(":")
         if not separator:
             label, items = f"Skills {index + 1}", text
-        parsed = [item.strip() for item in re.split(r"[,;·/|]", items) if item.strip()]
+        parsed = [item.strip() for item in re.split(r"[,;·|]|\s/\s", items) if item.strip()]
         if parsed:
             groups.append(
                 SkillGroup(key=slugify(label, 20) or f"group{index}",
@@ -403,8 +417,12 @@ def heuristic_profile(text: str) -> Profile:
         bullet = BULLET_LINE.match(line)
         clean = bullet.group(1) if bullet else line.strip()
         year = re.search(r"(19|20)\d{2}", clean)
+        if year:  # the year has its own field; keeping it in the name prints it twice
+            clean = re.sub(r"\s*\(?\b" + year.group(0) + r"\b\)?", "", clean).strip(" ,·—–-")
+        name, _, issuer = re.sub(r"\s+[–|]\s+", " — ", clean).partition(" — ")
         profile.certifications.append(
-            Certification(name={language: clean}, year=year.group(0) if year else "")
+            Certification(name={language: name.strip()}, issuer=issuer.strip(),
+                          year=year.group(0) if year else "")
         )
     for line in sections.get("languages", []):
         for chunk in re.split(r"[·,;|]", line):

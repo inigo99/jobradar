@@ -15,7 +15,7 @@ import hashlib
 import re
 from datetime import date, datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -197,6 +197,31 @@ class LanguageSkill(BaseModel):
     level: str = ""
 
 
+class CvVariant(BaseModel):
+    """How the tailored CV looks for one job family (see ``jobradar/families.py``).
+
+    A variant only *selects and orders* what the profile already holds: which
+    achievements lead or are left out, which skill groups come first or are
+    left out, and a few extra skills to name. It can never add a fact: an
+    extra skill is only printed when the profile has evidence for it.
+    """
+
+    #: Headline for every CV of this family instead of the ad's own title
+    #: (e.g. "Registered nurse", "Warehouse team lead"). Empty = the ad's
+    #: title, minus any seniority the profile cannot support.
+    headline: str = ""
+    #: Bullet ids to put first within their position, in this order.
+    lead_bullets: list[str] = Field(default_factory=list)
+    #: Bullet ids to leave out of CVs for this family.
+    hidden_bullets: list[str] = Field(default_factory=list)
+    #: Skill group keys to put first, in this order.
+    skill_groups: list[str] = Field(default_factory=list)
+    #: Skill group keys to leave out of CVs for this family.
+    hidden_skill_groups: list[str] = Field(default_factory=list)
+    #: Up to four skills to name under "Also", when the groups shown omit them.
+    extra_skills: list[str] = Field(default_factory=list)
+
+
 class Profile(BaseModel):
     """Everything JobRadar knows about the candidate.
 
@@ -228,6 +253,15 @@ class Profile(BaseModel):
     ceiling: dict[str, float] = Field(default_factory=dict)
     # Human-readable label for each skill key, used in the UI and in reports.
     skill_labels: dict[str, str] = Field(default_factory=dict)
+    #: Skills the user added that the shipped taxonomy does not know:
+    #: key ("custom_…") -> other names it goes by in ads. The label is in
+    #: ``skill_labels``. See ``taxonomy.use_custom_skills``.
+    custom_skills: dict[str, list[str]] = Field(default_factory=dict)
+    #: Skill keys the user deleted in Settings. They are never derived again
+    #: from the CV's text, so a deletion survives edits and re-imports.
+    removed_skills: list[str] = Field(default_factory=list)
+    #: Per job family (key), how the tailored CV selects and orders content.
+    family_variants: dict[str, CvVariant] = Field(default_factory=dict)
 
     @field_validator("evidence", "ceiling")
     @classmethod
@@ -244,6 +278,7 @@ class Profile(BaseModel):
         return {k for k, v in self.evidence.items() if v > 0.0}
 
     def label_for(self, key: str) -> str:
+        """The skill's display name, as set when the evidence was derived."""
         return self.skill_labels.get(key, key.replace("_", " "))
 
     def years_of_experience(self, today: date | None = None) -> float:
@@ -356,6 +391,8 @@ class Job(BaseModel):
     language: str = "en"
     salary: Salary = Field(default_factory=Salary)
     min_years_experience: int | None = None
+    #: Job family key (``jobradar/families.py``); "" until enrichment sets it.
+    family: str = ""
     requirements: list[Requirement] = Field(default_factory=list)
     # Things the user must check before applying, e.g. "client not named".
     alerts: list[str] = Field(default_factory=list)
@@ -367,7 +404,7 @@ class Job(BaseModel):
     closed_reason: str = ""
 
     @field_validator("id", "title", "company", "location", "country", "url", "apply_url",
-                     "description", "language", "closed_reason", mode="before")
+                     "description", "language", "closed_reason", "family", mode="before")
     @classmethod
     def _text_or_empty(cls, value: Any) -> Any:
         return "" if value is None else value
@@ -465,6 +502,84 @@ class GeneratedDocument(BaseModel):
     llm_generated: bool = False
 
 
+class LimitUnit(str, Enum):
+    """How an application form counts the length of an answer."""
+
+    CHARACTERS = "characters"
+    WORDS = "words"
+
+
+class ThreadMessage(BaseModel):
+    """One turn of a form-answer thread: the user's question or an answer."""
+
+    role: Literal["question", "answer"]
+    text: str
+    at: datetime
+    #: Set when the user edited an answer by hand after it was written.
+    edited_at: datetime | None = None
+
+
+class AnswerThread(BaseModel):
+    """The free-text questions of one job's application form, and the answers.
+
+    A thread per job: the user pastes a question, gets an answer, and refines
+    it in the same thread ("shorter", "less formal") instead of starting over.
+    The limit is the form's own, and it is a hard one.
+    """
+
+    job_id: str
+    limit: int | None = Field(default=None, ge=1)
+    unit: LimitUnit = LimitUnit.CHARACTERS
+    messages: list[ThreadMessage] = Field(default_factory=list)
+
+
+class BankEntry(BaseModel):
+    """An answer the user liked, kept to be adapted when a similar question returns."""
+
+    id: str
+    question: str
+    answer: str
+    company: str = ""
+    job_title: str = ""
+    job_id: str = ""
+    language: str = "en"
+    saved_at: datetime
+    edited_at: datetime | None = None
+
+
+class MailKind(str, Enum):
+    """What a reply from an employer means for an application."""
+
+    REJECTION = "rejection"
+    #: A person moved: an interview, a test, a call, a request for documents.
+    ADVANCE = "advance"
+    #: An automatic "we have received your application". Not a reply.
+    ACKNOWLEDGEMENT = "acknowledgement"
+
+
+class MailNews(BaseModel):
+    """The latest email about one application, read from the user's inbox.
+
+    ``excerpt`` is always a literal quote from the message — never a summary —
+    so what the dashboard shows can be checked against the original.
+    """
+
+    job_id: str = ""
+    kind: MailKind
+    received_at: datetime
+    subject: str = ""
+    sender: str = ""
+    excerpt: str = ""
+    message_id: str = ""
+    #: Opens the thread in the web mail client, when the provider has one.
+    link: str = ""
+    #: Company and title as far as the message tells, for unmatched mail.
+    company_hint: str = ""
+    #: A date and time proposed for an interview, if the message gives one.
+    interview_at: datetime | None = None
+    interview_text: str = ""
+
+
 class LintFinding(BaseModel):
     """One recruiter red flag found in a generated CV."""
 
@@ -496,3 +611,15 @@ class SearchRun(BaseModel):
     #: Per-source counts: {"source": {"fetched": n, "kept": n}}.
     by_source: dict[str, dict[str, int]] = Field(default_factory=dict)
     errors: list[str] = Field(default_factory=list)
+    #: Enabled sources that did not run, and why: {"source": ..., "reason": ...}.
+    skipped_sources: list[dict[str, str]] = Field(default_factory=list)
+    #: Jobs rejected this run, by filter category (see pipeline.filters.category).
+    filtered_by_category: dict[str, int] = Field(default_factory=dict)
+    #: Problems the fetcher reported (a blocked page, no browser...), once each.
+    fetch_problems: list[str] = Field(default_factory=list)
+
+    @property
+    def duration_seconds(self) -> float | None:
+        if self.finished_at is None:
+            return None
+        return (self.finished_at - self.started_at).total_seconds()

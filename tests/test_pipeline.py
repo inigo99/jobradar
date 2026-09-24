@@ -108,7 +108,7 @@ def test_sweep_never_retires_a_job_the_user_has_touched(database, profile, confi
     source = FakeSource([], closed={applied.id, untouched.id})
     monkeypatch.setattr(
         "jobradar.pipeline.sweep.build_sources",
-        lambda settings, cache: ([source], type("F", (), {"close": lambda self: None})()),
+        lambda settings, cache, **_kwargs: ([source], type("F", (), {"close": lambda self: None})()),
     )
     report = sweep_closed(database)
 
@@ -131,6 +131,10 @@ def test_the_run_stores_what_it_rejected(database, profile, configured):
     result = pipeline.run(enrich=False)
 
     assert [job.id for job in result.kept] == [kept.id]
+    # The run log counts what each filter removed, for the Insights history.
+    assert result.run.filtered_by_category == {"salary": 1}
+    assert database.recent_runs(1)[0].filtered_by_category == {"salary": 1}
+    assert result.run.duration_seconds is not None
     stored = database.list_filtered()
     assert [entry["id"] for entry in stored] == [dropped.id]
     assert stored[0]["category"] == "salary"

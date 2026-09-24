@@ -424,3 +424,32 @@ def test_cross_site_form_post_is_refused_end_to_end(paths):
         response = client.post("/api/search", headers={"origin": "https://evil.example"})
         assert response.status_code == 403
         assert client.get("/", headers={"host": "evil.example"}).status_code == 403
+
+
+def test_board_label_settles_an_unconfirmed_remote_during_enrichment(settings):
+    from jobradar.models import WorkMode
+    from jobradar.pipeline.enrich import enrich_job
+
+    job = make_job(work_mode=WorkMode.REMOTE, location="Madrid, Spain",
+                   description="We build logistics software. " * 30)
+    settings.llm.provider = "none"
+    asked = []
+
+    def badge(j):
+        asked.append(j.id)
+        return WorkMode.HYBRID
+
+    enrich_job(job, settings, resolve_work_mode=badge)
+    assert asked == [job.id]
+    assert job.work_mode == WorkMode.HYBRID
+    assert "remote_unconfirmed" not in job.raw
+    assert not any("confirm the work mode" in alert for alert in job.alerts)
+
+
+def test_board_label_is_not_asked_when_the_text_decides(settings):
+    from jobradar.models import WorkMode
+    from jobradar.pipeline.enrich import enrich_job
+
+    job = make_job(work_mode=WorkMode.REMOTE, description="This is a fully remote position. " * 20)
+    enrich_job(job, settings, resolve_work_mode=lambda j: (_ for _ in ()).throw(AssertionError))
+    assert job.work_mode == WorkMode.REMOTE

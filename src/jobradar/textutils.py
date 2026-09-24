@@ -53,6 +53,14 @@ def normalise(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", stripped.lower()).strip()
 
 
+#: Phrases that mean the real employer is hidden behind an intermediary.
+AGENCY_MARKERS = (
+    "our client", "nuestro cliente", "cliente final", "on behalf of our client",
+    "leading company in the sector", "importante empresa del sector",
+    "empresa líder del sector", "confidential client",
+)
+
+
 def contains_phrase(text: str, phrase: str) -> bool:
     """Whether ``phrase`` appears in ``text`` as whole words.
 

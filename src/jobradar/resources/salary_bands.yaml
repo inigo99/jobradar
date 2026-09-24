@@ -1,84 +1,87 @@
 # ---------------------------------------------------------------------------
-# Reference salary bands, used ONLY when an ad publishes no figures.
+# Reference salary data, used ONLY when an ad publishes no figures.
 #
 # Roughly two thirds of job ads hide the salary, so without an estimate the
 # minimum-salary filter would silently drop almost everything. JobRadar
 # therefore estimates a band and *always* marks it as an estimate
-# (`salary.origin == "estimated"`), never as a published figure.
+# (`salary.origin == "estimated"`), never as a published figure, with a
+# one-line account of how it was built so it can be checked and argued with.
 #
-# The numbers below are deliberately conservative, annual, gross, in the
-# currency named by `currency`, and are meant to be edited. Treat them as a
-# starting point for your own market, not as authoritative data.
+# The estimate is:
 #
-# Structure:
-#   families:  <family key> -> <seniority> -> [min, max] in the base currency
-#   base_currency: the currency the family bands are expressed in
-#   country_multipliers: per-country cost/market adjustment applied to the band
+#     family band (families.yaml, by seniority)
+#       x company type factor            (company_types, below)
+#       x hiring country multiplier      (country_multipliers, below)
+#       x at most two adjustments        (adjustments, below)
 #
-# Seniority is inferred from the job title and the years of experience the ad
-# asks for; see `jobradar/pipeline/salary.py`.
+# The country is where the candidate would be *hired*, not where the company
+# has its headquarters: a German company hiring in Spain pays a Spanish band.
+# For a remote job open to the candidate's own country, that is the
+# candidate's country.
+#
+# Every number is deliberately conservative, annual, gross, in
+# `base_currency`, and meant to be edited for your own market.
 # ---------------------------------------------------------------------------
 
-base_currency: EUR
+# Company type, detected from the ad's wording. The first type whose hints
+# match wins; `unknown` applies when none do. Hints are whole words, and a
+# trailing * matches a prefix.
+company_types:
+  public_sector:
+    label: public sector
+    factor: 0.95
+    hints: ["administración pública", "public administration", ayuntamiento, "city council",
+            "servicio público", "public service", "nhs", "sector público", "public sector",
+            "universidad pública", "hospital público", oposición, oposiciones]
+  non_profit:
+    label: non-profit
+    factor: 0.85
+    hints: [ong, ngo, "non-profit", "nonprofit", "not-for-profit", fundación, foundation,
+            charity, "sin ánimo de lucro", asociación]
+  staffing_consultancy:
+    label: consultancy or staffing agency
+    factor: 0.90
+    hints: [consultora, consultancy, "consulting firm", ett, "staffing agency",
+            "recruitment agency", "on behalf of our client", "para importante empresa",
+            "nuestro cliente", "our client", outsourcing, "empresa de trabajo temporal"]
+  large_company:
+    label: large company
+    factor: 1.10
+    hints: [multinacional, multinational, "fortune 500", "ibex", "global leader",
+            "líder mundial", "more than 10,000 employees", "más de 10.000 empleados",
+            "large corporation", "gran empresa"]
+  startup:
+    label: startup
+    factor: 1.00
+    hints: [startup, "start-up", "scale-up", scaleup, "series a", "series b", "seed round",
+            "venture-backed"]
+  small_business:
+    label: small business
+    factor: 0.92
+    hints: [pyme, "small business", "family business", "empresa familiar", "sme",
+            "small team", "pequeña empresa"]
+  unknown:
+    label: company of unknown type
+    factor: 1.00
+    hints: []
 
-families:
-  software_engineering:
-    junior: [22000, 32000]
-    mid: [33000, 48000]
-    senior: [48000, 70000]
-    lead: [65000, 95000]
-  data_science:
-    junior: [24000, 34000]
-    mid: [35000, 52000]
-    senior: [52000, 75000]
-    lead: [70000, 100000]
-  machine_learning:
-    junior: [26000, 36000]
-    mid: [38000, 55000]
-    senior: [55000, 80000]
-    lead: [75000, 110000]
-  data_engineering:
-    junior: [24000, 34000]
-    mid: [36000, 52000]
-    senior: [52000, 75000]
-    lead: [70000, 100000]
-  devops:
-    junior: [24000, 34000]
-    mid: [36000, 54000]
-    senior: [54000, 78000]
-    lead: [72000, 105000]
-  product:
-    junior: [26000, 36000]
-    mid: [38000, 55000]
-    senior: [55000, 80000]
-    lead: [75000, 110000]
-  design:
-    junior: [20000, 28000]
-    mid: [30000, 44000]
-    senior: [44000, 62000]
-    lead: [58000, 85000]
-  marketing:
-    junior: [18000, 26000]
-    mid: [28000, 42000]
-    senior: [42000, 60000]
-    lead: [56000, 82000]
-  sales:
-    junior: [20000, 30000]
-    mid: [30000, 46000]
-    senior: [46000, 70000]
-    lead: [65000, 100000]
-  operations:
-    junior: [18000, 26000]
-    mid: [27000, 40000]
-    senior: [40000, 58000]
-    lead: [54000, 78000]
-  generic:
-    junior: [18000, 28000]
-    mid: [28000, 42000]
-    senior: [42000, 62000]
-    lead: [58000, 85000]
+# Adjustments. At most two apply, the largest first, so a band cannot drift
+# far on stacked guesses. `conditions` are evaluated in code
+# (pipeline/salary.py::adjustments_for); only the factors are tuned here.
+adjustments:
+  asks_many_years:       {label: "asks for 5+ years", factor: 1.10}
+  asks_few_years:        {label: "asks for 2 years or fewer", factor: 0.92}
+  high_english:          {label: "requires fluent English in a non-English market", factor: 1.05}
+  unnamed_client:        {label: "agency ad that does not name the employer", factor: 0.95}
+  regulated_sector:      {label: "regulated sector (banking, insurance, pharma, energy)", factor: 1.05}
 
-# Multiplier applied to the base (Spain-ish continental European) band.
+# When a published figure is converted to your currency and lands this close
+# to your minimum salary, the filter keeps the job and asks you to check the
+# day's exchange rate: dismissing a job over a stale rate is the one mistake
+# that cannot be defended.
+conversion_margin: 0.10
+
+# Hiring-country multiplier applied to the base (Spain-level) band.
 country_multipliers:
   ES: 1.00
   PT: 0.85

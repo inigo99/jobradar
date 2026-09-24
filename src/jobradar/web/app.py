@@ -23,17 +23,18 @@ server as its own origin. Two checks close both:
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 from collections.abc import Iterable
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
@@ -42,24 +43,58 @@ from starlette.requests import Request
 from .. import __version__
 from ..config import Paths, countries, load_dotenv, validation_summary
 from ..documents import generate_cover_letter, generate_email, render_cv, tailor
+from ..documents.answers import add_turn, answer, to_bank
+from ..documents.letters import contact_line
+from ..documents.pdfwriter import letter_pdf
+from ..documents.review import measure, review_text
 from ..errors import JobRadarError, ProfileError, StorageError, describe_os_error
+from ..families import Family, catalogue_view, families_for
+from ..families import classify as classify_family
+from ..families import label_for as family_label
+from ..insights import funnel, history
 from ..lint import lint_profile, lint_tailored
 from ..llm import build_client
-from ..models import Application, Job, MatchScore, Profile
+from ..mail import check_mail, interview_ics
+from ..mail.imap import configured as mail_configured
+from ..models import (
+    AnswerThread,
+    Application,
+    ApplicationStatus,
+    CvVariant,
+    GeneratedDocument,
+    Job,
+    MatchScore,
+    Profile,
+    Salary,
+    SalaryOrigin,
+    SkillGroup,
+    localized,
+)
 from ..pipeline import run_search, sweep_closed
+from ..pipeline.enrich import enrich_job
+from ..pipeline.filters import check_experience, experience_ceiling
 from ..pipeline.focus import focus_for
 from ..pipeline.salary import ExchangeRates
 from ..pipeline.scoring import score_job
 from ..profile import import_profile
+from ..profile.vocabulary import SkillEdit, apply_skill_edits, carry_over
 from ..sources import available as available_sources
 from ..storage import Database
+from ..textutils import slugify
 from .api import (
+    AnswerLimitPayload,
     ApplicationPayload,
+    BankEditPayload,
+    DocumentTextPayload,
     FilteredView,
+    JobIdsPayload,
     JobView,
+    ManualJobPayload,
     OnboardingPayload,
     ProfilePatch,
+    QuestionPayload,
     SettingsPayload,
+    SkillsPayload,
 )
 
 log = logging.getLogger(__name__)
@@ -70,6 +105,8 @@ STATIC = Path(__file__).parent / "static"
 #: Largest CV upload accepted. A CV is a few hundred KB; anything near this
 #: is not a CV, and reading it would only fill the disk.
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+#: Documents written as plain text (the CV is rendered to a file instead).
+LETTER_KINDS = ("cover_letter", "email")
 
 
 async def save_upload(upload: UploadFile, directory: Path) -> Path:
@@ -99,8 +136,12 @@ async def save_upload(upload: UploadFile, directory: Path) -> Path:
 
 
 def _job_view(job: Job, score: MatchScore | None, application: Application,
-              documents: dict, profile_years: float | None = None) -> JobView:
-    focus, focus_reason = focus_for(job, score, max_years=profile_years)
+              documents: dict, profile_years: float | None = None,
+              families: dict[str, Family] | None = None) -> JobView:
+    if families and not job.family:
+        # Jobs stored before families existed are classified on the fly.
+        job.family = classify_family(job, families)
+    focus, focus_reason = focus_for(job, score, max_years=profile_years, families=families)
     salary = job.salary
     return JobView(
         id=job.id,
@@ -127,6 +168,8 @@ def _job_view(job: Job, score: MatchScore | None, application: Application,
         gaps=score.gaps if score else [],
         gap_details=score.gap_details if score else [],
         strengths=score.strengths if score else [],
+        family=job.family,
+        family_label=family_label(job.family, families or {}),
         focus=focus,
         focus_reason=focus_reason,
         status=application.status.value,
@@ -255,7 +298,8 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
     def job_or_404(job_id: str) -> Job:
         job = database.get_job(job_id)
         if job is None:
-            raise HTTPException(status_code=404, detail="Unknown job")
+            raise HTTPException(status_code=404,
+                                detail="That job is not on the board any more; reload the page.")
         return job
 
     def score_for(job: Job, profile: Profile) -> MatchScore:
@@ -292,13 +336,15 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
         profile = database.load_profile()
         scores = database.all_scores()
         applications = database.all_applications()
+        families = families_for(settings)
         profile_years = profile.years_of_experience() if profile else None
         jobs = []
         for job in database.list_jobs(include_closed=True, limit=limit, offset=offset):
             application = applications.get(job.id) or Application(job_id=job.id)
             documents = database.documents_for(job.id)
             jobs.append(
-                _job_view(job, scores.get(job.id), application, documents, profile_years)
+                _job_view(job, scores.get(job.id), application, documents, profile_years,
+                          families)
                 .model_dump(mode="json")
             )
         # Focus order by default: once a profile covers most of what the ads
@@ -312,10 +358,21 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
             "profile": _profile_summary(profile),
             "jobs": jobs,
             "sources": available_sources(),
+            "families": catalogue_view(settings),
+            "mail": {job_id: news.model_dump(mode="json")
+                     for job_id, news in database.mail_news().items()},
+            "mail_orphans": [news.model_dump(mode="json") for news in database.mail_orphans()],
+            "mail_configured": mail_configured(),
             "countries": {code: entry.get("name", code) for code, entry in countries().items()},
             "runs": runs,
-            "filtered": [FilteredView(**entry).model_dump(mode="json")
+            "filtered": [FilteredView(**entry, family_label=family_label(entry.get("family", ""),
+                                                                          families)
+                                      if entry.get("family") else "").model_dump(mode="json")
                          for entry in database.list_filtered()],
+            # For the "just short on years" table, recomputed live so a
+            # change of margin shows at once.
+            "experience": {"held": experience_ceiling(settings.filters, profile_years),
+                           "margin": settings.filters.years_margin},
             "filtered_tally": database.filtered_tally(),
             "running": app.state.running,
             "version": __version__,
@@ -333,18 +390,29 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
                 {
                     "id": experience.id,
                     "organization": experience.organization,
-                    "title": experience.title,
+                    "title": localized(experience.title, profile.default_language),
                     "start": experience.start,
                     "end": experience.end,
-                    "bullets": [{"id": b.id, "text": b.text} for b in experience.bullets],
+                    "bullets": [{"id": b.id, "text": localized(b.text, profile.default_language)}
+                                for b in experience.bullets],
                 }
                 for experience in profile.experience
             ],
             "skills": [
                 {"key": key, "label": profile.label_for(key),
-                 "evidence": value, "ceiling": profile.ceiling.get(key, value)}
-                for key, value in sorted(profile.evidence.items(), key=lambda item: -item[1])
+                 "evidence": value, "ceiling": profile.ceiling.get(key, value),
+                 "custom": key in profile.custom_skills,
+                 "aliases": profile.custom_skills.get(key, [])}
+                for key, value in sorted(profile.evidence.items(),
+                                         key=lambda item: (-item[1], profile.label_for(item[0])))
             ],
+            "skill_groups": [
+                {"key": group.key, "label": localized(group.label, profile.default_language),
+                 "items": group.items}
+                for group in profile.skills
+            ],
+            "family_variants": {family: variant.model_dump(mode="json")
+                                for family, variant in profile.family_variants.items()},
             "years": profile.years_of_experience(),
             "lint": {
                 "score": lint.score(),
@@ -421,7 +489,26 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
         settings.onboarded = True
         settings.filters.home_country = settings.country
         database.save_settings(settings)
-        return {"ok": True, "settings": settings.model_dump(mode="json")}
+        return {"ok": True, "settings": settings.model_dump(mode="json"),
+                "restored": restore_now_in_reach(settings)}
+
+    def restore_now_in_reach(settings) -> int:
+        """Put back ads set aside for years that the new settings now allow.
+
+        Raising the years (or the ceiling rising with the CV's dates) should
+        bring those ads back at once, not on the next search.
+        """
+        profile = database.load_profile()
+        years = profile.years_of_experience() if profile else None
+        restored = 0
+        for entry in database.list_filtered():
+            if entry["category"] != "experience":
+                continue
+            job = database.get_filtered_job(entry["id"])
+            if job is not None and check_experience(job, settings.filters, years) is None:
+                database.restore_filtered(job.id)
+                restored += 1
+        return restored
 
     @app.put("/api/profile")
     def update_profile(patch: ProfilePatch):
@@ -438,6 +525,28 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
                 base = profile.evidence.get(key, 0.0)
                 if base > 0.0:  # a skill with no evidence can never gain a ceiling
                     profile.ceiling[key] = max(base, min(1.0, value))
+        if patch.family_variants is not None:
+            profile.family_variants = {
+                family: variant for family, variant in patch.family_variants.items()
+                if variant != CvVariant()  # an untouched variant is no variant
+            }
+        database.save_profile(profile)
+        return {"ok": True, "profile": _profile_summary(profile)}
+
+    @app.put("/api/profile/skills")
+    def update_skills(payload: SkillsPayload):
+        """Add, edit and delete skills; the listed groups, evidence and ceilings."""
+        profile = require_profile()
+        language = profile.default_language
+        groups = [
+            SkillGroup(key=group.key or slugify(group.label, 20) or f"group{index}",
+                       label={language: group.label.strip()},
+                       items=[item.strip() for item in group.items if item.strip()])
+            for index, group in enumerate(payload.groups)
+        ]
+        rows = [SkillEdit(name=row.name, evidence=row.evidence, ceiling=row.ceiling,
+                          key=row.key, aliases=tuple(row.aliases)) for row in payload.skills]
+        apply_skill_edits(profile, groups, rows, payload.deleted)
         database.save_profile(profile)
         return {"ok": True, "profile": _profile_summary(profile)}
 
@@ -445,7 +554,8 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
     async def reimport(cv_file: UploadFile = File(...)):
         """Replace the profile from a new CV file."""
         if not cv_file.filename:
-            raise HTTPException(status_code=400, detail="No file provided")
+            raise HTTPException(status_code=400,
+                                detail="No file was attached; choose your CV file first.")
         settings = database.load_settings()
         target = await save_upload(cv_file, paths.uploads_dir)
         llm = build_client(settings.llm)
@@ -454,6 +564,9 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
         finally:
             if llm:
                 llm.close()
+        previous = database.load_profile()
+        if previous is not None:
+            carry_over(previous, profile)
         database.save_profile(profile)
         return {"ok": True, "notes": notes, "profile": _profile_summary(profile)}
 
@@ -474,6 +587,68 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
         )
         return {"ok": True}
 
+    # -- adding and deleting jobs by hand -------------------------------------
+
+    @app.post("/api/jobs")
+    def add_job(payload: ManualJobPayload):
+        """Put a job the user found elsewhere on the board, read like any other."""
+        settings = database.load_settings()
+        key = payload.url.strip() or f"{payload.company}|{payload.title}|{payload.description[:200]}"
+        job = Job(
+            source="manual",
+            native_id=hashlib.sha1(key.strip().lower().encode("utf-8")).hexdigest()[:12],
+            title=payload.title.strip(),
+            company=payload.company.strip(),
+            url=payload.url.strip(),
+            location=payload.location.strip(),
+            work_mode=payload.work_mode,
+            description=payload.description.strip(),
+            posted_at=date.today(),
+        )
+        job.ensure_id()
+        if payload.salary_min or payload.salary_max:
+            job.salary = Salary(minimum=payload.salary_min or payload.salary_max,
+                                maximum=payload.salary_max or payload.salary_min,
+                                currency=payload.salary_currency.upper() or "EUR",
+                                origin=SalaryOrigin.PUBLISHED, basis="typed in by you")
+        if payload.family:
+            if payload.family not in families_for(settings):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Unknown job family '{payload.family}'. Pick one from the list, or "
+                           "add it in Settings → Job families.")
+            job.family = payload.family
+            job.raw["family_set_by_user"] = True
+        llm = build_client(settings.llm)
+        try:
+            enrich_job(job, settings, llm=llm, rates=ExchangeRates.load(paths.cache_dir))
+        finally:
+            if llm:
+                llm.close()
+        database.restore_deleted([job.id])  # adding it again undoes an earlier deletion
+        database.upsert_jobs([job])
+        profile = database.load_profile()
+        if profile is not None:
+            database.save_score(job.id, score_job(job, profile))
+        if payload.status != ApplicationStatus.ACTIVE or payload.notes or payload.stage:
+            database.save_application(Application(
+                job_id=job.id, status=payload.status, stage=payload.stage,
+                applied_on=payload.applied_on or (date.today() if payload.status ==
+                                                  ApplicationStatus.APPLIED else None),
+                notes=payload.notes, updated_at=datetime.now(timezone.utc)))
+        return {"ok": True, "id": job.id, "family": job.family}
+
+    @app.post("/api/jobs/delete")
+    def delete_jobs(payload: JobIdsPayload):
+        """Take jobs off the board for good (they can be brought back for a week)."""
+        deleted = database.delete_jobs(payload.ids)
+        return {"ok": True, "deleted": deleted, "undo_days": database.UNDO_DAYS}
+
+    @app.post("/api/jobs/undelete")
+    def undelete_jobs(payload: JobIdsPayload):
+        restored = database.restore_deleted(payload.ids)
+        return {"ok": True, "restored": restored}
+
     # -- documents --------------------------------------------------------
 
     @app.post("/api/jobs/{job_id}/cv")
@@ -490,8 +665,6 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
         finally:
             if llm:
                 llm.close()
-
-        from ..models import GeneratedDocument
 
         database.save_document(
             GeneratedDocument(
@@ -524,7 +697,9 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
     def download_cv(job_id: str):
         document = database.get_document(job_id, "cv")
         if not document or not document.path:
-            raise HTTPException(status_code=404, detail="Generate the CV first")
+            raise HTTPException(
+                status_code=404,
+                detail="No CV has been generated for this job yet; press Tailor CV first.")
         path = Path(document.path)
         if not path.is_file():
             raise HTTPException(status_code=404,
@@ -534,8 +709,9 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
     @app.post("/api/jobs/{job_id}/documents/{kind}")
     def build_letter(job_id: str, kind: str):
         """Write the cover letter or the application email for one job."""
-        if kind not in ("cover_letter", "email"):
-            raise HTTPException(status_code=400, detail="Unknown document type")
+        if kind not in LETTER_KINDS:
+            raise HTTPException(status_code=400,
+                                detail=f"Unknown document type '{kind}'; use cover_letter or email.")
         job = job_or_404(job_id)
         profile = require_profile()
         settings = database.load_settings()
@@ -548,14 +724,186 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
             if llm:
                 llm.close()
         database.save_document(document)
-        return {"ok": True, "document": document.model_dump(mode="json")}
+        return {"ok": True, "document": document_view(document, job)}
+
+    def letter_or_404(job_id: str, kind: str) -> GeneratedDocument:
+        if kind not in LETTER_KINDS:
+            raise HTTPException(status_code=400,
+                                detail=f"Unknown document type '{kind}'; use cover_letter or email.")
+        document = database.get_document(job_id, kind)
+        if not document:
+            raise HTTPException(
+                status_code=404,
+                detail="That document has not been written yet; press Cover letter or "
+                       "Application email first.")
+        return document
+
+    @app.put("/api/jobs/{job_id}/documents/{kind}")
+    def save_letter(job_id: str, kind: str, payload: DocumentTextPayload):
+        """Keep the user's edits to a cover letter or email."""
+        job_or_404(job_id)
+        document = letter_or_404(job_id, kind)
+        document.text = payload.text.strip()
+        database.save_document(document)
+        return {"ok": True, "document": document_view(document, database.get_job(job_id))}
+
+    @app.get("/api/jobs/{job_id}/documents/{kind}/pdf")
+    def download_letter(job_id: str, kind: str):
+        """The saved letter or email as a PDF, built without a browser."""
+        job = job_or_404(job_id)
+        document = letter_or_404(job_id, kind)
+        profile = require_profile()
+        language = document.language
+        pdf = letter_pdf(
+            sender=profile.contact.name_for(language),
+            contact_line=contact_line(profile, language),
+            recipient=job.company,
+            kind=kind,
+            language=language,
+            date_text=date.today().isoformat(),
+            body=document.text,
+        )
+        name = f"{kind.replace('_', '-')}-{slugify(job.company or job.title)}.pdf"
+        return Response(pdf, media_type="application/pdf",
+                        headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
     @app.get("/api/jobs/{job_id}/documents")
     def list_documents(job_id: str):
-        return {
-            kind: document.model_dump(mode="json")
-            for kind, document in database.documents_for(job_id).items()
-        }
+        """Saved documents, letters re-checked so older drafts get today's warnings."""
+        job = database.get_job(job_id)
+        return {kind: document_view(document, job)
+                for kind, document in database.documents_for(job_id).items()}
+
+    def document_view(document: GeneratedDocument, job: Job | None) -> dict:
+        view = document.model_dump(mode="json")
+        profile = database.load_profile()
+        if document.kind in LETTER_KINDS and profile is not None:
+            view["warnings"] = [f.model_dump(mode="json") for f in review_text(
+                document.text, profile, job, document.kind,
+                extra_phrases=database.load_settings().banned_phrases)]
+        return view
+
+    # -- form answers and the answer bank ------------------------------------
+
+    def thread_view(job: Job, thread: AnswerThread) -> dict:
+        """The thread with each answer's length, warnings and bank status."""
+        profile = require_profile()
+        banned = database.load_settings().banned_phrases
+        banked = {entry.answer for entry in database.answer_bank()}
+        messages = []
+        for message in thread.messages:
+            view = message.model_dump(mode="json")
+            if message.role == "answer":
+                view["length"] = measure(message.text, thread.unit)
+                view["in_bank"] = message.text in banked
+                view["warnings"] = [f.model_dump(mode="json") for f in review_text(
+                    message.text, profile, job, "answer", extra_phrases=banned,
+                    limit=thread.limit, unit=thread.unit)]
+            messages.append(view)
+        return {"limit": thread.limit, "unit": thread.unit.value, "messages": messages}
+
+    def answer_index_or_404(thread: AnswerThread, index: int) -> None:
+        if not 0 <= index < len(thread.messages) or thread.messages[index].role != "answer":
+            raise HTTPException(
+                status_code=404,
+                detail="There is no answer at that position in this job's thread; reload it.")
+
+    @app.get("/api/jobs/{job_id}/answers")
+    def get_answers(job_id: str):
+        job = job_or_404(job_id)
+        return thread_view(job, database.answer_thread(job_id))
+
+    @app.post("/api/jobs/{job_id}/answers")
+    def ask(job_id: str, payload: QuestionPayload):
+        """Answer a form question (or refine the last answer) in the job's thread."""
+        job = job_or_404(job_id)
+        profile = require_profile()
+        settings = database.load_settings()
+        thread = database.answer_thread(job_id)
+        llm = build_client(settings.llm)
+        try:
+            text, by_model, precedents = answer(profile, job, thread, payload.question.strip(),
+                                                database.answer_bank(), settings, llm)
+        finally:
+            if llm:
+                llm.close()
+        add_turn(thread, "question", payload.question.strip())
+        add_turn(thread, "answer", text)
+        database.save_answer_thread(thread)
+        view = thread_view(job, thread)
+        view["llm_generated"] = by_model
+        view["precedents"] = [{"question": p.entry.question, "company": p.entry.company}
+                              for p in precedents]
+        return view
+
+    @app.put("/api/jobs/{job_id}/answers/limit")
+    def set_answer_limit(job_id: str, payload: AnswerLimitPayload):
+        job = job_or_404(job_id)
+        thread = database.answer_thread(job_id)
+        thread.limit, thread.unit = payload.limit, payload.unit
+        database.save_answer_thread(thread)
+        return thread_view(job, thread)
+
+    @app.put("/api/jobs/{job_id}/answers/{index}")
+    def edit_answer(job_id: str, index: int, payload: DocumentTextPayload):
+        """Keep a hand edit to one answer. The bank keeps its own copy."""
+        job = job_or_404(job_id)
+        thread = database.answer_thread(job_id)
+        answer_index_or_404(thread, index)
+        if not payload.text.strip():
+            raise HTTPException(status_code=400,
+                                detail="An answer cannot be empty; write something or delete the "
+                                       "thread.")
+        message = thread.messages[index]
+        message.text, message.edited_at = payload.text.strip(), datetime.now(timezone.utc)
+        database.save_answer_thread(thread)
+        return thread_view(job, thread)
+
+    @app.delete("/api/jobs/{job_id}/answers")
+    def clear_answers(job_id: str):
+        job_or_404(job_id)
+        database.delete_answer_thread(job_id)
+        return {"ok": True}
+
+    @app.post("/api/jobs/{job_id}/answers/{index}/bank")
+    def bank_answer(job_id: str, index: int):
+        """Save one answer, with the question it replies to, in the answer bank."""
+        job = job_or_404(job_id)
+        thread = database.answer_thread(job_id)
+        answer_index_or_404(thread, index)
+        entry = to_bank(thread, index, job, job.language or database.load_settings().default_language)
+        bank = [e for e in database.answer_bank() if e.id != entry.id]
+        database.save_answer_bank([entry, *bank])
+        return {"ok": True, "entry": entry.model_dump(mode="json")}
+
+    @app.get("/api/answer-bank")
+    def get_bank():
+        return {"entries": [e.model_dump(mode="json") for e in database.answer_bank()]}
+
+    @app.put("/api/answer-bank/{entry_id}")
+    def edit_bank(entry_id: str, payload: BankEditPayload):
+        bank = database.answer_bank()
+        entry = next((e for e in bank if e.id == entry_id), None)
+        if entry is None:
+            raise HTTPException(
+                status_code=404,
+                detail="That answer is no longer in the bank; reload the page.")
+        # The id stays, even if the question is reworded, so it is still the same entry.
+        entry.question, entry.answer = payload.question.strip(), payload.answer.strip()
+        entry.edited_at = datetime.now(timezone.utc)
+        database.save_answer_bank(bank)
+        return {"ok": True, "entry": entry.model_dump(mode="json")}
+
+    @app.delete("/api/answer-bank/{entry_id}")
+    def delete_bank(entry_id: str):
+        bank = database.answer_bank()
+        remaining = [e for e in bank if e.id != entry_id]
+        if len(remaining) == len(bank):
+            raise HTTPException(
+                status_code=404,
+                detail="That answer is no longer in the bank; reload the page.")
+        database.save_answer_bank(remaining)
+        return {"ok": True}
 
     # -- pipeline ---------------------------------------------------------
 
@@ -584,6 +932,32 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
             "new": [f"{job.company} — {job.title}" for job in result.new_jobs][:50],
             "rejected": len(result.rejected),
         }
+
+    @app.get("/api/insights")
+    def insights(runs: int = Query(30, ge=1, le=365)):
+        """The application funnel and the run history, for the Insights tab."""
+        settings = database.load_settings()
+        report = funnel(database.list_jobs(include_closed=True), database.all_applications(),
+                        database.all_scores(), database.mail_news(), families_for(settings))
+        return {"funnel": report.as_dict(), "history": history(database.recent_runs(runs))}
+
+    @app.post("/api/mail/check")
+    async def mail_check():
+        """Read new replies from the inbox. Read-only on the mail server."""
+        settings = database.load_settings()
+        report = await asyncio.to_thread(check_mail, database, settings)
+        return {"ok": True, "summary": report.summary(), "replies": len(report.news),
+                "orphans": len(report.orphans)}
+
+    @app.get("/api/jobs/{job_id}/interview.ics")
+    def interview_calendar(job_id: str):
+        """A calendar event for an interview proposed by email, to import by hand."""
+        news = database.mail_news().get(job_id)
+        if news is None or news.interview_at is None:
+            raise HTTPException(status_code=404, detail="No interview time was found for this job")
+        body = interview_ics(news, database.get_job(job_id))
+        return Response(body, media_type="text/calendar",
+                        headers={"Content-Disposition": 'attachment; filename="interview.ics"'})
 
     @app.post("/api/sweep")
     async def sweep():
@@ -615,7 +989,9 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
         """
         job = database.restore_filtered(job_id)
         if job is None:
-            raise HTTPException(status_code=404, detail="Not in the filtered list")
+            raise HTTPException(
+                status_code=404,
+                detail="That ad is no longer in the filtered list; reload the page.")
         profile = database.load_profile()
         if profile is not None:
             database.save_score(job.id, score_job(job, profile))

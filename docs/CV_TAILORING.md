@@ -41,8 +41,19 @@ is always the value of better presentation, and never the value of a lie.
 
 Both numbers are proposed when your CV is imported — demonstrated skills get
 `1.0`, listed ones `0.5` with a ceiling of `0.9` — and are editable in
-**Settings → Your profile**. Spend ten minutes there once. Only you know that
+**Settings → Your skills**. Spend ten minutes there once. Only you know that
 you have written Terraform twice and would rather not be asked about it.
+
+The same place lets you add, edit and delete skills and the groups your CV
+lists them in:
+
+- a skill JobRadar knows (by any of its names) is linked to it; one it does
+  not know becomes one of yours, with other names it goes by in ads, and is
+  read in ads from then on;
+- a skill typed into a group is added with the evidence of a listed skill;
+- a skill you delete, or set to evidence `0`, stays deleted — it is not read
+  back from your CV's text, not even when you import a new CV. Your own
+  skills, tuned ceilings and CVs per job family survive a new import too.
 
 ## What actually changes per job
 
@@ -62,6 +73,35 @@ happens here.
 The headline is also checked: if the ad says "Principal Engineer" and your dates
 add up to three years, the word "Principal" is removed. Claiming seniority you
 do not have is not tailoring — it is the first thing that gets a CV binned.
+
+A skills block also gets a short "Also" line naming up to four skills the ad
+asks for, that your profile proves, and that the groups shown would otherwise
+leave out — typically one proven only inside an achievement.
+
+## A CV per job family
+
+Someone applying to warehouse jobs and to delivery-driver jobs wants two
+different CVs, not one CV re-sorted per ad. **Settings → CV per job family**
+sets, for each family:
+
+- a fixed **headline** ("Warehouse team lead") instead of the ad's own title;
+- which **achievements lead** their position and which are **left out**;
+- which **skill groups** come first and which are left out;
+- up to four **extra skills** to name under "Also".
+
+A variant only selects and orders what the profile already holds. It cannot
+add anything: an extra skill your profile does not prove is not printed. The
+variant is your explicit choice, so it wins over the automatic ranking and
+over a model's proposed order.
+
+## The PDF
+
+With Playwright and a Chromium installed, the HTML template is printed as it
+looks in the browser, shrinking the type step by step until it fits
+`cv_max_pages`. Without them — or when printing fails, or with `cv_pdf_engine:
+builtin` — a built-in writer lays the same content out in Helvetica, with the
+same shrink-to-fit, and needs nothing installed. It is plainer, and just as
+readable by an applicant tracking system: one column of real text.
 
 ## The XYZ formula
 
@@ -118,7 +158,10 @@ met your industry.
 
 ## Cover letters and emails
 
-Generated on demand, per job, never in bulk. The letter is one or two
+Generated on demand, per job, never in bulk. Once written they are yours: edit
+them in place, save, copy, or download them as a PDF (built without a
+browser). Opening one again shows your saved text; writing it again asks
+first. The letter is one or two
 paragraphs, names your biggest gap openly in one clause rather than hiding it,
 and anchors the interest in something real from the advertisement. The email
 adds a subject line, a `[name]` placeholder, one concrete achievement, one
@@ -128,3 +171,45 @@ an unnamed client or an unstated contracting country — a question about it.
 Without a language model you get a skeleton built from your profile with the
 parts that need a human marked in brackets. That is deliberately obvious about
 what it is; it beats a blank page and it will not be sent by accident.
+
+### Warnings on what you send
+
+Letters, emails and form answers are yours to edit, so nothing blocks them.
+Instead every save, and every time a saved text is shown, lists what might
+hurt:
+
+| Warning | Catches |
+|---|---|
+| `unsupported-figure` | A number that is neither in your profile nor in the ad (the ad's own figures, its published salary and this year are fine) |
+| `inflated-seniority` | More years claimed than your dates support — unless the sentence is about what the ad asks for |
+| `unsupported-skill` | A skill claimed that your profile has no evidence for; naming it as a gap is fine |
+| `boilerplate` | Template phrases ("to whom it may concern", "team player"), plus any in **Settings → Phrases you never use** |
+| `company-not-named` | A letter or email that would fit any company |
+| `no-subject`, `no-greeting-name` | An email without a `Subject:` line or a `[name]` placeholder |
+| `still-to-fill` | Parts in brackets not yet written |
+| `over-limit` | A form answer longer than the form accepts |
+
+## Application-form questions
+
+Most applications ask three or four free-text questions — why us, a project
+you are proud of, expected salary. **Form answers** on a job opens a thread for
+them:
+
+- paste the question as the form asks it; the answer is drawn from your
+  profile and the ad, in the ad's language, without greeting or sign-off;
+- set the form's limit (characters or words): the answer is asked to respect
+  it and, if it still runs over, is shortened once more; the counter turns red
+  when it is over;
+- say what to change in the same thread ("shorter", "less formal", "in
+  English") instead of starting again;
+- a figure or date your profile does not have (expected salary, availability,
+  start date) comes back as `[pending: …]` for you to fill in, never invented;
+- edit any answer by hand.
+
+**The answer bank.** Save an answer you like and it is kept with its question.
+When another job asks something similar — measured by the words the two
+questions share, ignoring the ones every question has ("why", "your",
+"describe") — your saved answer is given to the model as a precedent to
+adapt, never to copy, and the thread says which one it started from. Without a
+model, the saved answer itself is offered as the starting point. Saved answers
+can be edited or deleted from the bank.

@@ -312,3 +312,68 @@ Job advertisement:
 Things the advertisement leaves unclear, worth asking about:
 {", ".join(alerts or []) or "(nothing flagged)"}"""
     return system, user
+
+
+# ---------------------------------------------------------------------------
+# 6. Answering one question of an application form
+# ---------------------------------------------------------------------------
+
+
+def form_answer(
+    profile: Profile,
+    job: Job,
+    question: str,
+    history: list[tuple[str, str]],
+    precedents: list[tuple[str, str, str]],
+    limit: int | None,
+    unit: str,
+    language: str,
+) -> tuple[str, str]:
+    """Answer a free-text question from an application form.
+
+    ``history`` is the thread so far as ``(role, text)`` pairs, oldest first,
+    so "shorter" or "less formal" refines the last answer instead of starting
+    over. ``precedents`` are ``(question, answer, company)`` from the answer
+    bank: earlier answers to similar questions, to adapt rather than copy.
+    """
+    length_rule = (
+        f"- The form cuts at {limit} {unit}. That is a hard limit, not a target: if not "
+        "everything fits, drop context and keep the concrete achievement."
+        if limit else
+        "- No limit was given, so be brief anyway: two or three sentences unless the question "
+        "asks for more."
+    )
+    system = f"""You answer one free-text question from a job application form, as the
+candidate would answer it.
+
+{NO_FABRICATION}
+
+Rules for this format:
+- It is a form field, not an email: no greeting, no sign-off, no signature, no subject.
+- First person, plain prose. No bullet points unless the question asks for a list.
+- Answer what is asked and nothing else; nobody reads a warm-up paragraph.
+- If the question asks about something the candidate does not have, say so in the first
+  sentence and continue with the closest thing they do have. No hedging, no hinting.
+- If it asks for a figure or a date the profile does not contain (expected salary,
+  availability, start date), do not invent it: write the gap as [pending: what is missing]
+  for the candidate to fill in. If the ad publishes a salary band, you may refer to it.
+- Plain language. No "I am passionate about", no "perfect fit", no adjective stacking.
+{length_rule}
+- Write in {language}. Return only the text of the answer."""
+    parts = [f"Candidate profile:\n{_profile_digest(profile, language)}",
+             f"Job advertisement:\n{_job_digest(job, 1000)}"]
+    if precedents:
+        parts.append(
+            "How the candidate answered similar questions before (adapt it to this company; "
+            "do not copy it word for word and never carry over the other company's name):\n"
+            + "\n".join(f"- To \"{q}\" ({company or 'another company'}): {a}"
+                        for q, a, company in precedents))
+    if history:
+        parts.append("The thread so far:\n" + "\n\n".join(
+            f"[{'CANDIDATE' if role == 'question' else 'YOUR EARLIER ANSWER'}] {text}"
+            for role, text in history))
+    parts.append(
+        f"Now: {question}\n(Either a new question from the form, or a request to change your "
+        "last answer — in that case return the whole revised answer.)" if history else
+        f"Question from the form: {question}")
+    return system, "\n\n".join(parts)

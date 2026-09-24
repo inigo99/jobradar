@@ -14,6 +14,7 @@ import json
 from pathlib import Path
 
 from .config import Filters, Paths, SearchSettings, Settings
+from .families import classify, families_for
 from .models import Job, WorkMode
 from .pipeline.enrich import derive_alerts, extract_requirements_by_keyword
 from .pipeline.salary import estimate_salary
@@ -53,10 +54,14 @@ def load_demo(database: Database, paths: Paths | None = None) -> tuple[int, Sett
 
     jobs = [Job.model_validate(entry).ensure_id() for entry in
             json.loads((DEMO_DIR / "jobs.json").read_text(encoding="utf-8"))]
+    families = families_for(settings)
     for job in jobs:
         job.requirements = extract_requirements_by_keyword(job)
+        job.family = classify(job, families)
         if job.salary is None or not job.salary.midpoint:
-            job.salary = estimate_salary(job, settings.filters.salary_currency)
+            job.salary = estimate_salary(job, settings.filters.salary_currency,
+                                         families=families,
+                                         home_country=settings.filters.home_country)
         job.alerts = derive_alerts(job)
     database.upsert_jobs(jobs)
     for job in jobs:

@@ -11,6 +11,8 @@ Commands:
 ``demo``     load a synthetic profile and jobs so you can look around
 ``search``   run the full pipeline and store what it finds
 ``sweep``    check active jobs and retire the ads that have closed
+``mail``     read replies to your applications from your inbox (read-only)
+``insights`` response rates by source, family and score; how each source performs
 ``tailor``   generate the tailored CV for one job, or for the best N
 ``lint``     run the recruiter red-flag check over your profile
 ``jobs``     list what is in the pipeline
@@ -24,10 +26,12 @@ Commands:
 from __future__ import annotations
 
 import argparse
+import calendar
 import json
 import logging
 import os
 import sys
+from datetime import date, timedelta
 from pathlib import Path
 
 from . import __version__
@@ -35,6 +39,7 @@ from .config import Paths, Settings, countries, load_dotenv
 from .documents import render_cv, tailor
 from .errors import JobRadarError, NotFoundError, SetupRequiredError
 from .exporters import export_csv, export_excel
+from .families import families_for
 from .lint import lint_profile, lint_tailored
 from .llm import build_client
 from .models import ApplicationStatus, WorkMode
@@ -250,6 +255,11 @@ def cmd_search(args: argparse.Namespace) -> int:
             ],
         )
 
+    if result.mail:
+        out(f"Mail: {result.mail.summary()}")
+    elif result.mail_error:
+        out(f"[yellow]Mail not checked:[/yellow] {result.mail_error}")
+
     if args.explain and result.rejected:
         table("Why jobs were dropped", ["Reason", "Count"],
               [[reason, str(count)] for reason, count in explain(result.rejected)])
@@ -263,6 +273,97 @@ def cmd_search(args: argparse.Namespace) -> int:
             out(f"Digest via {channel}: {'sent' if ok else 'failed'}")
 
     database.close()
+    return 0
+
+
+def cmd_mail(args: argparse.Namespace) -> int:
+    """Read replies to applications from the inbox (read-only)."""
+    from .mail import check_mail
+
+    database = _database(args)
+    settings = database.load_settings()
+    if args.days:
+        settings.mail.days_back = args.days
+        database.set_mail_checked_on(date.today() - timedelta(days=args.days))
+    try:
+        report = check_mail(database, settings)
+        jobs = {job.id: job for job in database.list_jobs(include_closed=True)}
+    finally:
+        database.close()
+    out(report.summary())
+    for news in sorted(report.news, key=lambda n: n.received_at, reverse=True):
+        job = jobs.get(news.job_id)
+        where = f"{job.company} — {job.title}" if job else news.company_hint
+        out(f"  [bold]{news.kind.value}[/bold] {news.received_at:%Y-%m-%d} {where}")
+        if news.excerpt:
+            out(f"    [dim]\u201c{news.excerpt}\u201d[/dim]")
+        if news.interview_at:
+            out(f"    [cyan]Proposed interview: {news.interview_at:%A %d %B %Y, %H:%M}[/cyan] "
+                "(not added to any calendar; download it from the dashboard)")
+    if report.orphans:
+        out(f"\n{len(report.orphans)} messages about applications not marked as applied here:")
+        for orphan in report.orphans[:10]:
+            out(f"  {orphan.kind.value} · {orphan.company_hint} · {orphan.subject[:70]}")
+    return 0
+
+
+def cmd_insights(args: argparse.Namespace) -> int:
+    """Is the search working? The application funnel and the run history."""
+    from .insights import MIN_SAMPLE, funnel, history
+
+    database = _database(args)
+    try:
+        settings = database.load_settings()
+        report = funnel(database.list_jobs(include_closed=True), database.all_applications(),
+                        database.all_scores(), database.mail_news(), families_for(settings))
+        runs = history(database.recent_runs(args.runs))
+    finally:
+        database.close()
+
+    def rate(group) -> str:
+        value = group.response_rate
+        return f"{value:g}%" if value is not None else f"— (under {MIN_SAMPLE})"
+
+    total = report.total
+    out(f"[bold]{total.applications}[/bold] applications · {total.replies} human replies "
+        f"({rate(total)}) · {total.advances} next steps · {total.rejections} rejections · "
+        f"{total.alive} still alive")
+    if report.median_days_to_reply is not None:
+        out(f"Median wait for a reply: {report.median_days_to_reply:g} days.")
+    for title, groups in (("By source", report.by_source), ("By job family", report.by_family),
+                          ("By match score", report.by_score)):
+        if groups:
+            table(title, ["Group", "Applications", "Replies", "Response rate"],
+                  [[name, str(g.applications), str(g.replies), rate(g)]
+                   for name, g in groups.items()])
+    if report.saturated:
+        table("Companies with many ads or applications and no reply",
+              ["Company", "On the board", "Applied", "Replies"],
+              [[s["company"], str(s["on_board"]), str(s["applied"]), str(s["replies"])]
+               for s in report.saturated])
+    if report.waiting:
+        table("Waiting longest for a reply", ["Company", "Title", "Applied", "Days"],
+              [[w["company"], w["title"][:40], w["applied_on"], str(w["days"])]
+               for w in report.waiting])
+
+    if not runs["runs"]:
+        out("\nNo search has run yet, so there is no run history.")
+        return 0
+    out(f"\n[bold]Last {runs['runs']} run{'s' if runs['runs'] != 1 else ''}[/bold]"
+        + (f" (since {runs['since']})" if runs["since"] else "")
+        + f": {runs['fetched']} fetched, {runs['kept']} kept, {runs['new']} new"
+        + (f", {runs['duplicate_share']:g}% duplicates"
+           if runs["duplicate_share"] is not None else "")
+        + (f", median {runs['median_minutes']:g} min per run" if runs["median_minutes"] else "")
+        + ".")
+    if runs["by_source"]:
+        table("Per source", ["Source", "Runs", "Fetched", "Kept", "Kept %", "Failed", "Skipped"],
+              [[name, str(e["runs"]), str(e["fetched"]), str(e["kept"]),
+                f"{e['kept_share']:g}" if e["kept_share"] is not None else "—",
+                str(e["failed"]), str(e["skipped"])] for name, e in runs["by_source"].items()])
+    if runs["filtered_by_category"]:
+        out("Filtered out: " + ", ".join(f"{n} by {c}"
+                                         for c, n in runs["filtered_by_category"].items()))
     return 0
 
 
@@ -365,6 +466,7 @@ def cmd_jobs(args: argparse.Namespace) -> int:
     applications = database.all_applications()
     profile = database.load_profile()
     years = profile.years_of_experience() if profile else None
+    families = families_for(database.load_settings())
     rows: list[tuple[float, list[str]]] = []
     for job in database.list_jobs(include_closed=args.all):
         application = applications.get(job.id)
@@ -372,7 +474,7 @@ def cmd_jobs(args: argparse.Namespace) -> int:
         if args.status and status != args.status:
             continue
         score = scores.get(job.id)
-        focus, _reason = focus_for(job, score, max_years=years)
+        focus, _reason = focus_for(job, score, max_years=years, families=families)
         rows.append((focus, [
             f"{focus:.0f}",
             f"{score.tailored:.0f}%" if score else "—",
@@ -481,6 +583,9 @@ def cmd_sources(args: argparse.Namespace) -> int:
     for source in available_sources():
         missing = [name for name in source["required_env"] if not os.environ.get(name)]
         state = "on" if source["id"] in enabled else "off"
+        if state == "on" and source["id"] in settings.sources.weekly:
+            day = calendar.day_name[settings.sources.weekly_day]
+            state = f"on ({day}s only)"
         if missing:
             state = f"needs {', '.join(missing)}"
         rows.append([source["id"], source["name"], source["tos_tier"], state])
@@ -618,6 +723,16 @@ def build_parser() -> argparse.ArgumentParser:
     search.add_argument("--explain", action="store_true", help="Show why jobs were dropped")
     search.add_argument("--notify", action="store_true", help="Send the digest afterwards")
     search.set_defaults(func=cmd_search)
+
+    mail = sub.add_parser("mail", help="Read replies to your applications from your inbox")
+    mail.add_argument("--days", type=_positive_int, default=None,
+                      help="Look back this many days instead of since the last check")
+    mail.set_defaults(func=cmd_mail)
+
+    insights = sub.add_parser("insights", help="Response rates and how each source performs")
+    insights.add_argument("--runs", type=_positive_int, default=30,
+                          help="How many recent search runs to summarise")
+    insights.set_defaults(func=cmd_insights)
 
     sweep = sub.add_parser("sweep", help="Retire ads that have closed")
     sweep.add_argument("--limit", type=_positive_int, default=None, help="Check at most N jobs")

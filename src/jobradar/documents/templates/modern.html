@@ -68,7 +68,7 @@
   <h2>{{ label('education') }}</h2>
   {% for item in education %}
     <p class="job-title">{{ item.degree }}</p>
-    <p class="job-meta">{{ item.institution }}{% if item.period %} · {{ item.period }}{% endif %}</p>
+    <p class="job-meta">{{ item.institution }}{% if item.institution and item.period %} · {% endif %}{{ item.period }}</p>
     {% if item.note %}<p class="small">{{ item.note }}</p>{% endif %}
   {% endfor %}
   {% endif %}

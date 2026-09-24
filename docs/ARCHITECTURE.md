@@ -13,8 +13,9 @@ sources/                 pipeline/                       documents/
 │ Himalayas    │──▶│   ↓                      │   │          summary,      │
 │ Arbeitnow    │   │ deduplicate              │   │          bullet order) │
 │ WWR          │   │   ↓                      │   │   ↓                    │
-│ ATS boards   │   │ prefilter (age, closed)  │   │ validate ◀── profile   │
-│ Adzuna       │   │   ↓                      │   │   ↓                    │
+│ ATS boards   │   │ prefilter (age, closed,  │   │ validate ◀── profile   │
+│ Manfred      │   │            deleted)      │   │   ↓                    │
+│ Adzuna       │   │   ↓                      │   │   │                    │
 │ Jooble       │   │ enrich  ◀── llm (opt.)   │   │ render → one-page PDF  │
 │ (opt-in ones)│   │   ↓                      │   │   ↓                    │
 └──────────────┘   │ filter                   │   │ lint                   │
@@ -37,26 +38,35 @@ fetch and possibly a model call per job. On a multi-source run a substantial
 share of the collected jobs are the same opening seen twice, so collapsing them
 first cuts the bill by roughly the duplication rate.
 
-**Prefilter before enriching too.** Age and previously-closed checks need no ad
-body. Running them early avoids fetching ads that are already disqualified.
-This is why `_prefilter` exists separately from `apply_filters`.
+**Prefilter before enriching too.** Age, previously-closed and deleted-by-you
+checks need no ad body. Running them early avoids fetching ads that are
+already disqualified. This is why `_prefilter` exists separately from
+`apply_filters`.
 
 **Filter after enriching.** Work mode, geography and salary can only be judged
 from the full ad. The listing metadata is wrong often enough — LinkedIn's
 remote tag, We Work Remotely's region tag — that trusting it defeats the point.
 
+**Classify and price during enrichment.** The job family comes from the title
+and the start of the ad (`families.classify`), and the salary estimate starts
+from the family's band, so both need the enriched text but nothing after it.
+
 **Score last.** Scoring needs the requirements that enrichment produced, and it
 is cheap, so it happens once per surviving job.
+
+After the run, if a mailbox is configured and `mail.check_after_search` is on,
+`mail.check_mail` reads the replies since the last check. It is a separate
+step with its own error: a mail server that is down never fails a search.
 
 ## The layers, and what each may depend on
 
 | Layer | May import | Must not import |
 |---|---|---|
 | `models`, `taxonomy`, `textutils` | stdlib, pydantic | anything else in the package |
-| `config`, `storage` | models | pipeline, documents, web |
+| `config`, `storage`, `families` | models, taxonomy, textutils | pipeline, documents, web |
 | `sources/*` | models, config, textutils | pipeline, documents, storage |
-| `pipeline/*` | everything above, `llm` | documents, web |
-| `profile/*`, `documents/*`, `lint/*` | everything above | web |
+| `pipeline/*`, `insights` | everything above, `llm` | documents, web |
+| `profile/*`, `documents/*`, `lint/*`, `mail/*` | everything above | web |
 | `web`, `cli` | everything | — |
 
 The rule that matters: **a source never touches the database and never decides
@@ -92,6 +102,9 @@ model-assisted one, producing the same type:
 | Importing a CV | section-and-bullet heuristics | `prompts.parse_cv` |
 | Headline and summary | template filled from the profile | `prompts.tailor_cv` |
 | Letters | skeleton with bracketed gaps | `prompts.cover_letter` / `recruiter_email` |
+| Form answers | a saved answer from the bank, or the best achievement plus `[pending: …]` | `prompts.form_answer` |
+| A job added by hand | the same rules as any ad | `prompts.read_job_ad` |
+| Replies in the inbox | rule-based, English and Spanish | — (no model: a person's reply is quoted, not interpreted) |
 
 The deterministic path is not a stub — it is the fallback that runs whenever a
 key is missing, a request fails, a budget is exhausted, or a draft fails
@@ -102,15 +115,24 @@ without it", so a model outage degrades quality and never breaks a run.
 
 Two invariants in `storage.py` are worth knowing before you write to it:
 
-1. **Jobs are appended, never deleted.** An ad that disappears is marked
+1. **The pipeline never deletes a job.** An ad that disappears is marked
    `closed`. Deleting it would orphan the user's tracking record and the job
-   would reappear as new next week.
+   would reappear as new next week. Only the user deletes a job
+   (`Database.delete_jobs`), and then everything attached goes with it, the
+   id is remembered so a search does not add the ad back, and a snapshot is
+   kept for a week so the deletion can be undone.
 2. **The pipeline never writes to `applications`.** That table is the user's.
    Search runs update job data around it; the triage state, stage and notes are
    only ever written at the user's request.
 
-`documents_kv` holds the settings and the profile as JSON documents, so the
-pydantic models are the schema of record and adding a field needs no migration.
+`documents_kv` holds the settings, the profile, the replies read from the
+inbox, each job's form-answer thread (`answers:<job id>`), the answer bank and
+the deleted-jobs list as JSON documents, so the pydantic models are the schema
+of record and adding a field needs no migration.
+
+Skills the user adds by hand (`Profile.custom_skills`) are registered with the
+taxonomy every time the profile is loaded or saved
+(`taxonomy.use_custom_skills`), so ads mentioning them are read like any other.
 
 ## Where to hook in
 
@@ -121,8 +143,11 @@ pydantic models are the schema of record and adding a field needs no migration.
 | Change the triage order | `pipeline/focus.py`. It is computed at display time and stored nowhere, so it can never go stale |
 | Say how hard a skill is to pick up | The `_learning_difficulty` block in `resources/skills.yaml` |
 | Add a linter rule | A generator in `lint/rules.py`, added to `PROFILE_RULES` |
+| Add a warning on letters and answers | A `check_*` function in `documents/review.py`, added to `review_text` |
+| Add or reshape a job family | `resources/families.yaml` (keywords and salary bands); users override it in Settings |
+| Recognise another kind of reply | The phrase lists in `mail/classify.py` |
 | Add a CV template | An HTML file in `documents/templates/`; keep it one column, real text, nothing in the margins |
-| Cover a new field of work | Keys in `resources/skills.yaml`; bands in `resources/salary_bands.yaml` |
+| Cover a new field of work | Keys in `resources/skills.yaml`; a family with its bands in `resources/families.yaml` |
 | Support another country | An entry in `resources/countries.yaml` |
 | Change what a model is asked | `llm/prompts.py` — every prompt is a plain function returning `(system, user)`, so they can be diffed and tested |
 

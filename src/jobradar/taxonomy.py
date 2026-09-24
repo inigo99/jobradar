@@ -57,9 +57,45 @@ def _difficulty_rules() -> tuple[str, dict[str, str], dict[str, str]]:
     return default, by_group, overrides
 
 
-@lru_cache(maxsize=1)
+#: Skills the user added in Settings that the shipped taxonomy does not know,
+#: keyed like any other skill. Set from the profile by :func:`use_custom_skills`.
+_CUSTOM: dict[str, Skill] = {}
+#: Prefix of the keys of user-added skills.
+CUSTOM_PREFIX = "custom_"
+
+
+def use_custom_skills(custom: dict[str, list[str]], labels: dict[str, str] | None = None) -> None:
+    """Make the user's own skills part of the vocabulary.
+
+    ``custom`` maps each key to the other names the skill goes by in ads;
+    ``labels`` gives its display name (``Profile.custom_skills`` and
+    ``Profile.skill_labels``). Called whenever the profile is loaded or saved,
+    so a skill added in Settings is read in job ads and checked by the
+    validator like a shipped one.
+    """
+    labels = labels or {}
+    wanted = {}
+    for key, aliases in custom.items():
+        label = labels.get(key) or key.removeprefix(CUSTOM_PREFIX).replace("_", " ")
+        names = dict.fromkeys(a.strip().lower() for a in (label, *aliases) if a and a.strip())
+        wanted[key] = Skill(key=key, label=label, group="custom", aliases=tuple(names),
+                            difficulty=_difficulty_rules()[0])
+    if wanted == _CUSTOM:
+        return
+    _CUSTOM.clear()
+    _CUSTOM.update(wanted)
+    _matchers.cache_clear()
+    _names.cache_clear()
+
+
 def taxonomy() -> dict[str, Skill]:
-    """Every skill known to JobRadar, keyed by its stable key."""
+    """Every skill known to JobRadar, keyed by its stable key: shipped, then the user's."""
+    return {**_shipped(), **_CUSTOM} if _CUSTOM else _shipped()
+
+
+@lru_cache(maxsize=1)
+def _shipped() -> dict[str, Skill]:
+    """The taxonomy in ``resources/skills.yaml``."""
     raw = _raw()
     default, by_group, overrides = _difficulty_rules()
     skills: dict[str, Skill] = {}
@@ -107,6 +143,33 @@ def _matchers() -> list[tuple[str, re.Pattern[str]]]:
             )
     patterns.sort(key=lambda item: -item[2])
     return [(key, pattern) for key, pattern, _ in patterns]
+
+
+@lru_cache(maxsize=1)
+def _names() -> dict[str, str]:
+    """Every alias and label, normalised, -> skill key."""
+    names: dict[str, str] = {}
+    for skill in taxonomy().values():
+        for name in (*skill.aliases, skill.label, skill.key.replace("_", " ")):
+            names.setdefault(_plain_name(name), skill.key)
+    return names
+
+
+def _plain_name(name: str) -> str:
+    return re.sub(r"[\s\-_]+", " ", str(name or "").strip().lower())
+
+
+def skill_for_name(name: str) -> str | None:
+    """The skill a *name* denotes — the whole name, not a word inside it.
+
+    For structured lists ("Soporte vital avanzado", "Excel") where
+    :func:`find_skills` would be wrong: it looks for skills mentioned
+    anywhere in a text, so it would read "soporte" as customer support.
+    """
+    plain = _plain_name(name)
+    if not plain:
+        return None
+    return _names().get(plain) or (_names().get(plain[:-1]) if plain.endswith("s") else None)
 
 
 def find_skills(text: str) -> dict[str, int]:

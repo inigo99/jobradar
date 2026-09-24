@@ -31,6 +31,7 @@ from ..errors import RenderError, describe_os_error
 from ..models import Job, Profile, localized
 from ..textutils import slugify
 from .browser import CHROMIUM_PATH_VARIABLE, launch_chromium
+from .pdfwriter import cv_pdf
 from .tailor import TailoredCV
 
 log = logging.getLogger(__name__)
@@ -57,9 +58,10 @@ SECTION_LABELS: dict[str, dict[str, str]] = {
     "certifications": {"en": "Additional training", "es": "Formación complementaria",
                        "fr": "Formations complémentaires", "de": "Weiterbildung",
                        "pt": "Formação complementar", "it": "Formazione aggiuntiva"},
-    "skills": {"en": "Technical skills", "es": "Competencias técnicas",
-               "fr": "Compétences techniques", "de": "Kenntnisse",
-               "pt": "Competências técnicas", "it": "Competenze tecniche"},
+    "skills": {"en": "Skills", "es": "Competencias", "fr": "Compétences", "de": "Kenntnisse",
+               "pt": "Competências", "it": "Competenze"},
+    "more_skills": {"en": "Also", "es": "Además", "fr": "Également", "de": "Außerdem",
+                    "pt": "Também", "it": "Inoltre"},
     "languages": {"en": "Languages", "es": "Idiomas", "fr": "Langues", "de": "Sprachen",
                   "pt": "Idiomas", "it": "Lingue"},
     "present": {"en": "present", "es": "actualidad", "fr": "aujourd'hui", "de": "heute",
@@ -108,6 +110,8 @@ def format_period(start: str, end: str | None, language: str) -> str:
             return year
         return f"{month} {year}"
 
+    if not start and not end:
+        return ""  # no dates at all is not "until today"
     tail = one(end) if end else label("present", language)
     head = one(start)
     return f"{head} – {tail}" if head else tail
@@ -122,9 +126,10 @@ def build_context(profile: Profile, tailored: TailoredCV, job: Job | None = None
     language = tailored.language
     order = {experience.id: tailored.bullet_order.get(experience.id, []) for experience in profile.experience}
 
+    hidden = set(tailored.hidden_bullets)
     experiences = []
     for experience in profile.experience:
-        by_id = {bullet.id: bullet for bullet in experience.bullets}
+        by_id = {bullet.id: bullet for bullet in experience.bullets if bullet.id not in hidden}
         ordered_ids = [bid for bid in order.get(experience.id, []) if bid in by_id]
         ordered_ids += [bid for bid in by_id if bid not in ordered_ids]
         experiences.append(
@@ -141,6 +146,16 @@ def build_context(profile: Profile, tailored: TailoredCV, job: Job | None = None
     groups_by_key = {group.key: group for group in profile.skills}
     ordered_groups = [groups_by_key[key] for key in tailored.skill_order if key in groups_by_key]
     ordered_groups += [group for group in profile.skills if group not in ordered_groups]
+    ordered_groups = [group for group in ordered_groups
+                      if group.key not in tailored.hidden_skill_groups]
+    skill_groups = [
+        {"label": localized(group.label, language), "items": ", ".join(group.items)}
+        for group in ordered_groups
+        if group.items
+    ]
+    if tailored.extra_skills:
+        skill_groups.append({"label": label("more_skills", language),
+                             "items": ", ".join(tailored.extra_skills)})
 
     return {
         "language": language,
@@ -176,11 +191,7 @@ def build_context(profile: Profile, tailored: TailoredCV, job: Job | None = None
             )
             for item in profile.certifications
         ],
-        "skill_groups": [
-            {"label": localized(group.label, language), "items": ", ".join(group.items)}
-            for group in ordered_groups
-            if group.items
-        ],
+        "skill_groups": skill_groups,
         "languages": [
             f"{localized(item.name, language)}" + (f" ({item.level})" if item.level else "")
             for item in profile.languages
@@ -274,6 +285,26 @@ def _pdf_failure(exc: Exception) -> str:
     return message
 
 
+def _builtin_pdf(context: dict, html_path: Path, pdf_path: Path, settings: Settings,
+                 warnings: list[str]) -> RenderResult:
+    """Print the CV with :mod:`pdfwriter` — no browser needed."""
+    data, pages, scale = cv_pdf(context, settings.cv_max_pages)
+    try:
+        pdf_path.write_bytes(data)
+    except OSError as exc:
+        raise RenderError(
+            f"Cannot write the CV to {pdf_path}: {describe_os_error(exc)}.",
+            hint="Check that the data directory is writable and the disk is not full.",
+        ) from exc
+    fitted = pages <= settings.cv_max_pages
+    if not fitted:
+        warnings.append(
+            f"The CV still runs to {pages} pages at the smallest readable size. "
+            "Shorten an achievement or drop an older position rather than shrinking further."
+        )
+    return RenderResult(html_path, pdf_path, pages, scale, fitted, warnings)
+
+
 def render_cv(
     profile: Profile,
     tailored: TailoredCV,
@@ -291,14 +322,15 @@ def render_cv(
     html = render_html(context, settings.cv_template, 1.0)
     _write(html_path, html)
 
+    if settings.cv_pdf_engine == "builtin":
+        return _builtin_pdf(context, html_path, pdf_path, settings, warnings)
     try:
         import playwright  # noqa: F401
     except ImportError:
-        warnings.append(
-            "Playwright is not installed, so only the HTML was produced. "
-            "Install it with: pip install 'jobradar[pdf]' && playwright install chromium"
-        )
-        return RenderResult(html_path, None, None, 1.0, False, warnings)
+        warnings.append("Playwright is not installed, so the CV was printed with the built-in "
+                        "PDF writer (plainer layout). For the HTML template's typography: "
+                        "pip install 'jobradar[pdf]' && playwright install chromium")
+        return _builtin_pdf(context, html_path, pdf_path, settings, warnings)
 
     pages, fitted, used_scale = None, False, 1.0
     for scale in SCALES:
@@ -308,8 +340,8 @@ def render_cv(
             pages, fitted = _measure_and_print(html, pdf_path, settings.cv_max_pages)
         except Exception as exc:  # Playwright raises its own errors, and browsers crash
             log.warning("PDF rendering failed: %s", exc)
-            warnings.append(_pdf_failure(exc))
-            return RenderResult(html_path, None, None, scale, False, warnings)
+            warnings.append(_pdf_failure(exc) + " The built-in PDF writer was used instead.")
+            return _builtin_pdf(context, html_path, pdf_path, settings, warnings)
         used_scale = scale
         if fitted:
             break

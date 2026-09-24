@@ -86,7 +86,8 @@ NO_GAP_SENTENCE: dict[str, str] = {
 }
 
 
-def _contact_line(profile: Profile, language: str) -> str:
+def contact_line(profile: Profile, language: str) -> str:
+    """Email, phone and LinkedIn on one line, as letters put them under the name."""
     contact = profile.contact
     parts = [contact.email, contact.phone, contact.linkedin]
     return " · ".join(part for part in parts if part)
@@ -107,7 +108,7 @@ def _skeleton(template: dict[str, str], profile: Profile, job: Job, score: Match
         title=job.title,
         company=job.company or "[company]",
         name=profile.contact.name_for(language),
-        contact=_contact_line(profile, language),
+        contact=contact_line(profile, language),
         achievement=_best_achievement(profile, job, language)
         or localized(profile.summary, language)
         or f"[Your strongest achievement relevant to {job.title}.]",

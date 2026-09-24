@@ -30,8 +30,10 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
+from typing import TYPE_CHECKING
 
 from ..config import Paths, Settings
+from ..errors import JobRadarError
 from ..llm import LLMClient, build_client
 from ..models import Job, MatchScore, Profile, SearchRun
 from ..sources import SearchQuery, build_sources
@@ -44,6 +46,9 @@ from .filters import category as filter_category
 from .prune import prune_stale
 from .salary import ExchangeRates
 from .scoring import score_job
+
+if TYPE_CHECKING:
+    from ..mail import MailReport
 
 log = logging.getLogger(__name__)
 
@@ -63,6 +68,10 @@ class SearchResult:
     #: keeps the job is something the user can disagree with.
     filtered: list[tuple[Job, str]] = field(default_factory=list)
     warnings: dict[str, list[str]] = field(default_factory=dict)
+    #: What the inbox check after the run found, when mail is switched on.
+    mail: MailReport | None = None
+    #: Why the inbox could not be checked, when it could not.
+    mail_error: str = ""
 
 
 class SearchPipeline:
@@ -92,12 +101,16 @@ class SearchPipeline:
         self.refresh = refresh
         self._sources = sources
         self._fetcher: Fetcher | None = None
+        #: Enabled sources that will not run this time, filled by sources().
+        self.skipped_sources: list[dict[str, str]] = []
 
     # -- setup -------------------------------------------------------------
 
     def sources(self) -> list[JobSource]:
         if self._sources is None:
-            self._sources, self._fetcher = build_sources(self.settings, self.database.paths.cache_dir)
+            self._sources, self._fetcher = build_sources(
+                self.settings, self.database.paths.cache_dir, today=self.today,
+                skipped=self.skipped_sources)
         return self._sources
 
     def query(self) -> SearchQuery:
@@ -137,12 +150,17 @@ class SearchPipeline:
     def _prefilter(
         self, jobs: list[Job]
     ) -> tuple[list[Job], dict[str, str], list[tuple[Job, str]]]:
-        """Cheap rejections that need no ad body: age and known-closed ads."""
+        """Cheap rejections that need no ad body: deleted, known-closed and old ads."""
         known_closed = self.database.closed_job_ids()
+        deleted = self.database.deleted_job_ids()
         rejected: dict[str, str] = {}
         filtered: list[tuple[Job, str]] = []
         survivors: list[Job] = []
         for job in jobs:
+            if job.id in deleted:
+                # The user deleted this ad from the board; it stays gone.
+                rejected[job.id] = "deleted by you"
+                continue
             if job.id in known_closed:
                 # Not a filter decision: the ad is gone, and it is already
                 # recorded in closed_jobs. Nothing to reconsider.
@@ -227,6 +245,7 @@ class SearchPipeline:
                         llm=self.llm,
                         rates=self.rates,
                         fetch_description=source.fetch_description if source else None,
+                        resolve_work_mode=source.resolve_work_mode if source else None,
                     )
 
             outcome = apply_filters(
@@ -270,6 +289,14 @@ class SearchPipeline:
         result.run.kept = len(result.kept)
         result.run.new = new
         result.run.by_source = by_source
+        result.run.skipped_sources = list(self.skipped_sources)
+        categories: dict[str, int] = {}
+        for _job, reason in result.filtered:
+            key = filter_category(reason)
+            categories[key] = categories.get(key, 0) + 1
+        result.run.filtered_by_category = categories
+        if self._fetcher is not None:
+            result.run.fetch_problems = list(self._fetcher.problems)
         result.run.finished_at = datetime.now(timezone.utc)
         self.database.log_run(result.run)
 
@@ -301,7 +328,18 @@ def run_search(
         refresh=refresh,
     )
     try:
-        return pipeline.run(enrich=enrich)
+        result = pipeline.run(enrich=enrich)
+        if settings.mail.enabled and settings.mail.check_after_search:
+            # A mail problem must not cost the search its results.
+            # Imported here: jobradar.mail uses this package's dedupe helpers.
+            from ..mail import check_mail
+
+            try:
+                result.mail = check_mail(database, settings)
+            except JobRadarError as exc:
+                result.mail_error = f"{exc.message} {exc.hint}".strip()
+                log.warning("Mail check skipped: %s", result.mail_error)
+        return result
     finally:
         if owns_database:
             database.close()

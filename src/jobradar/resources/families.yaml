@@ -1,0 +1,222 @@
+# ---------------------------------------------------------------------------
+# Job families: the kind of work an ad is for, in any sector.
+#
+# A family is used for three things:
+#   1. Ordering: each family can carry a priority (Settings -> Job families),
+#      which nudges the initial order of the board towards the work you want
+#      more of. It never changes the match score shown next to a job.
+#   2. Salary: when an ad publishes no figures, the band below is the starting
+#      point of the estimate (see salary_bands.yaml for the rest of the maths).
+#   3. CV variants: the profile can define, per family, which achievements and
+#      skill groups a tailored CV leads with.
+#
+# How a job is classified: every keyword is matched as a whole word (or
+# phrase) against the title — worth 3 points — and against the first part of
+# the description — worth 1. The family with most points wins; ties go to the
+# family listed first. `*` at the end of a keyword matches a prefix
+# ("enferm*" matches enfermero, enfermera, enfermería).
+#
+# Bands: annual gross, in `salary_bands.yaml`'s base currency, for a
+# Spain-level market (other countries are adjusted there). They are
+# deliberately conservative starting points — edit them for your market, or
+# override one family's band from Settings.
+#
+# Everything here can be renamed, extended or switched off from Settings; this
+# file is only the default catalogue. Add a family by adding a block.
+# ---------------------------------------------------------------------------
+
+software_it:
+  label: Software & IT
+  keywords: [developer, "software engineer", programmer, programador*, desarrollador*,
+             backend, frontend, "full stack", fullstack, devops, "site reliability",
+             "sysadmin", "system administrator", "administrador de sistemas", "it support",
+             "soporte informático", "helpdesk", "help desk", "qa engineer", tester,
+             "cloud engineer", "security engineer", ciberseguridad, cybersecurity,
+             "network engineer", "técnico informático", "ingeniero informático", "scrum master",
+             "platform engineer", "infrastructure engineer", "mobile developer", "ios developer",
+             "android developer", "web developer", "desarrollador web", software]
+  bands: {junior: [22000, 32000], mid: [33000, 48000], senior: [48000, 70000], lead: [65000, 95000]}
+
+data_analytics:
+  label: Data & analytics
+  keywords: ["data scientist", "científico de datos", "data analyst", "analista de datos",
+             "data engineer", "ingeniero de datos", "machine learning", "ml engineer",
+             "ai engineer", "business intelligence", "bi analyst", statistician, estadístico*,
+             "analytics engineer", "inteligencia artificial", "deep learning", "computer vision",
+             "visión artificial", "nlp engineer", "mlops", "llm", "research scientist"]
+  bands: {junior: [24000, 34000], mid: [35000, 52000], senior: [52000, 76000], lead: [70000, 100000]}
+
+engineering:
+  label: Engineering (non-software)
+  keywords: ["mechanical engineer", "ingeniero mecánico", "civil engineer", "ingeniero civil",
+             "electrical engineer", "ingeniero eléctrico", "ingeniero industrial",
+             "industrial engineer", "process engineer", "ingeniero de procesos",
+             "quality engineer", "ingeniero de calidad", "project engineer", "chemical engineer",
+             "ingeniero químico", "structural engineer", "aerospace", "automoción", automotive,
+             "ingeniero de caminos", "design engineer", "maintenance engineer"]
+  bands: {junior: [24000, 32000], mid: [32000, 45000], senior: [45000, 62000], lead: [58000, 85000]}
+
+healthcare:
+  label: Healthcare
+  keywords: [nurse, enfermer*, doctor, médico*, physician, physiotherapist, fisioterapeuta,
+             pharmacist, farmacéutic*, "care assistant", "auxiliar de enfermería", "tcae",
+             "técnico de laboratorio", "lab technician", dentist, dentista, "higienista",
+             psychologist, psicólog*, midwife, matron*, radiographer, "técnico de radiología",
+             paramedic, "técnico en emergencias", "occupational therapist", "terapeuta ocupacional",
+             optometrist, óptico*, veterinar*, "clinical", clínic*, hospital, "healthcare assistant"]
+  bands: {junior: [20000, 26000], mid: [26000, 36000], senior: [36000, 52000], lead: [48000, 75000]}
+
+care_social:
+  label: Social care & community
+  keywords: ["social worker", "trabajador social", "trabajadora social", "educador social",
+             "educadora social", "support worker", "caregiver", cuidador*, "gerocultor*",
+             "auxiliar de ayuda a domicilio", "home care", "youth worker", "integrador social",
+             "community worker", "residential care", "atención sociosanitaria"]
+  bands: {junior: [17000, 21000], mid: [21000, 27000], senior: [27000, 36000], lead: [34000, 48000]}
+
+education:
+  label: Education & training
+  keywords: [teacher, profesor*, maestr*, docente, tutor, lecturer, "teaching assistant",
+             "auxiliar de conversación", formador*, trainer, "instructional designer",
+             "orientador*", "educador infantil", "educadora infantil", pedagog*, "school",
+             academia, "early years", catedrátic*, "e-learning"]
+  bands: {junior: [18000, 24000], mid: [24000, 32000], senior: [32000, 44000], lead: [42000, 60000]}
+
+sales:
+  label: Sales & business development
+  keywords: [sales, ventas, comercial, "account executive", "account manager",
+             "business development", "desarrollo de negocio", "key account", "sales representative",
+             "representante de ventas", "delegado comercial", vendedor*, "inside sales",
+             "pre-sales", preventa, "sales engineer"]
+  bands: {junior: [20000, 28000], mid: [28000, 42000], senior: [42000, 62000], lead: [60000, 95000]}
+
+marketing_communication:
+  label: Marketing & communication
+  keywords: [marketing, "community manager", "social media", seo, sem, "content manager",
+             "content creator", copywriter, redactor*, "communications", comunicación,
+             "public relations", "relaciones públicas", "brand manager", "growth",
+             "periodista", journalist, "digital marketing", "product marketing"]
+  bands: {junior: [18000, 26000], mid: [26000, 38000], senior: [38000, 55000], lead: [52000, 80000]}
+
+customer_service:
+  label: Customer service & support
+  keywords: ["customer service", "atención al cliente", "customer support", "call center",
+             "contact center", teleoperador*, "customer success", "customer care",
+             "servicio al cliente", "help line", recepcionista, receptionist]
+  bands: {junior: [16000, 20000], mid: [20000, 26000], senior: [26000, 34000], lead: [32000, 46000]}
+
+finance_accounting:
+  label: Finance & accounting
+  keywords: [accountant, contable, contabilidad, accounting, "financial analyst",
+             "analista financiero", auditor*, "controller", "controlling", tesorer*, treasury,
+             "tax advisor", "asesor fiscal", payroll, nóminas, "accounts payable",
+             "accounts receivable", "finance manager", "director financiero", cfo, "bookkeeper",
+             "analista de riesgos", "risk analyst", actuar*]
+  bands: {junior: [20000, 27000], mid: [27000, 40000], senior: [40000, 58000], lead: [55000, 90000]}
+
+legal:
+  label: Legal
+  keywords: [lawyer, abogad*, solicitor, attorney, paralegal, jurista, "legal counsel",
+             "asesor jurídico", "asesora jurídica", "compliance", notari*, "legal assistant",
+             "procurador*", "graduado social"]
+  bands: {junior: [20000, 28000], mid: [28000, 42000], senior: [42000, 65000], lead: [60000, 100000]}
+
+human_resources:
+  label: Human resources
+  keywords: ["human resources", "recursos humanos", rrhh, recruiter, reclutador*,
+             "talent acquisition", "hr business partner", "técnico de selección",
+             "técnica de selección", "people partner", "people operations",
+             "learning and development", "compensation and benefits", "relaciones laborales"]
+  bands: {junior: [19000, 26000], mid: [26000, 38000], senior: [38000, 54000], lead: [50000, 80000]}
+
+administration_office:
+  label: Administration & office
+  keywords: [administrativ*, "office manager", "administrative assistant", secretari*,
+             "executive assistant", "personal assistant", "asistente de dirección",
+             "data entry", "back office", "auxiliar administrativo", "gestor administrativo",
+             "office assistant", "recepción"]
+  bands: {junior: [16000, 20000], mid: [20000, 26000], senior: [26000, 34000], lead: [32000, 45000]}
+
+logistics_transport:
+  label: Logistics & transport
+  keywords: [logistics, logística, "supply chain", "cadena de suministro", warehouse, almacén,
+             mozo*, carretiller*, "forklift", driver, conductor*, chófer, repartidor*,
+             "delivery driver", "transport planner", "jefe de tráfico", "procurement",
+             compras, buyer, "comprador", "operario de almacén", picking]
+  bands: {junior: [17000, 21000], mid: [21000, 28000], senior: [28000, 40000], lead: [38000, 58000]}
+
+manufacturing_trades:
+  label: Manufacturing & skilled trades
+  keywords: [electrician, electricista, plumber, fontaner*, welder, soldador*, mechanic,
+             mecánic*, carpenter, carpinter*, "machine operator", "operario de producción",
+             "operario", "production operator", "maintenance technician", "técnico de mantenimiento",
+             "cnc", tornero, fresador*, "industrial technician", "painter", pintor*, albañil,
+             "hvac", climatización, "line worker"]
+  bands: {junior: [17000, 21000], mid: [21000, 28000], senior: [28000, 38000], lead: [36000, 52000]}
+
+construction_property:
+  label: Construction & property
+  keywords: ["site manager", "jefe de obra", "encargado de obra", "construction manager",
+             "quantity surveyor", aparejador*, "arquitecto técnico", architect, arquitect*,
+             "project manager construction", "real estate", inmobiliari*, "property manager",
+             "facility manager", "facilities", topógraf*, "building surveyor", "delineante"]
+  bands: {junior: [20000, 26000], mid: [26000, 36000], senior: [36000, 52000], lead: [50000, 75000]}
+
+hospitality_tourism:
+  label: Hospitality, food & tourism
+  keywords: [chef, cocinero*, "ayudante de cocina", "kitchen porter", waiter, camarer*,
+             bartender, barista, "hotel", hotel*, "front desk", "guest relations", "housekeeping",
+             "camarera de pisos", "tour guide", "guía turístico", "travel agent",
+             "agente de viajes", "restaurant manager", "jefe de sala", sumiller*, "event coordinator"]
+  bands: {junior: [16000, 19000], mid: [19000, 24000], senior: [24000, 32000], lead: [30000, 45000]}
+
+retail:
+  label: Retail
+  keywords: ["shop assistant", "dependient*", "sales assistant", "store manager",
+             "encargado de tienda", "encargada de tienda", cajer*, cashier, "visual merchandiser",
+             "retail", "reponedor*", "category manager", "jefe de sección"]
+  bands: {junior: [16000, 19000], mid: [19000, 24000], senior: [24000, 32000], lead: [30000, 45000]}
+
+design_creative:
+  label: Design & creative
+  keywords: [designer, diseñador*, "graphic design", "diseño gráfico", "ux", "ui designer",
+             "product designer", illustrator, ilustrador*, animator, animador*, photographer,
+             fotógraf*, "video editor", "editor de vídeo", "art director", "director de arte",
+             "motion graphics", "3d artist", "interior designer", interiorista]
+  bands: {junior: [19000, 26000], mid: [26000, 38000], senior: [38000, 55000], lead: [52000, 78000]}
+
+science_research:
+  label: Science & research
+  keywords: [researcher, investigador*, scientist, científic*, "research assistant",
+             "postdoc", postdoctoral, "phd", doctorand*, biólog*, biologist, químic*, chemist,
+             "laboratory", laboratorio, "r&d", "i+d", "clinical research", "ensayos clínicos"]
+  bands: {junior: [20000, 26000], mid: [26000, 36000], senior: [36000, 52000], lead: [50000, 75000]}
+
+public_security:
+  label: Public sector, security & safety
+  keywords: ["security guard", vigilante*, "seguridad privada", "firefighter", bomber*,
+             "police", polic*, "civil servant", funcionari*, oposición, oposiciones,
+             "administración pública", "public administration", "health and safety",
+             "prevención de riesgos", "safety officer", socorrista, lifeguard]
+  bands: {junior: [18000, 23000], mid: [23000, 30000], senior: [30000, 40000], lead: [38000, 55000]}
+
+agriculture_environment:
+  label: Agriculture & environment
+  keywords: [agrícola, agricultural, agronom*, farm, granja, "farm worker", "peón agrícola",
+             jardiner*, gardener, forestal, forestry, environmental, "medio ambiente",
+             "environmental technician", "técnico ambiental", sostenibilidad, sustainability,
+             "energy", renovables, "renewable energy", veterinary]
+  bands: {junior: [17000, 22000], mid: [22000, 30000], senior: [30000, 42000], lead: [40000, 58000]}
+
+management:
+  label: Management & leadership
+  keywords: ["general manager", "director general", "managing director", "operations manager",
+             "director de operaciones", "head of", "chief", ceo, coo, "country manager",
+             "project manager", "jefe de proyecto", "program manager", "product manager",
+             "product owner", "gerente"]
+  bands: {junior: [26000, 34000], mid: [34000, 50000], senior: [50000, 75000], lead: [70000, 120000]}
+
+general:
+  label: General
+  keywords: []
+  bands: {junior: [18000, 26000], mid: [26000, 38000], senior: [38000, 56000], lead: [52000, 80000]}

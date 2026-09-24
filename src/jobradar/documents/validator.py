@@ -56,24 +56,24 @@ class ValidationReport:
         return [finding.message for finding in self.findings]
 
 
-def _profile_numbers(profile: Profile) -> set[str]:
+def profile_numbers(profile: Profile) -> set[str]:
     """Every number the profile itself contains, plus its derived totals."""
     numbers = {
-        _canonical(match.group(1))
+        canonical_number(match.group(1))
         for match in NUMBER.finditer(profile_text(profile))
         if match.group(1)
     }
     years = profile.years_of_experience()
     for value in {years, int(years), round(years), int(years) + 1}:
-        numbers.add(_canonical(str(value)))
+        numbers.add(canonical_number(str(value)))
     for experience in profile.experience:
         for part in (experience.start or "", experience.end or ""):
             for chunk in re.findall(r"\d+", part):
-                numbers.add(_canonical(chunk))
+                numbers.add(canonical_number(chunk))
     return numbers
 
 
-def _canonical(raw: str) -> str:
+def canonical_number(raw: str) -> str:
     """Compare numbers by value, not by formatting: 3.500 == 3,500 == 3500."""
     digits = re.sub(r"[.,](?=\d{3}\b)", "", raw.strip())
     digits = digits.rstrip(".,")
@@ -135,11 +135,11 @@ def check_invented_skills(text: str, profile: Profile) -> list[LintFinding]:
 
 def check_invented_numbers(text: str, profile: Profile) -> list[LintFinding]:
     """Figures that appear in the document but nowhere in the profile."""
-    known = _profile_numbers(profile)
+    known = profile_numbers(profile)
     findings: list[LintFinding] = []
     seen: set[str] = set()
     for match in NUMBER.finditer(text):
-        canonical = _canonical(match.group(1))
+        canonical = canonical_number(match.group(1))
         if canonical in seen or canonical in known:
             continue
         try:

@@ -17,11 +17,13 @@ from __future__ import annotations
 import logging
 
 from ..config import Settings
+from ..families import classify, families_for
 from ..llm import LLMClient
 from ..llm.prompts import read_job_ad
 from ..models import Job, RemoteScope, Requirement, Salary, SalaryOrigin, WorkMode
 from ..taxonomy import find_skills, label_for
 from ..textutils import (
+    AGENCY_MARKERS,
     detect_language,
     detect_remote_scope,
     detect_work_mode,
@@ -46,14 +48,6 @@ NICE_TO_HAVE_MARKERS = (
 )
 
 MAX_REQUIREMENTS = 20
-
-#: Phrases that mean the real employer is hidden behind an intermediary.
-AGENCY_MARKERS = (
-    "our client", "nuestro cliente", "cliente final", "on behalf of our client",
-    "leading company in the sector", "importante empresa del sector",
-    "empresa líder del sector", "confidential client",
-)
-
 
 # ---------------------------------------------------------------------------
 # Requirement extraction without a model
@@ -201,7 +195,8 @@ def _apply_model_reading(job: Job, data: dict) -> None:
             )
         except (KeyError, TypeError, ValueError):
             continue
-    if requirements:
+    # A board's own structured requirements (Manfred) beat a model's reading.
+    if requirements and not job.raw.get("structured_requirements"):
         job.requirements = requirements[:MAX_REQUIREMENTS]
 
     try:
@@ -250,17 +245,33 @@ def _apply_model_reading(job: Job, data: dict) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _apply_board_label(job: Job, resolve_work_mode) -> None:
+    """Settle an unconfirmed "remote" with the board's own label, if it has one."""
+    try:
+        mode = resolve_work_mode(job)
+    except Exception as exc:  # a source must never break a whole run
+        log.debug("Could not read the work-mode label for %s: %s", job.id, exc)
+        return
+    if mode is None or mode == WorkMode.UNKNOWN:
+        return
+    job.work_mode = mode
+    job.raw.pop("remote_unconfirmed", None)
+    job.raw["work_mode_evidence"] = f"The board's own label says {mode.value}."
+
+
 def enrich_job(
     job: Job,
     settings: Settings,
     llm: LLMClient | None = None,
     rates: ExchangeRates | None = None,
     fetch_description=None,
+    resolve_work_mode=None,
 ) -> Job:
     """Bring one job up to the standard the rest of the pipeline expects.
 
-    ``fetch_description`` is the owning source's method, passed in rather than
-    looked up so this function stays testable without any network.
+    ``fetch_description`` and ``resolve_work_mode`` are the owning source's
+    methods, passed in rather than looked up so this function stays testable
+    without any network.
     """
     if fetch_description and len(job.description or "") < 400:
         try:
@@ -269,6 +280,8 @@ def enrich_job(
             log.debug("Could not fetch the full ad for %s: %s", job.id, exc)
 
     derive_fields(job)
+    if resolve_work_mode and job.raw.get("remote_unconfirmed"):
+        _apply_board_label(job, resolve_work_mode)
 
     used_model = False
     if llm and settings.llm.enrich_jobs and (job.description or ""):
@@ -281,7 +294,11 @@ def enrich_job(
     if not job.requirements:
         job.requirements = extract_requirements_by_keyword(job)
 
-    job.salary = normalise_salary(job, settings.filters.salary_currency, rates)
+    families = families_for(settings)
+    if not job.raw.get("family_set_by_user"):
+        job.family = classify(job, families)
+    job.salary = normalise_salary(job, settings.filters.salary_currency, rates,
+                                  families, settings.filters.home_country)
 
     if job.alerts is None:
         job.alerts = []

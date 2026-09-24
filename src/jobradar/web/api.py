@@ -12,7 +12,7 @@ from datetime import date
 from pydantic import BaseModel, Field
 
 from ..config import Filters, Settings
-from ..models import ApplicationStage, ApplicationStatus
+from ..models import ApplicationStage, ApplicationStatus, CvVariant, LimitUnit, WorkMode
 
 
 class OnboardingPayload(BaseModel):
@@ -51,12 +51,98 @@ class ApplicationPayload(BaseModel):
     notes: str = ""
 
 
+class SkillGroupEdit(BaseModel):
+    """One line of the CV's skills block, as edited in Settings."""
+
+    key: str = ""
+    label: str = Field(min_length=1, max_length=80)
+    items: list[str] = Field(default_factory=list)
+
+
+class SkillRowEdit(BaseModel):
+    """One skill of the evidence table in Settings; ``key`` empty for a new one."""
+
+    key: str = ""
+    name: str = Field(default="", max_length=80)
+    evidence: float = Field(ge=0.0, le=1.0)
+    ceiling: float = Field(ge=0.0, le=1.0)
+    #: Other names the skill goes by in ads (only for skills JobRadar did not know).
+    aliases: list[str] = Field(default_factory=list)
+
+
+class SkillsPayload(BaseModel):
+    """The whole skills editor: listed groups, evidence table, deleted skills."""
+
+    groups: list[SkillGroupEdit] = Field(default_factory=list)
+    skills: list[SkillRowEdit] = Field(default_factory=list)
+    deleted: list[str] = Field(default_factory=list)
+
+
 class ProfilePatch(BaseModel):
     """Edits to the parts of the profile the dashboard exposes directly."""
 
     summary: str | None = None
     evidence: dict[str, float] | None = None
     ceiling: dict[str, float] | None = None
+    #: The CV variant per job family; replaces the stored set when given.
+    family_variants: dict[str, CvVariant] | None = None
+
+
+class DocumentTextPayload(BaseModel):
+    """The user's edited text of a cover letter or application email."""
+
+    text: str
+
+
+class QuestionPayload(BaseModel):
+    """A question pasted from an application form, or a refinement of the last answer."""
+
+    question: str = Field(min_length=1, max_length=4000)
+
+
+class AnswerLimitPayload(BaseModel):
+    """The form's own length limit for this job's answers (``None`` = no limit)."""
+
+    limit: int | None = Field(default=None, ge=1, le=100_000)
+    unit: LimitUnit = LimitUnit.CHARACTERS
+
+
+class BankEditPayload(BaseModel):
+    """A hand edit to a saved answer."""
+
+    question: str = Field(min_length=1)
+    answer: str = Field(min_length=1)
+
+
+class ManualJobPayload(BaseModel):
+    """A job the user found themselves: a referral, a newspaper ad, a company page.
+
+    The ad's text is read the same way as a board's (by the language model
+    when one is configured, by rules otherwise) to find its family,
+    requirements, years asked for and anything worth asking about.
+    """
+
+    title: str = Field(min_length=1, max_length=300)
+    company: str = Field(default="", max_length=300)
+    url: str = Field(default="", max_length=2000)
+    location: str = Field(default="", max_length=300)
+    work_mode: WorkMode = WorkMode.UNKNOWN
+    description: str = Field(default="", max_length=60_000)
+    #: A family key to force; empty lets JobRadar classify the job.
+    family: str = ""
+    salary_min: int | None = Field(default=None, ge=0)
+    salary_max: int | None = Field(default=None, ge=0)
+    salary_currency: str = "EUR"
+    status: ApplicationStatus = ApplicationStatus.ACTIVE
+    stage: ApplicationStage | None = None
+    applied_on: date | None = None
+    notes: str = ""
+
+
+class JobIdsPayload(BaseModel):
+    """Several jobs at once, for bulk deletion and its undo."""
+
+    ids: list[str] = Field(min_length=1, max_length=2000)
 
 
 class JobView(BaseModel):
@@ -90,6 +176,8 @@ class JobView(BaseModel):
     strengths: list[str]
     #: Triage order: the match score less what is already known to go nowhere.
     #: Computed fresh on every request, never stored, so it cannot go stale.
+    family: str = ""
+    family_label: str = ""
     focus: float = 0.0
     #: One sentence saying why this job sits where it does. A ranking nobody
     #: can audit is a ranking nobody should trust.
@@ -117,3 +205,10 @@ class FilteredView(BaseModel):
     reason_shape: str = ""
     category: str = "other"
     filtered_at: str = ""
+    min_years: int | None = None
+    family: str = ""
+    family_label: str = ""
+    salary_min: int | None = None
+    salary_max: int | None = None
+    salary_currency: str = "EUR"
+    salary_origin: str = "unknown"

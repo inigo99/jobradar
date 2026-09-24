@@ -34,6 +34,7 @@ from __future__ import annotations
 import re
 from datetime import date
 
+from ..families import Family, label_for, priority_for
 from ..models import Job, MatchScore
 
 #: Title words that, in practice, mean the shortlist wants more years than a
@@ -75,6 +76,7 @@ def focus_for(
     score: MatchScore | None,
     today: date | None = None,
     max_years: float | None = None,
+    families: dict[str, Family] | None = None,
 ) -> tuple[float, str]:
     """``(focus, reason)`` for one job.
 
@@ -82,6 +84,10 @@ def focus_for(
     senior title is only penalised if the ad also asks for more years than the
     candidate has, or says nothing about years — an ad titled "Senior Engineer"
     that then asks for three years is not actually out of reach.
+
+    ``families`` carries the user's priority per job family (Settings ->
+    Job families). It only moves a job up or down the board; the match score
+    shown next to it stays the honest one.
     """
     base = score.tailored if score else 0.0
     factor, freshness_reason = _freshness(job.age_days(today))
@@ -99,6 +105,13 @@ def focus_for(
         factor *= PUBLISHED_SALARY_BONUS
         reasons.append("publishes a salary band")
 
+    if families:
+        priority = priority_for(job, families)
+        if priority != 1.0:
+            factor *= priority
+            direction = "prioritise" if priority > 1.0 else "deprioritise"
+            reasons.append(f"you {direction} {label_for(job.family, families)} (x{priority:g})")
+
     return round(base * factor, 1), "; ".join(reasons)
 
 
@@ -106,10 +119,11 @@ def rank(
     jobs: list[tuple[Job, MatchScore | None]],
     today: date | None = None,
     max_years: float | None = None,
+    families: dict[str, Family] | None = None,
 ) -> list[tuple[Job, MatchScore | None, float, str]]:
     """Every job with its focus, highest first."""
     scored = [
-        (job, score) + focus_for(job, score, today, max_years)
+        (job, score) + focus_for(job, score, today, max_years, families)
         for job, score in jobs
     ]
     scored.sort(key=lambda item: -item[2])

@@ -19,7 +19,7 @@ import logging
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, Field, ValidationError
@@ -167,12 +167,38 @@ class Filters(BaseModel):
         return countries
 
 
+class FamilyOverride(BaseModel):
+    """The user's change to one job family (see ``jobradar/families.py``).
+
+    Every field left at its default keeps the catalogue's value, so a family
+    the user only re-prioritised still gets keyword improvements from later
+    versions. A key that is not in the catalogue defines a family of the
+    user's own, which then needs a ``label`` and ``keywords``.
+    """
+
+    label: str | None = None
+    #: Replaces the catalogue's keywords when set (an empty list clears them).
+    keywords: list[str] | None = None
+    #: Multiplier on the board's initial order: 1.0 neutral, above it favours
+    #: the family, below it pushes it down. Never changes the match score.
+    priority: float = Field(default=1.0, ge=0.0, le=3.0)
+    enabled: bool = True
+    #: ``{"junior": [min, max], "mid": ..., "senior": ..., "lead": ...}``.
+    bands: dict[str, list[int]] | None = None
+
+
 class SourceSettings(BaseModel):
     """Which adapters run, and how politely."""
 
     #: Source ids to run. Empty means "every source enabled by default".
     enabled: list[str] = Field(default_factory=list)
     disabled: list[str] = Field(default_factory=list)
+    #: Sources run only once a week, on ``weekly_day``. For low-yield boards
+    #: whose ads stay up for weeks: checking them daily costs requests and
+    #: finds the same few ads again.
+    weekly: list[str] = Field(default_factory=list)
+    #: Day the weekly sources run, 0 = Monday ... 6 = Sunday.
+    weekly_day: int = Field(default=0, ge=0, le=6)
     #: Extra company domains or ATS board slugs to crawl, e.g.
     #: ``["stripe.com", "greenhouse:airbnb", "lever:netflix"]``.
     company_domains: list[str] = Field(default_factory=list)
@@ -272,6 +298,21 @@ class NotificationSettings(BaseModel):
     min_score: float = 0.0
 
 
+class MailSettings(BaseModel):
+    """Reading the user's inbox for replies to applications (read-only IMAP).
+
+    The server and credentials come from the environment (``JOBRADAR_IMAP_*``
+    in ``.env``) and are never stored in the database.
+    """
+
+    enabled: bool = False
+    #: How far back the first check looks; later checks start where the last
+    #: one ended.
+    days_back: int = Field(default=30, ge=1, le=365)
+    #: Also check the inbox at the end of every search run.
+    check_after_search: bool = True
+
+
 class SearchSettings(BaseModel):
     """What the user is looking for."""
 
@@ -301,6 +342,9 @@ class Settings(BaseModel):
     sources: SourceSettings = Field(default_factory=SourceSettings)
     llm: LLMSettings = Field(default_factory=LLMSettings)
     notifications: NotificationSettings = Field(default_factory=NotificationSettings)
+    mail: MailSettings = Field(default_factory=MailSettings)
+    #: Changes to the job-family catalogue, keyed by family key.
+    families: dict[str, FamilyOverride] = Field(default_factory=dict)
 
     #: Applications a week the user is aiming for. Drives the "Today" queue,
     #: which is the answer to "a board with two hundred jobs, now what".
@@ -318,6 +362,13 @@ class Settings(BaseModel):
     cv_template: str = "classic"
     #: Hard cap on CV length; the renderer shrinks type until it fits.
     cv_max_pages: int = 1
+    #: How the CV PDF is printed: "auto" uses a browser (Playwright) when one
+    #: is available and the built-in writer otherwise; "builtin" always uses
+    #: the built-in writer, which needs no browser but lays out more plainly.
+    cv_pdf_engine: Literal["auto", "builtin"] = "auto"
+    #: Phrases you never use, flagged in letters, emails and form answers on
+    #: top of the built-in list (see documents/review.py).
+    banned_phrases: list[str] = Field(default_factory=list)
 
     @classmethod
     def from_yaml(cls, path: str | Path) -> Settings:

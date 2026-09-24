@@ -201,3 +201,89 @@ def test_plain_http_never_imports_scrapling(fetcher, monkeypatch):
     with respx.mock:
         respx.get("https://example.test/jobs").mock(return_value=httpx.Response(200, text="ok"))
         assert fetcher.get("https://example.test/jobs") == "ok"
+
+
+# ---------------------------------------------------------------------------
+# Why the restricted sources returned nothing (fixed): Scrapling rejects
+# retries=0, robots.txt disallows every bot, and the browser build may not match.
+# ---------------------------------------------------------------------------
+
+
+def test_browser_get_passes_a_retry_count_scrapling_accepts(fetcher, monkeypatch):
+    calls = []
+
+    def fake_fetch(url, **kwargs):
+        calls.append(kwargs)
+        return FakePage(200, b"ok")
+
+    _install_fake_scrapling(monkeypatch, dynamic_fetch=fake_fetch)
+    fetcher.get("https://example.test/x", browser="dynamic")
+    assert calls[0]["retries"] >= 1
+
+
+def test_missing_browser_build_falls_back_to_an_installed_one(fetcher, monkeypatch, tmp_path):
+    from jobradar.documents import browser
+
+    chrome = tmp_path / "chrome"
+    monkeypatch.delenv(browser.CHROMIUM_PATH_VARIABLE, raising=False)
+    monkeypatch.setattr(browser, "fallback_executables", lambda: [chrome])
+    calls = []
+
+    def fake_fetch(url, **kwargs):
+        calls.append(kwargs.get("executable_path"))
+        if "executable_path" not in kwargs:
+            raise RuntimeError("BrowserType.launch: Executable doesn't exist at /x/chrome")
+        return FakePage(200, b"from fallback")
+
+    _install_fake_scrapling(monkeypatch, dynamic_fetch=fake_fetch)
+    assert fetcher.get("https://example.test/a", browser="dynamic") == "from fallback"
+    # The working browser is remembered: the next page goes straight to it.
+    assert fetcher.get("https://example.test/b", browser="dynamic") == "from fallback"
+    assert calls == [None, str(chrome), str(chrome)]
+
+
+def test_no_browser_at_all_is_reported_once(fetcher, monkeypatch, caplog):
+    from jobradar.documents import browser
+
+    monkeypatch.delenv(browser.CHROMIUM_PATH_VARIABLE, raising=False)
+    monkeypatch.setattr(browser, "fallback_executables", lambda: [])
+
+    def fake_fetch(url, **kwargs):
+        raise RuntimeError("Executable doesn't exist at /x/chrome")
+
+    _install_fake_scrapling(monkeypatch, dynamic_fetch=fake_fetch)
+    with caplog.at_level("WARNING"):
+        for page in ("a", "b", "c"):
+            assert fetcher.get(f"https://example.test/{page}", browser="dynamic", retries=0) is None
+    assert caplog.text.count("No browser could be started") == 1
+
+
+def test_challenge_page_is_reported(fetcher, monkeypatch, caplog):
+    _install_fake_scrapling(monkeypatch, dynamic_fetch=lambda url, **kw: FakePage(405, b"captcha"))
+    with caplog.at_level("WARNING"):
+        assert fetcher.get("https://example.test/jobs", browser="dynamic", retries=0) is None
+    assert "HTTP 405" in caplog.text and "challenge" in caplog.text
+
+
+@respx.mock
+def test_restricted_sources_do_not_consult_robots_txt(tmp_path, monkeypatch):
+    from jobradar.sources.base import JobSource
+
+    robots = respx.get("https://board.test/robots.txt").mock(
+        return_value=httpx.Response(200, text="User-agent: *\nDisallow: /"))
+    respx.get("https://board.test/jobs").mock(return_value=httpx.Response(200, text="jobs"))
+    fetcher = Fetcher(SourceSettings(request_delay=0.0, respect_robots=True), tmp_path / "c")
+
+    class Restricted(JobSource):
+        id, tos_tier = "restricted-test", "restricted"
+
+        def search(self, query):
+            return []
+
+    class Open(Restricted):
+        id, tos_tier = "open-test", "open"
+
+    assert Open(fetcher).get("https://board.test/jobs") is None  # robots.txt says no
+    assert Restricted(fetcher).get("https://board.test/jobs", use_cache=False) == "jobs"
+    assert robots.call_count == 1
+    fetcher.close()

@@ -41,7 +41,8 @@ class SweepReport:
 def sweep_closed(database: Database, limit: int | None = None) -> SweepReport:
     """Check every untouched active job and mark the dead ones closed."""
     settings = database.load_settings()
-    sources, fetcher = build_sources(settings, database.paths.cache_dir)
+    # Closed ads are checked on every source, weekly ones included.
+    sources, fetcher = build_sources(settings, database.paths.cache_dir, every_day=True)
     by_id: dict[str, JobSource] = {source.id: source for source in sources}
     tracked = {
         job_id
