@@ -37,6 +37,7 @@ from .models import (
     ApplicationStatus,
     GeneratedDocument,
     Job,
+    MailNews,
     MatchScore,
     Profile,
     SearchRun,
@@ -690,6 +691,58 @@ class Database:
         return {
             r["kind"]: _model(GeneratedDocument, r["payload"], "document") for r in rows
         }
+
+    # -- mail ---------------------------------------------------------------
+    # News and orphans are small and rewritten whole on each check, so they
+    # live in the key/value table rather than tables of their own.
+
+    def mail_news(self) -> dict[str, MailNews]:
+        """The latest reply per job id."""
+        data = self._get_doc("mail_news") or {}
+        news: dict[str, MailNews] = {}
+        for job_id, payload in data.items():
+            try:
+                news[job_id] = MailNews.model_validate(payload)
+            except ValidationError as exc:
+                log.warning("Skipping stored mail news for %s: %s", job_id, exc)
+        return news
+
+    def save_mail_news(self, items: Iterable[MailNews]) -> None:
+        """Merge new replies in, keeping the newest one per job."""
+        current = self.mail_news()
+        for item in items:
+            known = current.get(item.job_id)
+            if known is None or item.received_at >= known.received_at:
+                current[item.job_id] = item
+        self._put_doc("mail_news", {k: v.model_dump(mode="json") for k, v in current.items()})
+
+    def mail_orphans(self) -> list[MailNews]:
+        data = self._get_doc("mail_orphans") or {}
+        orphans: list[MailNews] = []
+        for payload in data.get("items", []):
+            try:
+                orphans.append(MailNews.model_validate(payload))
+            except ValidationError as exc:
+                log.warning("Skipping a stored unmatched mail: %s", exc)
+        return orphans
+
+    def save_mail_orphans(self, items: Iterable[MailNews], keep: int = 50) -> None:
+        """Merge by message id, newest first, keeping the most recent ``keep``."""
+        merged = {o.message_id or o.subject: o for o in self.mail_orphans()}
+        for item in items:
+            merged[item.message_id or item.subject] = item
+        ordered = sorted(merged.values(), key=lambda o: o.received_at, reverse=True)[:keep]
+        self._put_doc("mail_orphans", {"items": [o.model_dump(mode="json") for o in ordered]})
+
+    def mail_checked_on(self) -> date | None:
+        data = self._get_doc("mail_state") or {}
+        try:
+            return date.fromisoformat(data["checked_on"]) if data.get("checked_on") else None
+        except ValueError:
+            return None
+
+    def set_mail_checked_on(self, day: date) -> None:
+        self._put_doc("mail_state", {"checked_on": day.isoformat()})
 
     # -- run log ------------------------------------------------------------
 

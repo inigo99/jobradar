@@ -30,8 +30,10 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
+from typing import TYPE_CHECKING
 
 from ..config import Paths, Settings
+from ..errors import JobRadarError
 from ..llm import LLMClient, build_client
 from ..models import Job, MatchScore, Profile, SearchRun
 from ..sources import SearchQuery, build_sources
@@ -44,6 +46,9 @@ from .filters import category as filter_category
 from .prune import prune_stale
 from .salary import ExchangeRates
 from .scoring import score_job
+
+if TYPE_CHECKING:
+    from ..mail import MailReport
 
 log = logging.getLogger(__name__)
 
@@ -63,6 +68,10 @@ class SearchResult:
     #: keeps the job is something the user can disagree with.
     filtered: list[tuple[Job, str]] = field(default_factory=list)
     warnings: dict[str, list[str]] = field(default_factory=dict)
+    #: What the inbox check after the run found, when mail is switched on.
+    mail: MailReport | None = None
+    #: Why the inbox could not be checked, when it could not.
+    mail_error: str = ""
 
 
 class SearchPipeline:
@@ -303,7 +312,18 @@ def run_search(
         refresh=refresh,
     )
     try:
-        return pipeline.run(enrich=enrich)
+        result = pipeline.run(enrich=enrich)
+        if settings.mail.enabled and settings.mail.check_after_search:
+            # A mail problem must not cost the search its results.
+            # Imported here: jobradar.mail uses this package's dedupe helpers.
+            from ..mail import check_mail
+
+            try:
+                result.mail = check_mail(database, settings)
+            except JobRadarError as exc:
+                result.mail_error = f"{exc.message} {exc.hint}".strip()
+                log.warning("Mail check skipped: %s", result.mail_error)
+        return result
     finally:
         if owns_database:
             database.close()

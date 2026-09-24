@@ -120,6 +120,25 @@ function settingsBody() {
     familiesFieldset(),
 
     el("fieldset", {},
+      el("legend", {}, "Replies in your email"),
+      el("p", { className: "hint" },
+        STATE.mail_configured
+          ? "Your mail server is configured. JobRadar reads it without changing anything: " +
+            "nothing is marked as read, moved or answered."
+          : "Set JOBRADAR_IMAP_HOST, JOBRADAR_IMAP_USER and JOBRADAR_IMAP_PASSWORD (an app " +
+            "password) in your .env file first; see .env.example."),
+      el("div", { className: "row", style: "margin-top:6px" },
+        el("input", { type: "checkbox", id: "s_mail", checked: settings.mail.enabled }),
+        el("label", { style: "margin:0" },
+          "Read replies to my applications (rejections, next steps, interview times)")),
+      el("div", { className: "row", style: "margin-top:6px" },
+        el("input", { type: "checkbox", id: "s_mailsearch", checked: settings.mail.check_after_search }),
+        el("label", { style: "margin:0" }, "Also check after every search")),
+      el("label", {}, "First check looks back this many days"),
+      el("input", { id: "s_maildays", type: "number", min: "1", max: "365", value: settings.mail.days_back }),
+    ),
+
+    el("fieldset", {},
       el("legend", {}, "Language model (optional)"),
       el("p", { className: "hint" },
         "Everything works without one. A model reads each ad properly and writes the summary " +
@@ -279,6 +298,9 @@ async function saveSettings() {
   settings.sources.weekly = [...document.querySelectorAll(".s_weekly:checked")].map(n => n.value);
   settings.sources.weekly_day = Number(value("s_weeklyday") || 0);
   settings.families = collectFamilies();
+  settings.mail.enabled = $("#s_mail").checked;
+  settings.mail.check_after_search = $("#s_mailsearch").checked;
+  settings.mail.days_back = Number(value("s_maildays") || 30);
   settings.sources.request_delay = Number(value("s_delay") || 1);
   settings.sources.max_results_per_source = Number(value("s_limit") || 100);
 

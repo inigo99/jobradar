@@ -11,6 +11,7 @@ Commands:
 ``demo``     load a synthetic profile and jobs so you can look around
 ``search``   run the full pipeline and store what it finds
 ``sweep``    check active jobs and retire the ads that have closed
+``mail``     read replies to your applications from your inbox (read-only)
 ``tailor``   generate the tailored CV for one job, or for the best N
 ``lint``     run the recruiter red-flag check over your profile
 ``jobs``     list what is in the pipeline
@@ -29,6 +30,7 @@ import json
 import logging
 import os
 import sys
+from datetime import date, timedelta
 from pathlib import Path
 
 from . import __version__
@@ -252,6 +254,11 @@ def cmd_search(args: argparse.Namespace) -> int:
             ],
         )
 
+    if result.mail:
+        out(f"Mail: {result.mail.summary()}")
+    elif result.mail_error:
+        out(f"[yellow]Mail not checked:[/yellow] {result.mail_error}")
+
     if args.explain and result.rejected:
         table("Why jobs were dropped", ["Reason", "Count"],
               [[reason, str(count)] for reason, count in explain(result.rejected)])
@@ -265,6 +272,37 @@ def cmd_search(args: argparse.Namespace) -> int:
             out(f"Digest via {channel}: {'sent' if ok else 'failed'}")
 
     database.close()
+    return 0
+
+
+def cmd_mail(args: argparse.Namespace) -> int:
+    """Read replies to applications from the inbox (read-only)."""
+    from .mail import check_mail
+
+    database = _database(args)
+    settings = database.load_settings()
+    if args.days:
+        settings.mail.days_back = args.days
+        database.set_mail_checked_on(date.today() - timedelta(days=args.days))
+    try:
+        report = check_mail(database, settings)
+        jobs = {job.id: job for job in database.list_jobs(include_closed=True)}
+    finally:
+        database.close()
+    out(report.summary())
+    for news in sorted(report.news, key=lambda n: n.received_at, reverse=True):
+        job = jobs.get(news.job_id)
+        where = f"{job.company} — {job.title}" if job else news.company_hint
+        out(f"  [bold]{news.kind.value}[/bold] {news.received_at:%Y-%m-%d} {where}")
+        if news.excerpt:
+            out(f"    [dim]\u201c{news.excerpt}\u201d[/dim]")
+        if news.interview_at:
+            out(f"    [cyan]Proposed interview: {news.interview_at:%A %d %B %Y, %H:%M}[/cyan] "
+                "(not added to any calendar; download it from the dashboard)")
+    if report.orphans:
+        out(f"\n{len(report.orphans)} messages about applications not marked as applied here:")
+        for orphan in report.orphans[:10]:
+            out(f"  {orphan.kind.value} · {orphan.company_hint} · {orphan.subject[:70]}")
     return 0
 
 
@@ -624,6 +662,11 @@ def build_parser() -> argparse.ArgumentParser:
     search.add_argument("--explain", action="store_true", help="Show why jobs were dropped")
     search.add_argument("--notify", action="store_true", help="Send the digest afterwards")
     search.set_defaults(func=cmd_search)
+
+    mail = sub.add_parser("mail", help="Read replies to your applications from your inbox")
+    mail.add_argument("--days", type=_positive_int, default=None,
+                      help="Look back this many days instead of since the last check")
+    mail.set_defaults(func=cmd_mail)
 
     sweep = sub.add_parser("sweep", help="Retire ads that have closed")
     sweep.add_argument("--limit", type=_positive_int, default=None, help="Check at most N jobs")

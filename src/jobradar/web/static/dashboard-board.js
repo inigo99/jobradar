@@ -38,6 +38,7 @@ function render() {
   const board = $("#board");
   board.innerHTML = "";
   $("#job-count").textContent = `${STATE.jobs.length} jobs tracked`;
+  $("#btn-mail").hidden = !(STATE.settings.mail && STATE.settings.mail.enabled);
   const last = STATE.runs[0];
   $("#run-note").textContent = last
     ? `Last run: ${last.kept} kept of ${last.fetched} fetched, ${last.new} new.` : "";
@@ -61,6 +62,10 @@ function render() {
     sort === "score" ? b.score_tailored - a.score_tailored :
     b.focus - a.focus);
 
+  if (TAB === "applied") {
+    const orphans = orphansBlock();
+    if (orphans) board.append(orphans);
+  }
   if (!jobs.length) {
     board.append(el("div", { className: "empty" },
       STATE.jobs.length ? "Nothing in this tab." :

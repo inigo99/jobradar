@@ -298,6 +298,21 @@ class NotificationSettings(BaseModel):
     min_score: float = 0.0
 
 
+class MailSettings(BaseModel):
+    """Reading the user's inbox for replies to applications (read-only IMAP).
+
+    The server and credentials come from the environment (``JOBRADAR_IMAP_*``
+    in ``.env``) and are never stored in the database.
+    """
+
+    enabled: bool = False
+    #: How far back the first check looks; later checks start where the last
+    #: one ended.
+    days_back: int = Field(default=30, ge=1, le=365)
+    #: Also check the inbox at the end of every search run.
+    check_after_search: bool = True
+
+
 class SearchSettings(BaseModel):
     """What the user is looking for."""
 
@@ -327,6 +342,7 @@ class Settings(BaseModel):
     sources: SourceSettings = Field(default_factory=SourceSettings)
     llm: LLMSettings = Field(default_factory=LLMSettings)
     notifications: NotificationSettings = Field(default_factory=NotificationSettings)
+    mail: MailSettings = Field(default_factory=MailSettings)
     #: Changes to the job-family catalogue, keyed by family key.
     families: dict[str, FamilyOverride] = Field(default_factory=dict)
 

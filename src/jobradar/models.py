@@ -467,6 +467,39 @@ class GeneratedDocument(BaseModel):
     llm_generated: bool = False
 
 
+class MailKind(str, Enum):
+    """What a reply from an employer means for an application."""
+
+    REJECTION = "rejection"
+    #: A person moved: an interview, a test, a call, a request for documents.
+    ADVANCE = "advance"
+    #: An automatic "we have received your application". Not a reply.
+    ACKNOWLEDGEMENT = "acknowledgement"
+
+
+class MailNews(BaseModel):
+    """The latest email about one application, read from the user's inbox.
+
+    ``excerpt`` is always a literal quote from the message — never a summary —
+    so what the dashboard shows can be checked against the original.
+    """
+
+    job_id: str = ""
+    kind: MailKind
+    received_at: datetime
+    subject: str = ""
+    sender: str = ""
+    excerpt: str = ""
+    message_id: str = ""
+    #: Opens the thread in the web mail client, when the provider has one.
+    link: str = ""
+    #: Company and title as far as the message tells, for unmatched mail.
+    company_hint: str = ""
+    #: A date and time proposed for an interview, if the message gives one.
+    interview_at: datetime | None = None
+    interview_text: str = ""
+
+
 class LintFinding(BaseModel):
     """One recruiter red flag found in a generated CV."""
 

@@ -26,6 +26,8 @@ $("#btn-sweep").onclick = async () => {
   node.disabled = false; node.textContent = "Check closed ads";
 };
 
+$("#btn-mail").onclick = checkMail;
+
 $("#btn-settings").onclick = () => {
   $("#settings-body").innerHTML = "";
   $("#settings-body").append(settingsBody());

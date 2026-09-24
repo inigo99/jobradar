@@ -157,3 +157,14 @@
               align-items: center; margin: 4px 0; }
 .family-row.family-head { font-size: 12.5px; color: var(--ink-2); }
 .family-row input[type=checkbox] { justify-self: center; }
+
+/* Replies read from the inbox */
+.mailnews { border-left: 3px solid var(--line); padding: 6px 10px; margin: 8px 0; }
+.mailnews.rejection { border-color: var(--danger); }
+.mailnews.advance { border-color: var(--ok); }
+.mailnews blockquote { margin: 6px 0; font-style: italic; color: var(--ink-2); }
+.chip.mail-rejection { background: var(--warn-soft); color: var(--danger); border-color: transparent; }
+.chip.mail-advance { background: var(--accent-soft); color: var(--ok); border-color: transparent; }
+.chip.mail-acknowledgement { background: var(--surface-2); color: var(--ink-2); }
+.panel.orphans { margin-bottom: 14px; }
+.panel.orphans ul { margin: 6px 0 0; padding-left: 18px; }

@@ -33,7 +33,7 @@ from urllib.parse import urlsplit
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
@@ -48,6 +48,8 @@ from ..families import classify as classify_family
 from ..families import label_for as family_label
 from ..lint import lint_profile, lint_tailored
 from ..llm import build_client
+from ..mail import check_mail, interview_ics
+from ..mail.imap import configured as mail_configured
 from ..models import Application, Job, MatchScore, Profile
 from ..pipeline import run_search, sweep_closed
 from ..pipeline.focus import focus_for
@@ -324,6 +326,10 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
             "jobs": jobs,
             "sources": available_sources(),
             "families": catalogue_view(settings),
+            "mail": {job_id: news.model_dump(mode="json")
+                     for job_id, news in database.mail_news().items()},
+            "mail_orphans": [news.model_dump(mode="json") for news in database.mail_orphans()],
+            "mail_configured": mail_configured(),
             "countries": {code: entry.get("name", code) for code, entry in countries().items()},
             "runs": runs,
             "filtered": [FilteredView(**entry).model_dump(mode="json")
@@ -596,6 +602,24 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
             "new": [f"{job.company} — {job.title}" for job in result.new_jobs][:50],
             "rejected": len(result.rejected),
         }
+
+    @app.post("/api/mail/check")
+    async def mail_check():
+        """Read new replies from the inbox. Read-only on the mail server."""
+        settings = database.load_settings()
+        report = await asyncio.to_thread(check_mail, database, settings)
+        return {"ok": True, "summary": report.summary(), "replies": len(report.news),
+                "orphans": len(report.orphans)}
+
+    @app.get("/api/jobs/{job_id}/interview.ics")
+    def interview_calendar(job_id: str):
+        """A calendar event for an interview proposed by email, to import by hand."""
+        news = database.mail_news().get(job_id)
+        if news is None or news.interview_at is None:
+            raise HTTPException(status_code=404, detail="No interview time was found for this job")
+        body = interview_ics(news, database.get_job(job_id))
+        return Response(body, media_type="text/calendar",
+                        headers={"Content-Disposition": 'attachment; filename="interview.ics"'})
 
     @app.post("/api/sweep")
     async def sweep():

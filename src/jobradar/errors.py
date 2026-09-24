@@ -93,6 +93,12 @@ class LLMError(JobRadarError):
     status_code = 502
 
 
+class MailError(JobRadarError):
+    """The mail server cannot be reached or refuses the login."""
+
+    status_code = 502
+
+
 class RenderError(JobRadarError):
     """A CV or document that cannot be rendered or written to disk."""
 
@@ -116,6 +122,7 @@ __all__ = [
     "ExportError",
     "JobRadarError",
     "LLMError",
+    "MailError",
     "MissingDependencyError",
     "NotFoundError",
     "ProfileError",

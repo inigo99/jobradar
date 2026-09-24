@@ -109,8 +109,10 @@ function jobCard(job) {
       }),
     ));
   }
+  const news = mailBlock(job);
+  if (news) card.append(news);
   if (job.focus_reason) {
-    card.append(el("div", { className: "why" }, "Lower in the queue: " + job.focus_reason + "."));
+    card.append(el("div", { className: "why" }, "Why it is here: " + job.focus_reason + "."));
   }
   for (const alert of job.alerts.slice(0, 3)) {
     card.append(el("div", { className: "alert" }, alert));
