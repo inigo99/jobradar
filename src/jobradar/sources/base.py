@@ -126,6 +126,8 @@ class Fetcher:
         self._robots_skipped: set[str] = set()
         #: Problems already reported, so a run of 50 failed pages logs once.
         self._reported: set[str] = set()
+        #: Those problems' messages, in order, for the run log.
+        self.problems: list[str] = []
         self._client = httpx.Client(
             timeout=settings.timeout,
             follow_redirects=True,
@@ -299,6 +301,7 @@ class Fetcher:
             log.debug(message)
             return
         self._reported.add(key)
+        self.problems.append(message)
         log.warning(message)
 
     # -- public API --------------------------------------------------------

@@ -94,15 +94,18 @@ def runs_today(source_id: str, settings: SourceSettings, today: date | None = No
 
 def build_sources(settings: Settings, cache_dir: Path | None = None,
                   today: date | None = None,
-                  every_day: bool = False) -> tuple[list[JobSource], Fetcher]:
+                  every_day: bool = False,
+                  skipped: list[dict[str, str]] | None = None) -> tuple[list[JobSource], Fetcher]:
     """Instantiate the enabled sources and the shared HTTP client.
 
     Sources whose credentials are missing are skipped with a log line rather
     than an exception, so a partially configured install still produces
     results from everything else. Weekly sources are skipped on any day but
     their own (``today`` defaults to the real date) unless ``every_day`` is
-    set, as the closed-ad sweep does.
+    set, as the closed-ad sweep does. Pass ``skipped`` to collect each
+    source that did not run and why, for the run log.
     """
+    skipped = skipped if skipped is not None else []
     fetcher = Fetcher(settings.sources, cache_dir)
     sources: list[JobSource] = []
     enabled = resolve_enabled(settings.sources)
@@ -110,6 +113,7 @@ def build_sources(settings: Settings, cache_dir: Path | None = None,
     for source_id in enabled:
         if not every_day and not runs_today(source_id, settings.sources, today):
             log.info("Skipping %s today: it is a weekly source.", source_id)
+            skipped.append({"source": source_id, "reason": "weekly source, not its day"})
             resting += 1
             continue
         cls = BY_ID[source_id]
@@ -123,6 +127,8 @@ def build_sources(settings: Settings, cache_dir: Path | None = None,
             # Asked for by name, it deserves a warning; on by default, a note.
             report = log.warning if source_id in settings.sources.enabled else log.info
             report("Skipping %s: set %s to use it.", cls.name, ", ".join(cls.required_env))
+            skipped.append({"source": source_id,
+                            "reason": f"missing {', '.join(cls.required_env)}"})
             continue
         sources.append(instance)
     if not sources and not resting:

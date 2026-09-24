@@ -531,3 +531,15 @@ class SearchRun(BaseModel):
     #: Per-source counts: {"source": {"fetched": n, "kept": n}}.
     by_source: dict[str, dict[str, int]] = Field(default_factory=dict)
     errors: list[str] = Field(default_factory=list)
+    #: Enabled sources that did not run, and why: {"source": ..., "reason": ...}.
+    skipped_sources: list[dict[str, str]] = Field(default_factory=list)
+    #: Jobs rejected this run, by filter category (see pipeline.filters.category).
+    filtered_by_category: dict[str, int] = Field(default_factory=dict)
+    #: Problems the fetcher reported (a blocked page, no browser...), once each.
+    fetch_problems: list[str] = Field(default_factory=list)
+
+    @property
+    def duration_seconds(self) -> float | None:
+        if self.finished_at is None:
+            return None
+        return (self.finished_at - self.started_at).total_seconds()

@@ -168,3 +168,10 @@
 .chip.mail-acknowledgement { background: var(--surface-2); color: var(--ink-2); }
 .panel.orphans { margin-bottom: 14px; }
 .panel.orphans ul { margin: 6px 0 0; padding-left: 18px; }
+
+/* Insights */
+table.grid { width: 100%; border-collapse: collapse; margin: 6px 0 16px; font-size: 13.5px; }
+table.grid th, table.grid td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); }
+table.grid th { font-weight: 600; color: var(--ink-2); font-size: 12.5px; }
+table.grid td:not(:first-child), table.grid th:not(:first-child) { text-align: right;
+  font-variant-numeric: tabular-nums; }

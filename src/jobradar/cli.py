@@ -12,6 +12,7 @@ Commands:
 ``search``   run the full pipeline and store what it finds
 ``sweep``    check active jobs and retire the ads that have closed
 ``mail``     read replies to your applications from your inbox (read-only)
+``insights`` response rates by source, family and score; how each source performs
 ``tailor``   generate the tailored CV for one job, or for the best N
 ``lint``     run the recruiter red-flag check over your profile
 ``jobs``     list what is in the pipeline
@@ -303,6 +304,61 @@ def cmd_mail(args: argparse.Namespace) -> int:
         out(f"\n{len(report.orphans)} messages about applications not marked as applied here:")
         for orphan in report.orphans[:10]:
             out(f"  {orphan.kind.value} · {orphan.company_hint} · {orphan.subject[:70]}")
+    return 0
+
+
+def cmd_insights(args: argparse.Namespace) -> int:
+    """Is the search working? The application funnel and the run history."""
+    from .insights import MIN_SAMPLE, funnel, history
+
+    database = _database(args)
+    try:
+        settings = database.load_settings()
+        report = funnel(database.list_jobs(include_closed=True), database.all_applications(),
+                        database.all_scores(), database.mail_news(), families_for(settings))
+        runs = history(database.recent_runs(args.runs))
+    finally:
+        database.close()
+
+    def rate(group) -> str:
+        value = group.response_rate
+        return f"{value:g}%" if value is not None else f"— (under {MIN_SAMPLE})"
+
+    total = report.total
+    out(f"[bold]{total.applications}[/bold] applications · {total.replies} human replies "
+        f"({rate(total)}) · {total.advances} next steps · {total.rejections} rejections · "
+        f"{total.alive} still alive")
+    if report.median_days_to_reply is not None:
+        out(f"Median wait for a reply: {report.median_days_to_reply:g} days.")
+    for title, groups in (("By source", report.by_source), ("By job family", report.by_family),
+                          ("By match score", report.by_score)):
+        if groups:
+            table(title, ["Group", "Applications", "Replies", "Response rate"],
+                  [[name, str(g.applications), str(g.replies), rate(g)]
+                   for name, g in groups.items()])
+    if report.saturated:
+        table("Companies with many ads or applications and no reply",
+              ["Company", "On the board", "Applied", "Replies"],
+              [[s["company"], str(s["on_board"]), str(s["applied"]), str(s["replies"])]
+               for s in report.saturated])
+    if report.waiting:
+        table("Waiting longest for a reply", ["Company", "Title", "Applied", "Days"],
+              [[w["company"], w["title"][:40], w["applied_on"], str(w["days"])]
+               for w in report.waiting])
+
+    out(f"\n[bold]Last {runs['runs']} runs[/bold]"
+        + (f" (since {runs['since']})" if runs["since"] else "")
+        + f": {runs['fetched']} fetched, {runs['kept']} kept, {runs['new']} new"
+        + (f", {runs['duplicate_share']:g}% duplicates" if runs["duplicate_share"] is not None else "")
+        + (f", median {runs['median_minutes']:g} min per run" if runs["median_minutes"] else "")
+        + ".")
+    if runs["by_source"]:
+        table("Per source", ["Source", "Runs", "Fetched", "Kept", "Kept %", "Failed", "Skipped"],
+              [[name, str(e["runs"]), str(e["fetched"]), str(e["kept"]),
+                f"{e['kept_share']:g}" if e["kept_share"] is not None else "—",
+                str(e["failed"]), str(e["skipped"])] for name, e in runs["by_source"].items()])
+    if runs["filtered_by_category"]:
+        out("Filtered out: " + ", ".join(f"{n} by {c}" for c, n in runs["filtered_by_category"].items()))
     return 0
 
 
@@ -667,6 +723,11 @@ def build_parser() -> argparse.ArgumentParser:
     mail.add_argument("--days", type=_positive_int, default=None,
                       help="Look back this many days instead of since the last check")
     mail.set_defaults(func=cmd_mail)
+
+    insights = sub.add_parser("insights", help="Response rates and how each source performs")
+    insights.add_argument("--runs", type=_positive_int, default=30,
+                          help="How many recent search runs to summarise")
+    insights.set_defaults(func=cmd_insights)
 
     sweep = sub.add_parser("sweep", help="Retire ads that have closed")
     sweep.add_argument("--limit", type=_positive_int, default=None, help="Check at most N jobs")

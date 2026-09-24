@@ -101,13 +101,16 @@ class SearchPipeline:
         self.refresh = refresh
         self._sources = sources
         self._fetcher: Fetcher | None = None
+        #: Enabled sources that will not run this time, filled by sources().
+        self.skipped_sources: list[dict[str, str]] = []
 
     # -- setup -------------------------------------------------------------
 
     def sources(self) -> list[JobSource]:
         if self._sources is None:
             self._sources, self._fetcher = build_sources(
-                self.settings, self.database.paths.cache_dir, today=self.today)
+                self.settings, self.database.paths.cache_dir, today=self.today,
+                skipped=self.skipped_sources)
         return self._sources
 
     def query(self) -> SearchQuery:
@@ -281,6 +284,14 @@ class SearchPipeline:
         result.run.kept = len(result.kept)
         result.run.new = new
         result.run.by_source = by_source
+        result.run.skipped_sources = list(self.skipped_sources)
+        categories: dict[str, int] = {}
+        for _job, reason in result.filtered:
+            key = filter_category(reason)
+            categories[key] = categories.get(key, 0) + 1
+        result.run.filtered_by_category = categories
+        if self._fetcher is not None:
+            result.run.fetch_problems = list(self._fetcher.problems)
         result.run.finished_at = datetime.now(timezone.utc)
         self.database.log_run(result.run)
 

@@ -7,7 +7,13 @@
 /* Panel tabs are not lists of jobs, so they render their own thing and the
    board is hidden for them. "Today" is first because a board with two hundred
    jobs does not say where to start. */
-const PANELS = { today: renderToday, filtered: renderFiltered };
+/* Looked up when the tab opens, not when this file loads: panels may live in
+   files loaded after this one. */
+const PANELS = {
+  today: () => renderToday(),
+  filtered: () => renderFiltered(),
+  insights: () => renderInsights(),
+};
 
 const TABS = [
   ["today",     "Today",     j => j.status === "active" && !j.closed],
@@ -17,10 +23,12 @@ const TABS = [
   ["discarded", "Discarded", j => j.status === "discarded"],
   ["closed",    "Closed ads", j => j.closed && j.status === "active"],
   ["filtered",  "Filtered out", () => false],
+  ["insights",  "Insights", () => false],
 ];
 
 function tabCount(key, predicate) {
   if (key === "filtered") return (STATE.filtered || []).length;
+  if (key === "insights") return STATE.jobs.filter(j => j.status === "applied").length;
   if (key === "today") return Math.max(0, weeklyGoal() - appliedThisWeek());
   return STATE.jobs.filter(predicate).length;
 }

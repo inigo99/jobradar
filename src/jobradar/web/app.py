@@ -46,6 +46,7 @@ from ..errors import JobRadarError, ProfileError, StorageError, describe_os_erro
 from ..families import Family, catalogue_view, families_for
 from ..families import classify as classify_family
 from ..families import label_for as family_label
+from ..insights import funnel, history
 from ..lint import lint_profile, lint_tailored
 from ..llm import build_client
 from ..mail import check_mail, interview_ics
@@ -602,6 +603,14 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
             "new": [f"{job.company} — {job.title}" for job in result.new_jobs][:50],
             "rejected": len(result.rejected),
         }
+
+    @app.get("/api/insights")
+    def insights(runs: int = Query(30, ge=1, le=365)):
+        """The application funnel and the run history, for the Insights tab."""
+        settings = database.load_settings()
+        report = funnel(database.list_jobs(include_closed=True), database.all_applications(),
+                        database.all_scores(), database.mail_news(), families_for(settings))
+        return {"funnel": report.as_dict(), "history": history(database.recent_runs(runs))}
 
     @app.post("/api/mail/check")
     async def mail_check():
