@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Removed
+
+- The `llm` install extra, and `anthropic` / `openai` from `all`: no code used
+  them. Every language-model provider is called over plain HTTP.
+
 ### Added
 
 - **Board filters**: text, work mode, where (your areas, your country, abroad,
