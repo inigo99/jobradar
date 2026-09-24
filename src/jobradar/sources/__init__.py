@@ -8,6 +8,7 @@ module directly, which is what makes adding a board a one-file change.
 from __future__ import annotations
 
 import logging
+from datetime import date
 from pathlib import Path
 
 from ..config import Settings, SourceSettings
@@ -18,6 +19,8 @@ from .ats import CompanyBoardsSource
 from .base import Fetcher, JobSource, SearchQuery
 from .himalayas import HimalayasSource
 from .jooble import JoobleSource
+from .manfred import ManfredSource
+from .optional.indeed import IndeedSource
 from .optional.infojobs import InfoJobsSource
 from .optional.linkedin import LinkedInGuestSource
 from .optional.tecnoempleo import TecnoempleoSource
@@ -33,6 +36,7 @@ REGISTRY: tuple[type[JobSource], ...] = (
     WeWorkRemotelySource,
     HimalayasSource,
     ArbeitnowSource,
+    ManfredSource,
     CompanyBoardsSource,
     # tos_tier == "credentials": on as soon as the user supplies a free key.
     AdzunaSource,
@@ -41,6 +45,7 @@ REGISTRY: tuple[type[JobSource], ...] = (
     LinkedInGuestSource,
     InfoJobsSource,
     TecnoempleoSource,
+    IndeedSource,
 )
 
 BY_ID: dict[str, type[JobSource]] = {cls.id: cls for cls in REGISTRY}
@@ -80,17 +85,33 @@ def resolve_enabled(settings: SourceSettings) -> list[str]:
     return [sid for sid in chosen if sid not in settings.disabled]
 
 
-def build_sources(settings: Settings, cache_dir: Path | None = None) -> tuple[list[JobSource], Fetcher]:
+def runs_today(source_id: str, settings: SourceSettings, today: date | None = None) -> bool:
+    """False for a weekly source on any day but its own."""
+    if source_id not in settings.weekly:
+        return True
+    return (today or date.today()).weekday() == settings.weekly_day
+
+
+def build_sources(settings: Settings, cache_dir: Path | None = None,
+                  today: date | None = None,
+                  every_day: bool = False) -> tuple[list[JobSource], Fetcher]:
     """Instantiate the enabled sources and the shared HTTP client.
 
     Sources whose credentials are missing are skipped with a log line rather
     than an exception, so a partially configured install still produces
-    results from everything else.
+    results from everything else. Weekly sources are skipped on any day but
+    their own (``today`` defaults to the real date) unless ``every_day`` is
+    set, as the closed-ad sweep does.
     """
     fetcher = Fetcher(settings.sources, cache_dir)
     sources: list[JobSource] = []
     enabled = resolve_enabled(settings.sources)
+    resting = 0  # weekly sources skipped today
     for source_id in enabled:
+        if not every_day and not runs_today(source_id, settings.sources, today):
+            log.info("Skipping %s today: it is a weekly source.", source_id)
+            resting += 1
+            continue
         cls = BY_ID[source_id]
         options: dict = {}
         if cls is CompanyBoardsSource:
@@ -104,7 +125,7 @@ def build_sources(settings: Settings, cache_dir: Path | None = None) -> tuple[li
             report("Skipping %s: set %s to use it.", cls.name, ", ".join(cls.required_env))
             continue
         sources.append(instance)
-    if not sources:
+    if not sources and not resting:
         fetcher.close()
         raise ConfigError(
             "No job source can run with the current settings.",

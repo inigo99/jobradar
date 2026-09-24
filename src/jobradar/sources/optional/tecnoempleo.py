@@ -50,7 +50,7 @@ class TecnoempleoSource(JobSource):
         wanted = [normalise(t) for t in query.terms()]
         for term in query.terms():
             for page in range(1, 4):
-                body = self.fetcher.get(
+                body = self.get(
                     SEARCH, params={"te": term, "pagina": page}, browser="dynamic"
                 )
                 if not body:
@@ -78,7 +78,7 @@ class TecnoempleoSource(JobSource):
         return list(jobs.values())
 
     def _detail(self, native_id: str, url: str, title: str, context: str) -> Job | None:
-        body = self.fetcher.get(url, browser="dynamic")
+        body = self.get(url, browser="dynamic")
         text = strip_html(str(body)) if body else str(context)
         lowered = f"{context} {text}".lower()
         if "100% remoto" in lowered:
@@ -121,7 +121,7 @@ class TecnoempleoSource(JobSource):
         return f"{match.group(3)}-{match.group(2)}-{match.group(1)}" if match else ""
 
     def check_open(self, job: Job) -> tuple[bool, str]:
-        body = self.fetcher.get(job.link, use_cache=False, browser="dynamic")
+        body = self.get(job.link, use_cache=False, browser="dynamic")
         if body is None:
             return False, "Offer page unreachable"
         if EXPIRED.search(strip_html(str(body))):

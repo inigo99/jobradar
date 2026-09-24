@@ -108,7 +108,7 @@ def test_sweep_never_retires_a_job_the_user_has_touched(database, profile, confi
     source = FakeSource([], closed={applied.id, untouched.id})
     monkeypatch.setattr(
         "jobradar.pipeline.sweep.build_sources",
-        lambda settings, cache: ([source], type("F", (), {"close": lambda self: None})()),
+        lambda settings, cache, **_kwargs: ([source], type("F", (), {"close": lambda self: None})()),
     )
     report = sweep_closed(database)
 

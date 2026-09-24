@@ -109,6 +109,33 @@ def _matchers() -> list[tuple[str, re.Pattern[str]]]:
     return [(key, pattern) for key, pattern, _ in patterns]
 
 
+@lru_cache(maxsize=1)
+def _names() -> dict[str, str]:
+    """Every alias and label, normalised, -> skill key."""
+    names: dict[str, str] = {}
+    for skill in taxonomy().values():
+        for name in (*skill.aliases, skill.label, skill.key.replace("_", " ")):
+            names.setdefault(_plain_name(name), skill.key)
+    return names
+
+
+def _plain_name(name: str) -> str:
+    return re.sub(r"[\s\-_]+", " ", str(name or "").strip().lower())
+
+
+def skill_for_name(name: str) -> str | None:
+    """The skill a *name* denotes — the whole name, not a word inside it.
+
+    For structured lists ("Soporte vital avanzado", "Excel") where
+    :func:`find_skills` would be wrong: it looks for skills mentioned
+    anywhere in a text, so it would read "soporte" as customer support.
+    """
+    plain = _plain_name(name)
+    if not plain:
+        return None
+    return _names().get(plain) or (_names().get(plain[:-1]) if plain.endswith("s") else None)
+
+
 def find_skills(text: str) -> dict[str, int]:
     """Skill keys mentioned in ``text``, mapped to how many times.
 

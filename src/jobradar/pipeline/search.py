@@ -97,7 +97,8 @@ class SearchPipeline:
 
     def sources(self) -> list[JobSource]:
         if self._sources is None:
-            self._sources, self._fetcher = build_sources(self.settings, self.database.paths.cache_dir)
+            self._sources, self._fetcher = build_sources(
+                self.settings, self.database.paths.cache_dir, today=self.today)
         return self._sources
 
     def query(self) -> SearchQuery:
@@ -227,6 +228,7 @@ class SearchPipeline:
                         llm=self.llm,
                         rates=self.rates,
                         fetch_description=source.fetch_description if source else None,
+                        resolve_work_mode=source.resolve_work_mode if source else None,
                     )
 
             outcome = apply_filters(

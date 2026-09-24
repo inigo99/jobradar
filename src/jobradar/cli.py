@@ -24,6 +24,7 @@ Commands:
 from __future__ import annotations
 
 import argparse
+import calendar
 import json
 import logging
 import os
@@ -481,6 +482,9 @@ def cmd_sources(args: argparse.Namespace) -> int:
     for source in available_sources():
         missing = [name for name in source["required_env"] if not os.environ.get(name)]
         state = "on" if source["id"] in enabled else "off"
+        if state == "on" and source["id"] in settings.sources.weekly:
+            day = calendar.day_name[settings.sources.weekly_day]
+            state = f"on ({day}s only)"
         if missing:
             state = f"needs {', '.join(missing)}"
         rows.append([source["id"], source["name"], source["tos_tier"], state])

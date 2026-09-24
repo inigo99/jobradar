@@ -173,6 +173,12 @@ class SourceSettings(BaseModel):
     #: Source ids to run. Empty means "every source enabled by default".
     enabled: list[str] = Field(default_factory=list)
     disabled: list[str] = Field(default_factory=list)
+    #: Sources run only once a week, on ``weekly_day``. For low-yield boards
+    #: whose ads stay up for weeks: checking them daily costs requests and
+    #: finds the same few ads again.
+    weekly: list[str] = Field(default_factory=list)
+    #: Day the weekly sources run, 0 = Monday ... 6 = Sunday.
+    weekly_day: int = Field(default=0, ge=0, le=6)
     #: Extra company domains or ATS board slugs to crawl, e.g.
     #: ``["stripe.com", "greenhouse:airbnb", "lever:netflix"]``.
     company_domains: list[str] = Field(default_factory=list)

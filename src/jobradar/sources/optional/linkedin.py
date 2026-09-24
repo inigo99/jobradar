@@ -25,12 +25,29 @@ from ..base import JobSource, SearchQuery
 
 SEARCH = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
 DETAIL = "https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{job_id}"
+#: The full public ad page: the only one that carries the work-mode badge.
+FULL_PAGE = "https://www.linkedin.com/jobs/view/{job_id}/"
+#: The guest endpoint returns ten cards per page; ``start`` counts cards.
+PAGE_SIZE = 10
 
 CARD = re.compile(r'data-entity-urn="urn:li:jobPosting:(\d+)"(.*?)(?=data-entity-urn|\Z)', re.S)
 TITLE = re.compile(r'class="[^"]*base-search-card__title[^"]*"[^>]*>\s*(.*?)\s*<', re.S)
-COMPANY = re.compile(r'class="[^"]*base-search-card__subtitle[^"]*"[^>]*>.*?>\s*(.*?)\s*<', re.S)
+#: The company is a link when it has a LinkedIn page, plain text otherwise.
+COMPANY = re.compile(r'hidden-nested-link[^>]*>\s*(.*?)\s*</a>', re.S)
+COMPANY_PLAIN = re.compile(
+    r'class="[^"]*base-search-card__subtitle[^"]*"[^>]*>\s*([^<]*?)\s*</h4>', re.S)
 LOCATION = re.compile(r'class="[^"]*job-search-card__location[^"]*"[^>]*>\s*(.*?)\s*<', re.S)
 POSTED = re.compile(r'datetime="([\d-]+)"')
+
+#: The badge on the full ad page. Only the header is searched: further down,
+#: "similar jobs" repeat the same words for other ads.
+BADGE = re.compile(r">\s*(Remote|Hybrid|On-?site|Remoto|H[ií]brido|Presencial)\s*<", re.I)
+BADGE_MODES = {
+    "remote": WorkMode.REMOTE, "remoto": WorkMode.REMOTE,
+    "hybrid": WorkMode.HYBRID, "hibrido": WorkMode.HYBRID, "híbrido": WorkMode.HYBRID,
+    "on-site": WorkMode.ONSITE, "onsite": WorkMode.ONSITE, "presencial": WorkMode.ONSITE,
+}
+BADGE_WINDOW = 60_000
 
 CLOSED_MARKERS = re.compile(
     r"no longer accepting applications|ya no se aceptan solicitudes|closed-job", re.I
@@ -60,7 +77,7 @@ class LinkedInGuestSource(JobSource):
         locations = self._locations(query)
         for term in query.terms():
             for location, remote in locations:
-                for start in range(0, min(query.limit, 100), 25):
+                for start in range(0, min(query.limit, 100), PAGE_SIZE):
                     params = {
                         "keywords": term,
                         "location": location,
@@ -69,7 +86,7 @@ class LinkedInGuestSource(JobSource):
                     }
                     if remote:
                         params["f_WT"] = self.REMOTE_FILTER
-                    body = self.fetcher.get(SEARCH, params=params, browser="dynamic")
+                    body = self.get(SEARCH, params=params, browser="dynamic")
                     if not body:
                         break
                     found = self._parse_cards(body, remote_filtered=remote)
@@ -117,7 +134,7 @@ class LinkedInGuestSource(JobSource):
                 self.make_job(
                     str(job_id),
                     title=title,
-                    company=self._first(COMPANY, str(card)),
+                    company=self._first(COMPANY, str(card)) or self._first(COMPANY_PLAIN, str(card)),
                     location=location,
                     work_mode=(
                         WorkMode.REMOTE
@@ -144,15 +161,28 @@ class LinkedInGuestSource(JobSource):
         job.work_mode`` never fell back — ``WorkMode.UNKNOWN`` is a non-empty
         string, so it is truthy — which silently wiped the board's remote tag.
         """
-        body = self.fetcher.get(DETAIL.format(job_id=job.native_id), browser="dynamic")
+        body = self.get(DETAIL.format(job_id=job.native_id), browser="dynamic")
         if not body:
             return str(job.description or "")
         text = strip_html(str(body))
         job.language = detect_language(text)
         return text
 
+    def resolve_work_mode(self, job: Job) -> WorkMode | None:
+        """Read the Remote/Hybrid/On-site badge from the full public ad page.
+
+        The guest endpoints do not carry it, so this costs one more request —
+        which is why it is only asked for jobs whose text left the board's
+        "remote" claim unconfirmed.
+        """
+        body = self.get(FULL_PAGE.format(job_id=job.native_id), browser="dynamic")
+        if not body:
+            return None
+        match = BADGE.search(body[:BADGE_WINDOW])
+        return BADGE_MODES.get(match.group(1).lower()) if match else None
+
     def check_open(self, job: Job) -> tuple[bool, str]:
-        body = self.fetcher.get(DETAIL.format(job_id=job.native_id), use_cache=False, browser="dynamic")
+        body = self.get(DETAIL.format(job_id=job.native_id), use_cache=False, browser="dynamic")
         if body is None:
             status = self.fetcher.head_status(job.link)
             return (False, "HTTP 404") if status == 404 else (True, "")
