@@ -215,6 +215,17 @@ Nothing changes an application on its own: a rejection is offered as a
 button, not applied. Replies about jobs not marked as applied are listed
 apart, as they are usually applications made elsewhere.
 
+## Language model
+
+`llm.provider` (or `JOBRADAR_LLM_PROVIDER`, which wins) picks the provider;
+`none` runs everything deterministically. Gemini's free tier allows only a few
+dozen requests a day **per model**, and its newest models are often refused
+with "high demand": busy answers are retried with a backoff, and a model that
+is still busy, retired or out of its daily quota hands over to the next one in
+`llm.fallback_models` / `JOBRADAR_LLM_FALLBACK_MODELS` (Gemini ships a default
+list). When every model is spent the run carries on without one. For daily
+searches that read dozens of ads, lower `max_calls_per_run` or use a paid key.
+
 ## Environment variables
 
 Copy `.env.example` to `.env`. Nothing here is stored in the database or
@@ -243,6 +254,12 @@ all pick them up automatically. Write aliases with enough context to avoid
 false positives — that is why the alias for Go is `golang`, not `go`. A skill
 only you need is simpler to add in **Settings → Your skills**: it is stored
 with your profile and read in ads from then on.
+
+The `_learning_difficulty` block at the end of `skills.yaml` says how long each
+gap would take to close — `fast`, `medium` or `slow` — and that is what the
+coloured gap chips mean. It never decides *what* is a gap (your evidence does)
+and never puts anything on a CV: a "fast" gap goes on the CV once you have
+actually learnt it, not before.
 
 **`src/jobradar/resources/families.yaml`** — the job families: label, title
 keywords and a salary band per seniority. Override any of it in Settings.

@@ -61,7 +61,7 @@ dev = [
 
 [project.urls]
 Homepage = "https://github.com/inigo99/jobradar"
-Documentation = "https://github.com/inigo99/jobradar/tree/main/docs"
+Documentation = "https://github.com/inigo99/jobradar/tree/master/docs"
 Issues = "https://github.com/inigo99/jobradar/issues"
 
 [project.scripts]
