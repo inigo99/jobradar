@@ -152,6 +152,40 @@ unexplained gaps, missing dates, positions out of order, achievements without
 results, duty language, empty phrases ("results-driven", "team player"), keyword
 stuffing, acronym soup, and a summary with nothing concrete in it.
 
+The full rule list:
+
+| Rule | Severity | What it catches |
+|---|---|---|
+| `too-long` | error | More than one page |
+| `missing-name`, `missing-email` | error | No way to contact you |
+| `missing-dates` | error | An undated position |
+| `chronology` | error | Positions not in reverse-chronological order |
+| `no-achievements` | error | A CV of job titles with nothing under them |
+| `impossible-ceiling` | error / warning | A ceiling on a skill with no evidence, or below its evidence |
+| `position-without-achievements` | warning | One position with nothing under it |
+| `unproven-evidence` | warning | A skill marked as demonstrated that no achievement shows |
+| `employment-gap` | warning | An unexplained gap over five months |
+| `few-metrics` | warning | Fewer than half the achievements carry a number |
+| `duty-language` | warning | "Responsible for…", "Worked on…" |
+| `long-bullet` | warning | An achievement over 300 characters |
+| `empty-phrase` | warning | "Results-driven", "team player", "detail-oriented" |
+| `skill-stuffing` | warning | More than 40 listed skills |
+| `acronym-soup` | warning | A summary that is mostly acronyms |
+| `no-summary`, `long-summary` | warning | No summary, or one nobody will read |
+| `thin-contact` | warning | Email only, no phone or LinkedIn |
+| `too-many-bullets` | info | More than six achievements in one role |
+| `mixed-tense` | info | "-ing" and past-tense openings in the same role |
+| `first-person` | info | Bullets starting with "I" |
+| `orphan-skills` | info | Many skills listed but never demonstrated |
+| `repeated-keyword` | info | The same term repeated for ATS ranking that does not work |
+| `summary-without-evidence` | info | A summary with no concrete figure |
+| `unknown-listed-skills` | info | Listed skills that matching does not know, so they never count |
+
+Rules that would encode a cultural preference are deliberately absent. Whether
+a CV should carry a photo or a date of birth varies enormously by country, and
+a linter that flags a German CV for following German convention is worse than
+no linter.
+
 Findings are advice, not edits. JobRadar tells you what a reader will notice and
 leaves the judgement to you, because it is your career and the linter has never
 met your industry.

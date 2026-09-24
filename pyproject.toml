@@ -47,12 +47,11 @@ pdf = ["playwright>=1.44"]
 parse = ["pypdf>=4.2", "python-docx>=1.1"]
 # Spreadsheet export.
 excel = ["openpyxl>=3.1"]
-# Hosted LLM providers (any OpenAI-compatible endpoint works with no extra package).
-llm = ["anthropic>=0.34", "openai>=1.30"]
+# No extra is needed for a language model: every provider is called over plain
+# HTTP with httpx, which is already a core dependency.
 # Everything an end user is likely to want.
 all = [
-  "playwright>=1.44", "pypdf>=4.2", "python-docx>=1.1",
-  "openpyxl>=3.1", "anthropic>=0.34", "openai>=1.30",
+  "playwright>=1.44", "pypdf>=4.2", "python-docx>=1.1", "openpyxl>=3.1",
 ]
 dev = [
   "pytest>=8.1", "respx>=0.21",
@@ -61,7 +60,7 @@ dev = [
 
 [project.urls]
 Homepage = "https://github.com/inigo99/jobradar"
-Documentation = "https://github.com/inigo99/jobradar/tree/main/docs"
+Documentation = "https://github.com/inigo99/jobradar/tree/master/docs"
 Issues = "https://github.com/inigo99/jobradar/issues"
 
 [project.scripts]
