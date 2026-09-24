@@ -18,7 +18,7 @@ import re
 from dataclasses import dataclass
 from datetime import date
 
-from ..config import Filters
+from ..config import Filters, salary_bands
 from ..models import Job, RemoteScope, SalaryOrigin, WorkMode
 from ..textutils import contains_phrase
 from .salary import ExchangeRates
@@ -150,13 +150,28 @@ def _check_salary(job: Job, filters: Filters, rates: ExchangeRates | None) -> Fi
         return FilterOutcome(True, warnings=("No salary information at all.",))
 
     amount: float = figure
+    converted_from = ""
     if salary_obj.currency != filters.salary_currency and rates is not None:
         converted = rates.convert(figure, salary_obj.currency, filters.salary_currency)
         if converted is None:
             return FilterOutcome(True, warnings=(f"Could not convert {salary_obj.currency}.",))
         amount = converted
+        converted_from = salary_obj.currency
     if amount >= filters.min_salary:
         return None
+    margin = float(salary_bands().get("conversion_margin", 0.10))
+    if converted_from and amount >= filters.min_salary * (1 - margin):
+        # Close enough that the day's exchange rate decides it: keep the job
+        # rather than dismiss it on a rate that may be days old.
+        as_of = getattr(rates, "as_of", None) or "an unknown date"
+        return FilterOutcome(
+            True,
+            warnings=(
+                f"Converted from {converted_from} at the rate of {as_of}: ≈ {amount:,.0f} "
+                f"{filters.salary_currency}, within {margin:.0%} of your minimum — check "
+                "today's rate before dismissing it.",
+            ),
+        )
     if not published:
         return FilterOutcome(
             True,

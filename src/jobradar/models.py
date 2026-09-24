@@ -356,6 +356,8 @@ class Job(BaseModel):
     language: str = "en"
     salary: Salary = Field(default_factory=Salary)
     min_years_experience: int | None = None
+    #: Job family key (``jobradar/families.py``); "" until enrichment sets it.
+    family: str = ""
     requirements: list[Requirement] = Field(default_factory=list)
     # Things the user must check before applying, e.g. "client not named".
     alerts: list[str] = Field(default_factory=list)
@@ -367,7 +369,7 @@ class Job(BaseModel):
     closed_reason: str = ""
 
     @field_validator("id", "title", "company", "location", "country", "url", "apply_url",
-                     "description", "language", "closed_reason", mode="before")
+                     "description", "language", "closed_reason", "family", mode="before")
     @classmethod
     def _text_or_empty(cls, value: Any) -> Any:
         return "" if value is None else value

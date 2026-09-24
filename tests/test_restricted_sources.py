@@ -250,8 +250,10 @@ def test_manfred_reads_structured_fields():
 
     text = source.fetch_description(job)
     assert "Preparar el material" in text and "quirófano" in text
-    assert job.requirements[0].label == "Soporte vital avanzado"
-    assert job.requirements[0].weight == 10
+    # A MUST/ADVANCED technique is the heaviest requirement, mapped onto the
+    # skill it names as a whole; an unknown name would keep its own wording.
+    assert (job.requirements[0].key, job.requirements[0].weight) == ("first_aid", 10)
+    assert job.requirements[1].key == "excel"
     assert job.raw["structured_requirements"] is True
 
 

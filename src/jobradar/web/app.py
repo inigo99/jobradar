@@ -43,6 +43,9 @@ from .. import __version__
 from ..config import Paths, countries, load_dotenv, validation_summary
 from ..documents import generate_cover_letter, generate_email, render_cv, tailor
 from ..errors import JobRadarError, ProfileError, StorageError, describe_os_error
+from ..families import Family, catalogue_view, families_for
+from ..families import classify as classify_family
+from ..families import label_for as family_label
 from ..lint import lint_profile, lint_tailored
 from ..llm import build_client
 from ..models import Application, Job, MatchScore, Profile
@@ -99,8 +102,12 @@ async def save_upload(upload: UploadFile, directory: Path) -> Path:
 
 
 def _job_view(job: Job, score: MatchScore | None, application: Application,
-              documents: dict, profile_years: float | None = None) -> JobView:
-    focus, focus_reason = focus_for(job, score, max_years=profile_years)
+              documents: dict, profile_years: float | None = None,
+              families: dict[str, Family] | None = None) -> JobView:
+    if families and not job.family:
+        # Jobs stored before families existed are classified on the fly.
+        job.family = classify_family(job, families)
+    focus, focus_reason = focus_for(job, score, max_years=profile_years, families=families)
     salary = job.salary
     return JobView(
         id=job.id,
@@ -127,6 +134,8 @@ def _job_view(job: Job, score: MatchScore | None, application: Application,
         gaps=score.gaps if score else [],
         gap_details=score.gap_details if score else [],
         strengths=score.strengths if score else [],
+        family=job.family,
+        family_label=family_label(job.family, families or {}),
         focus=focus,
         focus_reason=focus_reason,
         status=application.status.value,
@@ -292,13 +301,15 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
         profile = database.load_profile()
         scores = database.all_scores()
         applications = database.all_applications()
+        families = families_for(settings)
         profile_years = profile.years_of_experience() if profile else None
         jobs = []
         for job in database.list_jobs(include_closed=True, limit=limit, offset=offset):
             application = applications.get(job.id) or Application(job_id=job.id)
             documents = database.documents_for(job.id)
             jobs.append(
-                _job_view(job, scores.get(job.id), application, documents, profile_years)
+                _job_view(job, scores.get(job.id), application, documents, profile_years,
+                          families)
                 .model_dump(mode="json")
             )
         # Focus order by default: once a profile covers most of what the ads
@@ -312,6 +323,7 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
             "profile": _profile_summary(profile),
             "jobs": jobs,
             "sources": available_sources(),
+            "families": catalogue_view(settings),
             "countries": {code: entry.get("name", code) for code, entry in countries().items()},
             "runs": runs,
             "filtered": [FilteredView(**entry).model_dump(mode="json")

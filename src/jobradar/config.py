@@ -167,6 +167,26 @@ class Filters(BaseModel):
         return countries
 
 
+class FamilyOverride(BaseModel):
+    """The user's change to one job family (see ``jobradar/families.py``).
+
+    Every field left at its default keeps the catalogue's value, so a family
+    the user only re-prioritised still gets keyword improvements from later
+    versions. A key that is not in the catalogue defines a family of the
+    user's own, which then needs a ``label`` and ``keywords``.
+    """
+
+    label: str | None = None
+    #: Replaces the catalogue's keywords when set (an empty list clears them).
+    keywords: list[str] | None = None
+    #: Multiplier on the board's initial order: 1.0 neutral, above it favours
+    #: the family, below it pushes it down. Never changes the match score.
+    priority: float = Field(default=1.0, ge=0.0, le=3.0)
+    enabled: bool = True
+    #: ``{"junior": [min, max], "mid": ..., "senior": ..., "lead": ...}``.
+    bands: dict[str, list[int]] | None = None
+
+
 class SourceSettings(BaseModel):
     """Which adapters run, and how politely."""
 
@@ -307,6 +327,8 @@ class Settings(BaseModel):
     sources: SourceSettings = Field(default_factory=SourceSettings)
     llm: LLMSettings = Field(default_factory=LLMSettings)
     notifications: NotificationSettings = Field(default_factory=NotificationSettings)
+    #: Changes to the job-family catalogue, keyed by family key.
+    families: dict[str, FamilyOverride] = Field(default_factory=dict)
 
     #: Applications a week the user is aiming for. Drives the "Today" queue,
     #: which is the answer to "a board with two hundred jobs, now what".

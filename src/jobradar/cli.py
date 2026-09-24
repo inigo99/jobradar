@@ -36,6 +36,7 @@ from .config import Paths, Settings, countries, load_dotenv
 from .documents import render_cv, tailor
 from .errors import JobRadarError, NotFoundError, SetupRequiredError
 from .exporters import export_csv, export_excel
+from .families import families_for
 from .lint import lint_profile, lint_tailored
 from .llm import build_client
 from .models import ApplicationStatus, WorkMode
@@ -366,6 +367,7 @@ def cmd_jobs(args: argparse.Namespace) -> int:
     applications = database.all_applications()
     profile = database.load_profile()
     years = profile.years_of_experience() if profile else None
+    families = families_for(database.load_settings())
     rows: list[tuple[float, list[str]]] = []
     for job in database.list_jobs(include_closed=args.all):
         application = applications.get(job.id)
@@ -373,7 +375,7 @@ def cmd_jobs(args: argparse.Namespace) -> int:
         if args.status and status != args.status:
             continue
         score = scores.get(job.id)
-        focus, _reason = focus_for(job, score, max_years=years)
+        focus, _reason = focus_for(job, score, max_years=years, families=families)
         rows.append((focus, [
             f"{focus:.0f}",
             f"{score.tailored:.0f}%" if score else "—",

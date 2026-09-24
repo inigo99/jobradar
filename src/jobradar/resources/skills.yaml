@@ -108,7 +108,7 @@ content_marketing: {label: Content marketing, group: marketing, aliases: ["conte
 paid_media: {label: Paid media, group: marketing, aliases: ["google ads", "meta ads", "paid media", ppc, "performance marketing"]}
 crm: {label: CRM, group: sales, aliases: [salesforce, hubspot, crm, "pipedrive"]}
 b2b_sales: {label: B2B sales, group: sales, aliases: ["b2b sales", "ventas b2b", "account executive", "business development"]}
-customer_success: {label: Customer success, group: sales, aliases: ["customer success", "atencion al cliente", "customer support", "soporte"]}
+customer_success: {label: Customer success, group: sales, aliases: ["customer success", "atencion al cliente", "customer support", "soporte al cliente"]}
 project_management: {label: Project management, group: process, aliases: ["project management", "gestion de proyectos", pmp, "jira", "planificacion"]}
 finance: {label: Finance / accounting, group: business, aliases: [accounting, contabilidad, "financial analysis", "analisis financiero", erp, sap]}
 hr: {label: HR / recruiting, group: business, aliases: ["human resources", "recursos humanos", recruiting, "talent acquisition"]}
@@ -116,6 +116,60 @@ legal: {label: Legal / compliance, group: business, aliases: [compliance, gdpr, 
 supply_chain: {label: Supply chain / logistics, group: operations, aliases: ["supply chain", logistics, logistica, "cadena de suministro"]}
 teaching: {label: Teaching / training, group: business, aliases: [teaching, formacion, "training delivery", mentoring]}
 healthcare: {label: Healthcare domain, group: domain, aliases: [clinical, sanitario, healthcare, "historia clinica"]}
+
+# --- Office, administration and business tools ------------------------------
+excel: {label: Excel / spreadsheets, group: office, aliases: [excel, "microsoft excel", spreadsheets, "hojas de calculo", "hojas de cálculo", "google sheets", "tablas dinamicas", "pivot tables"]}
+office_suite: {label: Office suite, group: office, aliases: ["microsoft office", "office 365", "microsoft 365", "paquete office", word, powerpoint, outlook, "google workspace"]}
+data_entry: {label: Data entry, group: office, aliases: ["data entry", "grabacion de datos", "grabación de datos", mecanografia, "typing"]}
+bookkeeping: {label: Bookkeeping, group: finance, aliases: [bookkeeping, "teneduria de libros", facturacion, facturación, invoicing, "accounts payable", "accounts receivable", "cuentas a pagar", "cuentas a cobrar"]}
+payroll: {label: Payroll, group: finance, aliases: [payroll, nominas, nóminas, "seguridad social", "social security contributions"]}
+tax: {label: Tax, group: finance, aliases: [tax, fiscalidad, impuestos, "iva", "vat", "impuesto de sociedades", "irpf"]}
+auditing: {label: Auditing, group: finance, aliases: [audit, auditing, auditoria, auditoría]}
+accounting_software: {label: Accounting software, group: finance, aliases: [a3, a3con, sage, contaplus, quickbooks, xero, holded, "sap fi"]}
+contract_law: {label: Contract law, group: legal, aliases: ["contract law", contratos, "derecho mercantil", "commercial law", "contract drafting", "redaccion de contratos"]}
+employment_law: {label: Employment law, group: legal, aliases: ["employment law", "derecho laboral", "labour law", "relaciones laborales"]}
+recruitment: {label: Recruitment, group: hr, aliases: [recruitment, reclutamiento, "seleccion de personal", "selección de personal", headhunting, "entrevistas por competencias"]}
+
+# --- Healthcare and care ------------------------------------------------------
+patient_care: {label: Patient care, group: healthcare, aliases: ["patient care", "atencion al paciente", "atención al paciente", "cuidados de enfermeria", "cuidados de enfermería", "nursing care"]}
+first_aid: {label: First aid / life support, group: healthcare, aliases: ["first aid", "primeros auxilios", "basic life support", "soporte vital basico", "soporte vital básico", "soporte vital avanzado", "advanced life support", bls, acls, rcp, cpr]}
+medication: {label: Medication administration, group: healthcare, aliases: ["medication administration", "administracion de medicacion", "administración de medicación", "farmacologia", "farmacología"]}
+elderly_care: {label: Elderly care, group: care, aliases: ["elderly care", "atencion a personas mayores", "atención a personas mayores", geriatria, geriatría, "dependencia", "personas dependientes"]}
+childcare: {label: Childcare, group: care, aliases: [childcare, "cuidado infantil", "educacion infantil", "educación infantil", "early years", "atencion a la infancia"]}
+mental_health: {label: Mental health, group: healthcare, aliases: ["mental health", "salud mental", psiquiatria, psiquiatría]}
+clinical_records: {label: Clinical records, group: healthcare, aliases: ["historia clinica electronica", "electronic health records", ehr, "registros clinicos", "registros clínicos"]}
+
+# --- Education ----------------------------------------------------------------
+lesson_planning: {label: Lesson planning, group: education, aliases: ["lesson planning", "programacion didactica", "programación didáctica", "curriculum design", "diseño curricular"]}
+classroom_management: {label: Classroom management, group: education, aliases: ["classroom management", "gestion del aula", "gestión del aula"]}
+special_needs: {label: Special educational needs, group: education, aliases: ["special educational needs", sen, "necesidades educativas especiales", "atencion a la diversidad", "atención a la diversidad", "pedagogia terapeutica"]}
+elearning: {label: E-learning, group: education, aliases: [e-learning, elearning, moodle, "teleformacion", "teleformación", lms]}
+teaching_certificate: {label: Teaching qualification, group: education, aliases: ["master del profesorado", "máster del profesorado", pgce, "cap docente", "teaching certificate", "qualified teacher", celta, delta]}
+
+# --- Hospitality, retail and customer-facing -------------------------------------
+food_handling: {label: Food safety / handling, group: hospitality, aliases: ["manipulador de alimentos", "food handling", "food safety", "food hygiene", appcc, haccp, "seguridad alimentaria"]}
+cooking: {label: Cooking, group: hospitality, aliases: [cocina, cooking, "cocina mediterranea", "cocina mediterránea", "pasteleria", "pastelería", "reposteria", "repostería", "mise en place"]}
+table_service: {label: Table and bar service, group: hospitality, aliases: ["servicio de sala", "table service", "servicio de barra", "bar service", "cocteleria", "coctelería", mixology]}
+front_desk: {label: Front desk / reception, group: hospitality, aliases: ["front desk", recepcion, recepción, "check-in", "gestion de reservas", "gestión de reservas", opera, "property management system"]}
+cash_handling: {label: Cash handling / POS, group: retail, aliases: ["cash handling", "manejo de caja", "cuadre de caja", tpv, pos, "point of sale"]}
+visual_merchandising: {label: Visual merchandising, group: retail, aliases: ["visual merchandising", escaparatismo, merchandising]}
+stock_management: {label: Stock management, group: operations, aliases: ["stock management", "gestion de stock", "gestión de stock", inventario, inventory, "control de inventario", reposicion, reposición]}
+
+# --- Logistics, trades and industry --------------------------------------------
+driving_licence_b: {label: Driving licence (B), group: licence, aliases: ["carnet de conducir", "carné de conducir", "permiso de conducir", "driving licence", "driving license", "carnet b", "permiso b"]}
+driving_licence_c: {label: Heavy vehicle licence (C/CE), group: licence, aliases: ["carnet c", "carne c", "permiso c", "carnet ce", "cap mercancias", "cap mercancías", "hgv licence", "cdl"]}
+forklift: {label: Forklift, group: logistics, aliases: [forklift, carretilla, carretillero, "carretilla elevadora", "reach truck", "transpaleta", "pallet jack"]}
+warehouse_ops: {label: Warehouse operations, group: logistics, aliases: [picking, packing, "preparacion de pedidos", "preparación de pedidos", "order picking", "sga", "wms", "warehouse management"]}
+procurement: {label: Procurement, group: operations, aliases: [procurement, compras, purchasing, aprovisionamiento, "negociacion con proveedores", "negociación con proveedores", "supplier management"]}
+electrical_work: {label: Electrical installation, group: trades, aliases: ["electrical installation", "instalaciones electricas", "instalaciones eléctricas", "baja tension", "baja tensión", rebt, "cuadros electricos", "cuadros eléctricos"]}
+plumbing: {label: Plumbing, group: trades, aliases: [plumbing, fontaneria, fontanería, "instalaciones de agua"]}
+welding: {label: Welding, group: trades, aliases: [welding, soldadura, "soldadura tig", "soldadura mig", tig, mig]}
+hvac: {label: HVAC, group: trades, aliases: [hvac, climatizacion, climatización, "aire acondicionado", refrigeracion, refrigeración, "calefaccion", "calefacción"]}
+cnc_machining: {label: CNC machining, group: trades, aliases: [cnc, "control numerico", "control numérico", mecanizado, machining, torno, fresadora]}
+maintenance: {label: Maintenance, group: trades, aliases: ["preventive maintenance", "mantenimiento preventivo", "mantenimiento correctivo", "industrial maintenance", "mantenimiento industrial"]}
+technical_drawing: {label: Technical drawing / CAD, group: trades, aliases: [autocad, "technical drawing", "dibujo tecnico", "dibujo técnico", solidworks, revit, catia, "interpretacion de planos", "interpretación de planos", "blueprint reading"]}
+quality_control: {label: Quality control, group: operations, aliases: ["quality control", "control de calidad", "iso 9001", "quality assurance", "aseguramiento de la calidad", "lean manufacturing", "six sigma", "5s"]}
+health_safety: {label: Health and safety, group: operations, aliases: ["health and safety", "prevencion de riesgos laborales", "prevención de riesgos laborales", prl, "osha", "nebosh", "seguridad y salud"]}
 
 # --- Transferable skills ----------------------------------------------------
 leadership: {label: Leadership, group: soft, aliases: [leadership, liderazgo, "team lead", "managing a team", "gestion de equipos"]}
@@ -173,6 +227,18 @@ _learning_difficulty:
     product: medium
     soft: slow
     language: slow
+    office: fast
+    finance: medium
+    legal: slow
+    hr: medium
+    healthcare: slow
+    care: medium
+    education: medium
+    hospitality: medium
+    retail: fast
+    logistics: medium
+    licence: slow
+    trades: slow
   overrides:
     # Tools and frameworks on top of a base you already have.
     fastapi: fast

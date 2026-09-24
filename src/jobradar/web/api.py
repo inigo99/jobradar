@@ -90,6 +90,8 @@ class JobView(BaseModel):
     strengths: list[str]
     #: Triage order: the match score less what is already known to go nowhere.
     #: Computed fresh on every request, never stored, so it cannot go stale.
+    family: str = ""
+    family_label: str = ""
     focus: float = 0.0
     #: One sentence saying why this job sits where it does. A ranking nobody
     #: can audit is a ranking nobody should trust.

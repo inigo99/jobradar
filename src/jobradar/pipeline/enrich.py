@@ -17,11 +17,13 @@ from __future__ import annotations
 import logging
 
 from ..config import Settings
+from ..families import classify, families_for
 from ..llm import LLMClient
 from ..llm.prompts import read_job_ad
 from ..models import Job, RemoteScope, Requirement, Salary, SalaryOrigin, WorkMode
 from ..taxonomy import find_skills, label_for
 from ..textutils import (
+    AGENCY_MARKERS,
     detect_language,
     detect_remote_scope,
     detect_work_mode,
@@ -46,14 +48,6 @@ NICE_TO_HAVE_MARKERS = (
 )
 
 MAX_REQUIREMENTS = 20
-
-#: Phrases that mean the real employer is hidden behind an intermediary.
-AGENCY_MARKERS = (
-    "our client", "nuestro cliente", "cliente final", "on behalf of our client",
-    "leading company in the sector", "importante empresa del sector",
-    "empresa líder del sector", "confidential client",
-)
-
 
 # ---------------------------------------------------------------------------
 # Requirement extraction without a model
@@ -300,7 +294,11 @@ def enrich_job(
     if not job.requirements:
         job.requirements = extract_requirements_by_keyword(job)
 
-    job.salary = normalise_salary(job, settings.filters.salary_currency, rates)
+    families = families_for(settings)
+    if not job.raw.get("family_set_by_user"):
+        job.family = classify(job, families)
+    job.salary = normalise_salary(job, settings.filters.salary_currency, rates,
+                                  families, settings.filters.home_country)
 
     if job.alerts is None:
         job.alerts = []

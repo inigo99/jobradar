@@ -2,7 +2,9 @@
 
 Two thirds of job ads publish no pay information at all, which makes a
 minimum-salary filter useless unless something fills the gap. JobRadar
-estimates a band from a reference table, adjusted for the country, and marks it
+estimates a band from the job family's reference band, adjusted for the kind of
+employer, the country the candidate would be hired in and a few signals in the
+ad (see ``resources/salary_bands.yaml``), and marks it
 ``SalaryOrigin.ESTIMATED`` with a one-line explanation of how it got there.
 The dashboard always shows that explanation, so an estimate never masquerades
 as a published figure.
@@ -23,7 +25,9 @@ from xml.etree import ElementTree
 import httpx
 
 from ..config import salary_bands
-from ..models import Job, Salary, SalaryOrigin
+from ..families import GENERAL, Family, classify, families_for
+from ..models import Job, RemoteScope, Salary, SalaryOrigin, WorkMode
+from ..textutils import AGENCY_MARKERS, contains_phrase
 
 log = logging.getLogger(__name__)
 
@@ -131,33 +135,24 @@ def _fresh(path: Path) -> bool:
 
 #: Title words that map a job onto a band family. First match wins, so the
 #: more specific families are listed first.
-FAMILY_HINTS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("machine_learning", ("machine learning", "ml engineer", "ai engineer", "deep learning",
-                          "computer vision", "nlp", "genai", "llm", "inteligencia artificial")),
-    ("data_science", ("data scientist", "científico de datos", "cientifico de datos", "statistician",
-                      "analytics")),
-    ("data_engineering", ("data engineer", "ingeniero de datos", "analytics engineer", "etl")),
-    ("devops", ("devops", "sre", "site reliability", "platform engineer", "infrastructure", "cloud engineer")),
-    ("product", ("product manager", "product owner", "gestor de producto")),
-    ("design", ("designer", "diseñador", "ux", "ui ")),
-    ("marketing", ("marketing", "seo", "growth", "content")),
-    ("sales", ("sales", "ventas", "account executive", "business development")),
-    ("operations", ("operations", "logistics", "supply chain", "administrativo")),
-    ("software_engineering", ("developer", "engineer", "programador", "desarrollador", "backend",
-                              "frontend", "full stack", "software")),
-)
-
 SENIOR_HINTS = ("senior", "sr.", "sénior", "lead", "principal", "staff", "iii")
-LEAD_HINTS = ("head of", "director", "vp ", "manager", "team lead", "tech lead", "architect", "arquitecto")
-JUNIOR_HINTS = ("junior", "jr.", "trainee", "intern", "becario", "prácticas", "graduate", "entry level")
+LEAD_HINTS = ("head of", "director", "vp ", "manager", "team lead", "tech lead", "architect",
+              "arquitecto", "jefe de", "jefa de", "responsable de", "gerente")
+JUNIOR_HINTS = ("junior", "jr.", "trainee", "intern", "becario", "prácticas", "graduate",
+                "entry level", "aprendiz", "auxiliar")
 
-
-def infer_family(title: str | None, description: str | None = "") -> str:
-    blob = f"{title or ''} {(description or '')[:400]}".lower()
-    for family, hints in FAMILY_HINTS:
-        if any(hint in blob for hint in hints):
-            return family
-    return "generic"
+#: Words that make "fluent English" a real requirement.
+HIGH_ENGLISH = re.compile(
+    r"\b(?:fluent|advanced|proficient|native|excellent|c1|c2)\b[^.\n]{0,40}\benglish\b|"
+    r"\benglish\b[^.\n]{0,40}\b(?:fluent|advanced|c1|c2|native|proficiency)\b|"
+    r"\bingl[eé]s\b[^.\n]{0,40}\b(?:avanzado|fluido|nativo|c1|c2|alto)\b",
+    re.I,
+)
+REGULATED = ("bank", "banco", "banca", "insurance", "aseguradora", "seguros", "pharma",
+             "farmacéutica", "laboratorio farmacéutico", "energy", "energía", "utilities")
+#: Countries whose working language is English: fluent English is no premium there.
+ENGLISH_MARKETS = {"GB", "IE", "US", "CA", "AU", "NZ", "SG", "IN", "ZA", "MT"}
+MAX_ADJUSTMENTS = 2
 
 
 def infer_seniority(title: str | None, min_years: int | None) -> str:
@@ -178,50 +173,128 @@ def infer_seniority(title: str | None, min_years: int | None) -> str:
     return "mid"
 
 
-def estimate_salary(job: Job, target_currency: str = "EUR", rates: ExchangeRates | None = None) -> Salary:
+def company_type(job: Job) -> tuple[str, str, float]:
+    """``(key, label, factor)`` of the employer type the ad's wording suggests."""
+    types = salary_bands().get("company_types") or {}
+    blob = f"{job.company or ''} {job.description or ''}"
+    for key, entry in types.items():
+        if key == "unknown" or not isinstance(entry, dict):
+            continue
+        if any(contains_phrase(blob, hint) for hint in entry.get("hints") or []):
+            return key, str(entry.get("label", key)), float(entry.get("factor", 1.0))
+    unknown = types.get("unknown") or {}
+    return "unknown", str(unknown.get("label", "company of unknown type")), \
+        float(unknown.get("factor", 1.0))
+
+
+def hiring_country(job: Job, home_country: str = "") -> str:
+    """Where the candidate would be employed — what sets the pay level.
+
+    A remote job open to the candidate's own country is paid at that
+    country's level; anything else, at the country of the ad.
+    """
+    home = (home_country or "").upper()
+    if home and job.work_mode == WorkMode.REMOTE:
+        regions = {r.upper() for r in job.remote_regions}
+        if (job.remote_scope == RemoteScope.WORLDWIDE
+                or home in regions
+                or (job.remote_scope == RemoteScope.UNKNOWN and not job.country)):
+            return home
+    return (job.country or "").upper()
+
+
+def adjustments_for(job: Job, country: str) -> list[tuple[str, float]]:
+    """The adjustments that apply, largest effect first, at most two."""
+    table = salary_bands().get("adjustments") or {}
+    text = f"{job.title or ''} {job.description or ''}"
+    lowered = text.lower()
+    applies = {
+        "asks_many_years": job.min_years_experience is not None and job.min_years_experience >= 5,
+        "asks_few_years": job.min_years_experience is not None and job.min_years_experience <= 2,
+        "high_english": bool(HIGH_ENGLISH.search(text)) and country not in ENGLISH_MARKETS,
+        "unnamed_client": any(marker in lowered for marker in AGENCY_MARKERS),
+        "regulated_sector": any(contains_phrase(text, word) for word in REGULATED),
+    }
+    found = [
+        (str(entry.get("label", key)), float(entry.get("factor", 1.0)))
+        for key, entry in table.items()
+        if isinstance(entry, dict) and applies.get(key)
+    ]
+    found.sort(key=lambda item: -abs(item[1] - 1.0))
+    return found[:MAX_ADJUSTMENTS]
+
+
+def estimate_salary(
+    job: Job,
+    target_currency: str = "EUR",
+    rates: ExchangeRates | None = None,
+    families: dict[str, Family] | None = None,
+    home_country: str = "",
+) -> Salary:
     """Estimate an annual gross band for a job that publishes none.
 
     The result is always marked as an estimate and carries the reasoning, so
     the user can see a guess for what it is — and override it if they know the
-    market better, which they usually do.
+    market better, which they usually do. See ``resources/salary_bands.yaml``
+    for the formula.
     """
     config = salary_bands()
-    families = config.get("families", {})
     multipliers = config.get("country_multipliers", {})
     base_currency = config.get("base_currency", "EUR")
+    families = families or families_for(None)
 
-    family = infer_family(job.title, job.description)
+    family_key = job.family or classify(job, families)
+    family = families.get(family_key) or families[GENERAL]
     seniority = infer_seniority(job.title, job.min_years_experience)
-    band = (families.get(family) or families.get("generic", {})).get(seniority)
+    band = family.bands.get(seniority) or families[GENERAL].bands.get(seniority)
     if not band:
         return Salary(origin=SalaryOrigin.UNKNOWN, basis="No reference band for this role.")
 
-    country = (job.country or "").upper()
-    multiplier = multipliers.get(country, multipliers.get("_default", 1.0))
-    low, high = int(band[0] * multiplier), int(band[1] * multiplier)
+    _type_key, type_label, type_factor = company_type(job)
+    country = hiring_country(job, home_country)
+    country_factor = float(multipliers.get(country, multipliers.get("_default", 1.0)))
+    adjustments = adjustments_for(job, country)
+    factor = type_factor * country_factor
+    for _label, value in adjustments:
+        factor *= value
+    low, high = _round_thousands(band[0] * factor), _round_thousands(band[1] * factor)
 
     currency = base_currency
+    conversion = ""
     if target_currency and target_currency != base_currency and rates is not None:
         converted_low = rates.convert(low, base_currency, target_currency)
         converted_high = rates.convert(high, base_currency, target_currency)
         if converted_low and converted_high:
             low, high, currency = int(converted_low), int(converted_high), target_currency
+            conversion = f" Converted from {base_currency} at the ECB rate of {rates.as_of or 'unknown date'}."
 
-    where = country or "no anchor country (remote)"
-    basis = (
-        f"Estimated: no salary published. Reference band for {family.replace('_', ' ')} "
-        f"/ {seniority} adjusted for {where} (x{multiplier:g}). Edit "
-        f"resources/salary_bands.yaml to match your market."
-    )
-    return Salary(minimum=low, maximum=high, currency=currency, origin=SalaryOrigin.ESTIMATED, basis=basis)
+    where = country or "no anchor country"
+    steps = [f"{family.label} / {seniority} band", f"{type_label} x{type_factor:g}",
+             f"hired in {where} x{country_factor:g}"]
+    steps += [f"{label} x{value:g}" for label, value in adjustments]
+    basis = (f"Estimated: no salary published. {'; '.join(steps)}.{conversion} "
+             "Edit resources/families.yaml and salary_bands.yaml to match your market.")
+    return Salary(minimum=low, maximum=high, currency=currency, origin=SalaryOrigin.ESTIMATED,
+                  basis=basis)
 
 
-def normalise_salary(job: Job, target_currency: str, rates: ExchangeRates | None) -> Salary:
+def _round_thousands(value: float) -> int:
+    """Estimates are rounded to the thousand: more digits would claim precision."""
+    return int(round(value / 1000.0) * 1000)
+
+
+def normalise_salary(
+    job: Job,
+    target_currency: str,
+    rates: ExchangeRates | None,
+    families: dict[str, Family] | None = None,
+    home_country: str = "",
+) -> Salary:
     """Ensure every job carries a usable band, published or estimated."""
     salary_obj = getattr(job, "salary", None)
     if salary_obj and salary_obj.origin == SalaryOrigin.PUBLISHED and salary_obj.midpoint:
         return salary_obj
-    return estimate_salary(job, target_currency, rates)
+    return estimate_salary(job, target_currency, rates, families, home_country)
 
 
 def annual_from_text(text: str) -> int | None:
