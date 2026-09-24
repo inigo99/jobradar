@@ -102,6 +102,28 @@ def refresh(profile: Profile) -> Profile:
     return profile
 
 
+def merge_model_judgement(profile: Profile, evidence: dict[str, float],
+                          ceiling: dict[str, float]) -> Profile:
+    """Derive the evidence from the text, then let a model's reading refine it.
+
+    The derived map decides *which* skills exist: only taxonomy keys the CV
+    actually mentions. A model's number replaces the derived one for those
+    keys — it can tell a skill used in production from one named in passing —
+    but a key the derivation does not know (a made-up or misspelled one) is
+    dropped, because nothing downstream could ever match it.
+    """
+    refresh(profile)
+    for key, value in evidence.items():
+        if key in profile.evidence:
+            profile.evidence[key] = max(0.0, min(1.0, float(value)))
+    for key, value in ceiling.items():
+        if key in profile.evidence:
+            profile.ceiling[key] = max(profile.evidence[key], min(1.0, float(value)))
+    for key, base in profile.evidence.items():
+        profile.ceiling[key] = max(base, profile.ceiling.get(key, base))
+    return profile
+
+
 def allowed_terms(profile: Profile) -> set[str]:
     """Every skill key a generated document may legitimately mention.
 

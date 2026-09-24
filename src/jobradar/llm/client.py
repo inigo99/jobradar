@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import re
+import time
 
 import httpx
 
@@ -32,10 +33,21 @@ log = logging.getLogger(__name__)
 DEFAULT_MODELS = {
     "anthropic": "claude-sonnet-4-5",
     "openai": "gpt-4o-mini",
-    "gemini": "gemini-3.8-flash",
-    "google": "gemini-3.8-flash",
+    # The newest Flash is often refused with 503 "high demand"; the one before
+    # it answers reliably and is plenty for reading ads and writing summaries.
+    "gemini": "gemini-3.5-flash",
+    "google": "gemini-3.5-flash",
     "openai-compatible": "",
     "ollama": "llama3.1",
+}
+
+#: Models tried, in order, when the chosen one is busy, retired or out of
+#: quota. Gemini's free tier allows a few dozen requests a day *per model*,
+#: and its newest models are often refused with "high demand", so one model
+#: alone cannot carry a search that reads dozens of ads.
+DEFAULT_FALLBACK_MODELS: dict[str, tuple[str, ...]] = {
+    "gemini": ("gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"),
+    "google": ("gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"),
 }
 
 DEFAULT_BASE_URLS = {
@@ -46,6 +58,18 @@ DEFAULT_BASE_URLS = {
     "ollama": "http://localhost:11434/v1",
 }
 
+
+#: Extra output tokens granted to Gemini models that think: the thinking is
+#: billed against ``maxOutputTokens`` too, and without room for it a long
+#: answer (a cover letter) is cut off halfway. Unused tokens cost nothing.
+GEMINI_THINKING_HEADROOM = 2048
+
+#: Statuses worth one more try: rate limits and a provider that is busy or down.
+RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
+#: Seconds to wait before each retry; its length is the number of retries.
+RETRY_DELAYS = (2.0, 6.0)
+#: Longest ``Retry-After`` honoured; beyond it the call is given up.
+MAX_RETRY_AFTER = 30.0
 
 #: Environment variable(s) holding each hosted provider's key, first wins.
 KEY_VARIABLES = {
@@ -89,6 +113,12 @@ class LLMClient:
         self.settings = settings
         self.provider = settings.provider.strip().lower()
         self.model = settings.model or DEFAULT_MODELS.get(self.provider, "")
+        fallbacks = (settings.fallback_models if settings.fallback_models is not None
+                     else DEFAULT_FALLBACK_MODELS.get(self.provider, ()))
+        #: The chosen model first, then the fallbacks, without repeats.
+        self.models = list(dict.fromkeys(m for m in (self.model, *fallbacks) if m))
+        #: Models that cannot be used again this run, with the reason.
+        self._exhausted: dict[str, str] = {}
         self.base_url = (settings.base_url or DEFAULT_BASE_URLS.get(self.provider, "")).rstrip("/")
         self.calls_made = 0
         self._client = httpx.Client(timeout=120.0)
@@ -96,8 +126,8 @@ class LLMClient:
         #: Set when the provider refused us in a way retrying cannot fix (bad
         #: key, unknown model), so the rest of the run stops asking.
         self._fatal: str | None = None
-        #: Set once a Gemini model rejects ``thinkingConfig``.
-        self._gemini_thinking_refused = False
+        #: Gemini models that rejected ``thinkingConfig``.
+        self._gemini_thinking_refused: set[str] = set()
 
     # -- configuration -----------------------------------------------------
 
@@ -147,11 +177,7 @@ class LLMClient:
         self.calls_made += 1
         tokens = max_tokens or self.settings.max_output_tokens
         try:
-            if self.provider == "anthropic":
-                return self._anthropic(system, user, tokens)
-            if self.provider in ("gemini", "google"):
-                return self._gemini(system, user, tokens, json_mode)
-            return self._openai_shaped(system, user, tokens)
+            return self._complete_with_fallbacks(system, user, tokens, json_mode)
         except httpx.HTTPStatusError as exc:
             log.warning("Language model request failed: %s", self._explain_status(exc.response))
             return None
@@ -165,6 +191,86 @@ class LLMClient:
             log.warning("Unexpected response from the language model: %s", exc)
             return None
 
+    def _complete_with_fallbacks(self, system: str, user: str, tokens: int,
+                                 json_mode: bool) -> str:
+        """Ask each usable model in turn until one answers.
+
+        A model out of daily quota or unknown to the provider is dropped for
+        the rest of the run; a busy one only for this call. Any other failure
+        (a bad key, a malformed request) is the same for every model and is
+        raised at once.
+        """
+        candidates = [m for m in self.models if m not in self._exhausted]
+        # ``usable()`` is False once every model is dropped, so there is one.
+        assert candidates, "complete() called with no model left"
+        last: httpx.HTTPStatusError | None = None
+        for position, model in enumerate(candidates):
+            try:
+                return self._with_retries(
+                    lambda model=model: self._request(model, system, user, tokens, json_mode))
+            except httpx.HTTPStatusError as exc:
+                gone = self._model_gone(exc.response, model)
+                if gone:
+                    self._exhausted[model] = gone
+                elif exc.response.status_code not in RETRY_STATUSES:
+                    raise
+                last = exc
+                if position + 1 < len(candidates):
+                    reason = gone or f"model {model} is busy (HTTP {exc.response.status_code})"
+                    log.warning("%s: %s; trying %s instead.",
+                                self.provider, reason, candidates[position + 1])
+        if all(m in self._exhausted for m in self.models):
+            self._fatal = (f"no {self.provider} model is left for this run ("
+                           + "; ".join(self._exhausted.values()) + ")")
+        assert last is not None
+        raise last
+
+    def _model_gone(self, response: httpx.Response, model: str) -> str | None:
+        """Why ``model`` cannot be used again this run, or None if it still can."""
+        if response.status_code == 404:
+            return f"model {model} does not exist or was retired (HTTP 404)"
+        if response.status_code == 429 and _quota_period(response) == "day":
+            return (f"the daily quota for {model} is spent (it resets at midnight "
+                    "Pacific time; a paid plan raises it)")
+        return None
+
+    def _request(self, model: str, system: str, user: str, tokens: int, json_mode: bool) -> str:
+        if self.provider == "anthropic":
+            return self._anthropic(model, system, user, tokens)
+        if self.provider in ("gemini", "google"):
+            return self._gemini(model, system, user, tokens, json_mode)
+        return self._openai_shaped(model, system, user, tokens)
+
+    def _with_retries(self, call):
+        """Run ``call``, retrying rate limits and busy servers with a backoff.
+
+        A busy provider (Gemini's 503 "high demand" is common) usually answers
+        a few seconds later; failing at once would drop the model's reading of
+        that ad for the whole run.
+        """
+        for delay in (*RETRY_DELAYS, None):
+            try:
+                return call()
+            except httpx.HTTPStatusError as exc:
+                if delay is None or exc.response.status_code not in RETRY_STATUSES:
+                    raise
+                if _quota_period(exc.response) == "day":
+                    raise  # waiting seconds cannot bring back a daily quota
+                wait = _retry_after(exc.response, delay)
+                if wait is None:
+                    raise
+                log.info("%s answered HTTP %s; retrying in %.0f s.",
+                         self.provider, exc.response.status_code, wait)
+                _sleep(wait)
+            except httpx.TransportError as exc:  # a refused or dropped connection
+                # A timeout already cost two minutes; waiting for another is worse.
+                if delay is None or isinstance(exc, httpx.TimeoutException):
+                    raise
+                log.info("%s could not be reached (%s); retrying in %.0f s.",
+                         self.provider, exc, delay)
+                _sleep(delay)
+        raise AssertionError("unreachable")  # pragma: no cover
+
     def _explain_status(self, response: httpx.Response) -> str:
         """A readable reason for an error status; stops the run for fatal ones."""
         status = response.status_code
@@ -176,12 +282,13 @@ class LLMClient:
         if bad_key:
             self._fatal = f"{self.provider} rejected the API key (HTTP {status})"
             return self._fatal + " — check the key; no more calls will be made this run."
+        if self._fatal and status in (404, 429):
+            return self._fatal + "; the rest of the run continues without it."
         if status == 404:
-            self._fatal = (f"{self.provider} does not know model '{self.model}' "
-                           f"or the endpoint {self.base_url} (HTTP 404)")
-            return self._fatal + " — check llm.model and llm.base_url."
+            return (f"{self.provider} does not know the model or the endpoint {self.base_url} "
+                    "(HTTP 404) — check llm.model and llm.base_url.")
         if status == 429:
-            return f"{self.provider} is rate-limiting requests or the quota is spent (HTTP 429)."
+            return f"{self.provider} is rate-limiting requests (HTTP 429); try again later."
         if status >= 500:
             return f"{self.provider} had a server error (HTTP {status}); try again later."
         return f"{self.provider} answered HTTP {status}: {response.text[:200]}"
@@ -194,7 +301,7 @@ class LLMClient:
 
     # -- providers ---------------------------------------------------------
 
-    def _anthropic(self, system: str, user: str, max_tokens: int) -> str:
+    def _anthropic(self, model: str, system: str, user: str, max_tokens: int) -> str:
         response = self._client.post(
             f"{self.base_url}/messages",
             headers={
@@ -203,7 +310,7 @@ class LLMClient:
                 "content-type": "application/json",
             },
             json={
-                "model": self.model,
+                "model": model,
                 "max_tokens": max_tokens,
                 "temperature": self.settings.temperature,
                 "system": system,
@@ -214,12 +321,18 @@ class LLMClient:
         blocks = response.json().get("content", [])
         return "".join(block.get("text", "") for block in blocks if block.get("type") == "text")
 
-    def _gemini(self, system: str, user: str, max_tokens: int, json_mode: bool = False) -> str:
-        config: dict = {"temperature": self.settings.temperature, "maxOutputTokens": max_tokens}
+    def _gemini(self, model: str, system: str, user: str, max_tokens: int,
+                json_mode: bool = False) -> str:
+        model = model.removeprefix("models/")
+        thinking = gemini_thinking(model)
+        thinks = thinking is not None and thinking.get("thinkingBudget") != 0
+        config: dict = {
+            "temperature": self.settings.temperature,
+            "maxOutputTokens": max_tokens + (GEMINI_THINKING_HEADROOM if thinks else 0),
+        }
         if json_mode:
             config["responseMimeType"] = "application/json"
-        thinking = gemini_thinking(self.model)
-        if thinking and not self._gemini_thinking_refused:
+        if thinking and model not in self._gemini_thinking_refused:
             config["thinkingConfig"] = thinking
         body: dict = {
             "contents": [{"role": "user", "parts": [{"text": user}]}],
@@ -228,7 +341,6 @@ class LLMClient:
         if system:
             body["systemInstruction"] = {"parts": [{"text": system}]}
 
-        model = self.model.removeprefix("models/")
         url = f"{self.base_url}/models/{model}:generateContent"
         headers = {"x-goog-api-key": self._api_key, "content-type": "application/json"}
         response = self._client.post(url, headers=headers, json=body)
@@ -237,7 +349,7 @@ class LLMClient:
             # A model that does not take this thinking setting: ask again
             # without it, and stop sending it for the rest of the run.
             log.info("Gemini model %s refused the thinking setting; retrying without it.", model)
-            self._gemini_thinking_refused = True
+            self._gemini_thinking_refused.add(model)
             del config["thinkingConfig"]
             response = self._client.post(url, headers=headers, json=body)
         response.raise_for_status()
@@ -256,13 +368,17 @@ class LLMClient:
         text = "".join(part.get("text", "") for part in parts if not part.get("thought"))
         finish = candidate.get("finishReason", "STOP")
         if finish == "MAX_TOKENS":
-            log.warning("Gemini's answer was cut off at the output limit (%s tokens); "
-                        "raise llm.max_output_tokens if this keeps happening.", max_tokens)
-        elif finish not in ("STOP", "FINISH_REASON_UNSPECIFIED") and not text:
+            # Half a letter or half a JSON object is worse than none: the
+            # caller falls back to its deterministic version instead.
+            log.warning("Gemini's answer was cut off at the output limit (%s tokens) and was "
+                        "discarded; raise llm.max_output_tokens if this keeps happening.",
+                        max_tokens)
+            return ""
+        if finish not in ("STOP", "FINISH_REASON_UNSPECIFIED") and not text:
             log.warning("Gemini returned no answer (finish reason %s).", finish)
         return text
 
-    def _openai_shaped(self, system: str, user: str, max_tokens: int) -> str:
+    def _openai_shaped(self, model: str, system: str, user: str, max_tokens: int) -> str:
         headers = {"content-type": "application/json"}
         if self._api_key:
             headers["Authorization"] = f"Bearer {self._api_key}"
@@ -270,7 +386,7 @@ class LLMClient:
             f"{self.base_url}/chat/completions",
             headers=headers,
             json={
-                "model": self.model,
+                "model": model,
                 "max_tokens": max_tokens,
                 "temperature": self.settings.temperature,
                 "messages": [
@@ -287,6 +403,50 @@ class LLMClient:
 
     def close(self) -> None:
         self._client.close()
+
+
+#: Indirection so tests do not wait.
+_sleep = time.sleep
+
+
+def _error_details(response: httpx.Response) -> list[dict]:
+    """The ``error.details`` list of a Google-style error body, or []."""
+    try:
+        details = response.json().get("error", {}).get("details", [])
+    except (ValueError, AttributeError):
+        return []
+    return [d for d in details if isinstance(d, dict)] if isinstance(details, list) else []
+
+
+def _quota_period(response: httpx.Response) -> str | None:
+    """``"day"`` when a 429 is a daily quota (Gemini's free tier), else None."""
+    if response.status_code != 429:
+        return None
+    for detail in _error_details(response):
+        for violation in detail.get("violations") or []:
+            if "perday" in str(violation.get("quotaId", "")).lower():
+                return "day"
+    return None
+
+
+def _retry_after(response: httpx.Response, default: float) -> float | None:
+    """Seconds the provider asked us to wait, ``default`` if it did not say,
+    or None if it asked for longer than is worth waiting inside a run."""
+    raw = response.headers.get("retry-after", "").strip()
+    if not raw:
+        # Google says it in the body instead: RetryInfo {"retryDelay": "31s"}.
+        for detail in _error_details(response):
+            delay = str(detail.get("retryDelay", ""))
+            if delay.endswith("s"):
+                raw = delay[:-1]
+                break
+    if not raw:
+        return default
+    try:
+        seconds = float(raw)
+    except ValueError:
+        return default
+    return None if seconds > MAX_RETRY_AFTER else max(seconds, 0.0)
 
 
 def build_client(settings: LLMSettings) -> LLMClient | None:

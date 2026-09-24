@@ -560,8 +560,11 @@ def import_profile(source: str | Path, llm: LLMClient | None = None) -> tuple[Pr
             "which the text parser gets approximately right at best."
         )
 
-    if not profile.evidence:
-        profile = vocabulary.refresh(profile)
+    # Evidence is always derived from the text; a model's own numbers only
+    # refine skills that derivation recognises (see merge_model_judgement).
+    profile = vocabulary.merge_model_judgement(
+        profile, dict(profile.evidence or {}), dict(profile.ceiling or {})
+    )
     # Labels always come from the taxonomy so the dashboard shows "PyTorch /
     # TensorFlow" rather than the raw key.
     profile.skill_labels = {key: label_for(key) for key in (profile.evidence or {})}

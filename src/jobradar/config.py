@@ -19,6 +19,7 @@ import logging
 import os
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 import yaml
 from pydantic import BaseModel, Field, ValidationError
@@ -208,6 +209,11 @@ class LLMSettings(BaseModel):
 
     provider: str = "none"  # none | anthropic | openai | gemini | openai-compatible | ollama
     model: str = ""
+    #: Models to try, in order, when ``model`` is busy, retired or out of
+    #: quota. ``None`` uses the provider's own list (Gemini has one, because
+    #: its free tier gives each model only a small daily quota); ``[]`` means
+    #: no fallback at all.
+    fallback_models: list[str] | None = None
     base_url: str = ""
     #: Cap on requests per pipeline run, so an unattended cron job cannot burn
     #: an unbounded amount of credit.
@@ -240,13 +246,20 @@ class LLMSettings(BaseModel):
         provider = os.environ.get("JOBRADAR_LLM_PROVIDER", "").strip().lower()
         model = os.environ.get("JOBRADAR_LLM_MODEL", "").strip()
         base_url = os.environ.get("JOBRADAR_LLM_BASE_URL", "").strip()
-        updates: dict[str, str] = {}
+        fallbacks = os.environ.get("JOBRADAR_LLM_FALLBACK_MODELS")
+        updates: dict[str, Any] = {}
         if provider and provider != "none" and provider != self.provider.strip().lower():
-            updates.update(provider=provider, model="", base_url="")
+            updates.update(provider=provider, model="", base_url="", fallback_models=None)
         if model:
             updates["model"] = model
         if base_url:
             updates["base_url"] = base_url
+        if fallbacks is not None and fallbacks.strip():
+            # "none" switches the fallback off; otherwise a comma-separated list.
+            updates["fallback_models"] = (
+                [] if fallbacks.strip().lower() == "none"
+                else [m.strip() for m in fallbacks.split(",") if m.strip()]
+            )
         return self.model_copy(update=updates) if updates else self
 
 

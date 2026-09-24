@@ -986,7 +986,7 @@ function settingsBody() {
              ["gemini","Google Gemini (GEMINI_API_KEY)"],
              ["openai-compatible","OpenAI-compatible endpoint"],["ollama","Ollama (local)"]])),
         el("div", {}, el("label", {}, "Model"),
-          input("s_model", settings.llm.model, "blank = provider default, e.g. gemini-3.8-flash")),
+          input("s_model", settings.llm.model, "blank = provider default, e.g. gemini-3.5-flash")),
       ),
       el("div", { className: "two" },
         el("div", {}, el("label", {}, "Base URL (compatible endpoints only)"),

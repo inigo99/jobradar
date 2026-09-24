@@ -10,7 +10,7 @@ All notable changes to this project are documented here. The format follows
 
 - **Google Gemini as a language model**, selectable in the dashboard's
   Settings or with `JOBRADAR_LLM_PROVIDER=gemini` and `GEMINI_API_KEY` (or
-  `GOOGLE_API_KEY`). The default model is `gemini-3.8-flash`. Thinking is
+  `GOOGLE_API_KEY`). The default model is `gemini-3.5-flash`. Thinking is
   kept low so it cannot use up the output budget and leave the answer empty;
   JSON is requested natively when importing a CV or reading an ad; blocked,
   cut-off and invalid-key answers are reported (Gemini signals a bad key with
@@ -20,6 +20,12 @@ All notable changes to this project are documented here. The format follows
   another installed Chromium (an older or newer Playwright build, or a system
   Chromium/Chrome), or the one named in `JOBRADAR_CHROMIUM_PATH`.
   `jobradar doctor` reports which browser will be used.
+- **Language-model calls survive a busy or rationed provider.** Rate limits
+  and 5xx answers are retried with a backoff (honouring `Retry-After` and
+  Google's `RetryInfo`). A model that is still busy, retired (404) or out of
+  its daily quota hands over to the next one in `llm.fallback_models` /
+  `JOBRADAR_LLM_FALLBACK_MODELS`; Gemini ships a default list, because its
+  free tier gives each model only a small daily quota.
 - **Errors that say what to do.** A new `jobradar.errors` module gives every
   failure a user can cause or fix its own exception — `ConfigError`,
   `SetupRequiredError`, `NotFoundError`, `MissingDependencyError`,
@@ -40,6 +46,18 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- **A CV imported with a language model had no usable skills.** The prompt
+  did not say which skill keys exist, so a model named its own
+  (`languages`, `data-ml`); nothing matched any ad, scores were wrong, and
+  every generated summary and letter was rejected as "invented". Evidence is
+  now always derived from the CV text, the prompt lists the valid keys, and
+  the model's numbers only refine skills the taxonomy recognises.
+- **Honest letters were rejected.** "I have not worked with MLOps" counted as
+  claiming MLOps. A skill now counts as claimed only in a clause that does not
+  deny it ("not only" still counts as a claim).
+- A Gemini answer cut off at the output limit is discarded instead of used
+  half-written, and Gemini gets extra output room for its thinking, which
+  counts against the same limit.
 - `JOBRADAR_LLM_PROVIDER`, `JOBRADAR_LLM_MODEL` and `JOBRADAR_LLM_BASE_URL`
   were documented but never read. They now override the provider stored in
   Settings (empty or `none` leaves it alone); `--no-llm` still wins over them.

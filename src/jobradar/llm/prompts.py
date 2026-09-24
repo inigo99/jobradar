@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 
 from ..models import Job, Profile, localized
-from ..taxonomy import taxonomy
+from ..taxonomy import find_skills, taxonomy
 
 # ---------------------------------------------------------------------------
 # Shared fragments
@@ -197,6 +197,13 @@ Never include a skill the CV does not mention at all.
 emphasise it — how well the person could defend it in an interview given what the CV
 shows. It is never lower than the evidence, and for a skill only listed once with no
 supporting work it should stay close to it."""
+    keys = sorted(find_skills(text))
+    if keys:
+        # The keys are the taxonomy's, not the CV's section names: without
+        # the list a model invents its own ("languages", "data-ml"), and none
+        # of them match anything an ad asks for.
+        system += ("\n\nUse exactly these skill keys in `evidence` and `ceiling`, and no "
+                   f"others: {', '.join(keys)}.")
     return system, f"Language of the CV: {language}\n\nCV text:\n{truncate_by_tokens(text, 5000)}"
 
 
