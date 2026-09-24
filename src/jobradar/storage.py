@@ -44,6 +44,7 @@ from .models import (
     Profile,
     SearchRun,
 )
+from .profile.vocabulary import activate_custom_skills
 
 log = logging.getLogger(__name__)
 
@@ -192,6 +193,11 @@ def _listing_fields(payload: str) -> dict[str, Any]:
         "salary_currency": salary.get("currency") or "EUR",
         "salary_origin": salary.get("origin") or "unknown",
     }
+
+
+def _activate_custom_skills(profile: Profile) -> None:
+    """Skills the user added by hand join the vocabulary whenever the profile loads."""
+    activate_custom_skills(profile)
 
 
 def _storage_error(exc: sqlite3.Error, path: Path) -> StorageError:
@@ -365,15 +371,18 @@ class Database:
         if not data:
             return None
         try:
-            return Profile.model_validate(data)
+            profile = Profile.model_validate(data)
         except ValidationError as exc:
             raise StorageError(
                 f"The stored profile is invalid: {validation_summary(exc)}",
                 hint="Import your CV again with 'jobradar init --cv <file>'.",
             ) from exc
+        _activate_custom_skills(profile)
+        return profile
 
     def save_profile(self, profile: Profile) -> None:
         self._put_doc("profile", profile.model_dump(mode="json"))
+        _activate_custom_skills(profile)
 
     # -- jobs ---------------------------------------------------------------
 

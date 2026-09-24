@@ -19,6 +19,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from .taxonomy import label_for as taxonomy_label
+
 # A mapping of ISO-639-1 language code -> text.
 LocalizedText = dict[str, str]
 
@@ -253,6 +255,13 @@ class Profile(BaseModel):
     ceiling: dict[str, float] = Field(default_factory=dict)
     # Human-readable label for each skill key, used in the UI and in reports.
     skill_labels: dict[str, str] = Field(default_factory=dict)
+    #: Skills the user added that the shipped taxonomy does not know:
+    #: key ("custom_…") -> other names it goes by in ads. The label is in
+    #: ``skill_labels``. See ``taxonomy.use_custom_skills``.
+    custom_skills: dict[str, list[str]] = Field(default_factory=dict)
+    #: Skill keys the user deleted in Settings. They are never derived again
+    #: from the CV's text, so a deletion survives edits and re-imports.
+    removed_skills: list[str] = Field(default_factory=list)
     #: Per job family (key), how the tailored CV selects and orders content.
     family_variants: dict[str, CvVariant] = Field(default_factory=dict)
 
@@ -271,7 +280,8 @@ class Profile(BaseModel):
         return {k for k, v in self.evidence.items() if v > 0.0}
 
     def label_for(self, key: str) -> str:
-        return self.skill_labels.get(key, key.replace("_", " "))
+        """The skill's name as the user sees it: their own label, else the taxonomy's."""
+        return self.skill_labels.get(key) or taxonomy_label(key)
 
     def years_of_experience(self, today: date | None = None) -> float:
         """Approximate total professional experience, in years.

@@ -57,9 +57,42 @@ def _difficulty_rules() -> tuple[str, dict[str, str], dict[str, str]]:
     return default, by_group, overrides
 
 
-@lru_cache(maxsize=1)
+#: Skills the user added in Settings that the shipped taxonomy does not know,
+#: keyed like any other skill. Set from the profile by :func:`use_custom_skills`.
+_CUSTOM: dict[str, Skill] = {}
+#: Prefix of the keys of user-added skills.
+CUSTOM_PREFIX = "custom_"
+
+
+def use_custom_skills(custom: dict[str, tuple[str, list[str]]]) -> None:
+    """Make the user's own skills part of the vocabulary: ``{key: (label, aliases)}``.
+
+    Called whenever the profile is loaded, so a skill added in Settings is
+    read in job ads and checked by the validator like a shipped one.
+    """
+    wanted = {
+        key: Skill(key=key, label=label, group="custom",
+                   aliases=tuple(dict.fromkeys(a.strip().lower() for a in (label, *aliases)
+                                               if a and a.strip())),
+                   difficulty=_difficulty_rules()[0])
+        for key, (label, aliases) in custom.items()
+    }
+    if wanted == _CUSTOM:
+        return
+    _CUSTOM.clear()
+    _CUSTOM.update(wanted)
+    _matchers.cache_clear()
+    _names.cache_clear()
+
+
 def taxonomy() -> dict[str, Skill]:
-    """Every skill known to JobRadar, keyed by its stable key."""
+    """Every skill known to JobRadar, keyed by its stable key: shipped, then the user's."""
+    return {**_shipped(), **_CUSTOM} if _CUSTOM else _shipped()
+
+
+@lru_cache(maxsize=1)
+def _shipped() -> dict[str, Skill]:
+    """The taxonomy in ``resources/skills.yaml``."""
     raw = _raw()
     default, by_group, overrides = _difficulty_rules()
     skills: dict[str, Skill] = {}

@@ -171,15 +171,6 @@ function settingsBody() {
   );
 
   if (profile) {
-    const skills = el("div");
-    for (const skill of profile.skills.slice(0, 40)) {
-      skills.append(el("div", { className: "skill-row" },
-        el("span", {}, skill.label),
-        el("input", { type: "number", step: "0.1", min: "0", max: "1",
-                      className: "ev", "data-key": skill.key, value: skill.evidence }),
-        el("input", { type: "number", step: "0.1", min: "0", max: "1",
-                      className: "ce", "data-key": skill.key, value: skill.ceiling })));
-    }
     body.append(el("fieldset", {},
       el("legend", {}, "Your profile"),
       el("p", { className: "hint" },
@@ -187,19 +178,94 @@ function settingsBody() {
         `red-flag check ${profile.lint.score}/100`),
       lintBlock(profile.lint),
       el("label", {}, "Replace the profile with a new CV"),
-      el("input", { type: "file", id: "s_cv", accept: ".pdf,.docx,.txt,.md,.html" }),
-      el("label", {}, "Evidence and ceiling per skill"),
       el("p", { className: "hint" },
-        "Evidence is how strongly your CV proves a skill today. Ceiling is how far a tailored CV " +
-        "may push it — that is, how well you could defend it in an interview. A skill with zero " +
-        "evidence can never be raised, which is what stops any generated document from inventing " +
-        "experience."),
-      el("div", { className: "skill-row" },
-        el("b", {}, "Skill"), el("b", {}, "Evidence"), el("b", {}, "Ceiling")),
-      skills,
-    ), variantsFieldset(profile));
+        "Skills you added or deleted by hand, tuned ceilings and the CV per job family are kept."),
+      el("input", { type: "file", id: "s_cv", accept: ".pdf,.docx,.txt,.md,.html" }),
+    ), skillsFieldset(profile), variantsFieldset(profile));
   }
   return body;
+}
+
+/* --------------------------------------------------------------------------
+   Your skills. Imported from the CV, then yours to add to, edit and delete.
+   Evidence is how strongly the CV proves a skill today; the ceiling is how
+   far a tailored CV may push it. A skill with no evidence can never be
+   raised: that is what stops a generated document from inventing experience.
+-------------------------------------------------------------------------- */
+let DELETED_SKILLS = [];
+
+function groupRow(group) {
+  const row = el("div", { className: "group-row", "data-key": group.key || "" },
+    el("input", { className: "g_label", value: group.label, placeholder: "Group, e.g. Tools" }),
+    el("input", { className: "g_items", value: (group.items || []).join(", "),
+                  placeholder: "Skills, comma separated" }));
+  row.append(button("Remove", async () => row.remove()));
+  return row;
+}
+
+function skillRow(skill) {
+  const isNew = !skill.key;
+  const row = el("div", { className: "skill-row", "data-key": skill.key || "" },
+    isNew || skill.custom
+      ? el("input", { className: "k_name", value: skill.label || "", placeholder: "Skill name" })
+      : el("span", { className: "k_label" }, skill.label),
+    el("input", { type: "number", step: "0.1", min: "0", max: "1", className: "ev",
+                  value: skill.evidence, title: "Evidence: 1 shown in an achievement, 0.5 listed" }),
+    el("input", { type: "number", step: "0.1", min: "0", max: "1", className: "ce",
+                  value: skill.ceiling, title: "Ceiling: how far a tailored CV may push it" }),
+    button("Delete", async () => {
+      if (skill.key) DELETED_SKILLS.push(skill.key);
+      row.remove();
+    }));
+  if (isNew || skill.custom) {
+    row.append(el("input", { className: "k_aliases", value: (skill.aliases || []).join(", "),
+                             placeholder: "Other names in ads (optional), comma separated" }));
+  }
+  return row;
+}
+
+function skillsFieldset(profile) {
+  DELETED_SKILLS = [];
+  const groups = el("div", { id: "s_groups" }, ...profile.skill_groups.map(groupRow));
+  const table = el("div", { id: "s_skills" }, ...profile.skills.map(skillRow));
+  return el("fieldset", {},
+    el("legend", {}, "Your skills"),
+    el("p", { className: "hint" },
+      "Imported from your CV. Add, edit or delete them here; a skill you delete is not read " +
+      "back from the CV on the next import."),
+    el("label", {}, "Listed on your CV"),
+    groups,
+    button("Add a group", async () => groups.append(groupRow({ key: "", label: "", items: [] }))),
+    el("label", {}, "Evidence and ceiling per skill"),
+    el("p", { className: "hint" },
+      "Evidence is how strongly your CV proves a skill today: 1 when an achievement shows it, " +
+      "0.5 when it is only listed. The ceiling is how far a tailored CV may push it — how well " +
+      "you could defend it in an interview. A skill with zero evidence can never be raised, " +
+      "which is what stops any generated document from inventing experience. Typing a skill " +
+      "into a group above is enough to add it; add it here to set its numbers or give it " +
+      "other names."),
+    el("div", { className: "skill-row skill-head" },
+      el("b", {}, "Skill"), el("b", {}, "Evidence"), el("b", {}, "Ceiling"), el("span")),
+    table,
+    button("Add a skill", async () => table.append(skillRow({ key: "", label: "", evidence: 0.5,
+                                                              ceiling: 0.9, aliases: [] }))),
+  );
+}
+
+function collectSkills() {
+  const list = text => text.split(",").map(s => s.trim()).filter(Boolean);
+  const groups = [...document.querySelectorAll("#s_groups .group-row")]
+    .map(row => ({ key: row.dataset.key, label: $(".g_label", row).value.trim(),
+                   items: list($(".g_items", row).value) }))
+    .filter(group => group.label && group.items.length);
+  const skills = [...document.querySelectorAll("#s_skills .skill-row")].map(row => ({
+    key: row.dataset.key,
+    name: $(".k_name", row) ? $(".k_name", row).value.trim() : $(".k_label", row).textContent,
+    evidence: Number($(".ev", row).value || 0),
+    ceiling: Number($(".ce", row).value || 0),
+    aliases: $(".k_aliases", row) ? list($(".k_aliases", row).value) : [],
+  })).filter(skill => skill.key || skill.name);
+  return { groups, skills, deleted: DELETED_SKILLS };
 }
 
 /* --------------------------------------------------------------------------
@@ -404,13 +470,10 @@ async function saveSettings() {
 
   const saved = await api("/api/settings", { method: "PUT", body: JSON.stringify({ settings }) });
 
-  const evidence = {}, ceiling = {};
-  document.querySelectorAll(".ev").forEach(n => evidence[n.dataset.key] = Number(n.value));
-  document.querySelectorAll(".ce").forEach(n => ceiling[n.dataset.key] = Number(n.value));
   if (STATE.profile) {
+    await api("/api/profile/skills", { method: "PUT", body: JSON.stringify(collectSkills()) });
     collectVariant();
-    await api("/api/profile", { method: "PUT",
-                                body: JSON.stringify({ evidence, ceiling, family_variants: VARIANTS }) });
+    await api("/api/profile", { method: "PUT", body: JSON.stringify({ family_variants: VARIANTS }) });
   }
   const picker = $("#s_cv");
   if (picker && picker.files.length) {

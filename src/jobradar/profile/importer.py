@@ -393,7 +393,7 @@ def _parse_skills(lines: list[str], language: str) -> list[SkillGroup]:
         label, separator, items = text.partition(":")
         if not separator:
             label, items = f"Skills {index + 1}", text
-        parsed = [item.strip() for item in re.split(r"[,;·/|]", items) if item.strip()]
+        parsed = [item.strip() for item in re.split(r"[,;·|]|\s/\s", items) if item.strip()]
         if parsed:
             groups.append(
                 SkillGroup(key=slugify(label, 20) or f"group{index}",

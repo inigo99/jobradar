@@ -393,6 +393,110 @@ def rule_acronyms(profile: Profile, language: str) -> Iterator[LintFinding]:
 
 
 # ---------------------------------------------------------------------------
+# Rules — the evidence model
+#
+# These are particular to JobRadar. The evidence and ceiling per skill are
+# what stop a tailored CV from claiming more than the candidate can defend,
+# so they have to keep telling the truth about the CV they describe.
+# ---------------------------------------------------------------------------
+
+
+def rule_position_without_achievements(profile: Profile, language: str) -> Iterator[LintFinding]:
+    """A position with no achievements under it is a title and two dates."""
+    for experience in profile.experience:
+        if not experience.bullets:
+            title = localized(experience.title, language) or experience.id
+            yield finding(
+                "position-without-achievements", Severity.WARNING,
+                f"'{title}' at {experience.organization or 'an unnamed employer'} has no "
+                "achievements.",
+                hint="Add one or two results from that job. Without them it proves no skill, "
+                     "so nothing from it can be used to match an ad.",
+                location=experience.id,
+            )
+
+
+def _flat(text: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", text.lower())
+
+
+def rule_unproven_evidence(profile: Profile, language: str) -> Iterator[LintFinding]:
+    """A skill marked as demonstrated (1.0) must appear in an achievement.
+
+    If the achievement that proved it was rewritten and the skill dropped out,
+    the score keeps counting it as proven and nobody notices.
+    """
+    texts = [text for _, _, text in _bullets(profile, language)]
+    texts.append(localized(profile.summary, language) or "")
+    texts.extend(localized(e.title, language) or "" for e in profile.experience)
+    texts.extend(localized(e.degree, language) or "" for e in profile.education)
+    texts.extend(localized(e.note, language) or "" for e in profile.education)
+    texts.extend(localized(language_skill.name, "en") or "" for language_skill in profile.languages)
+    joined = "\n".join(texts)
+    tagged = {key for bullet in profile.all_bullets() for key in (bullet.skills or [])}
+    mentioned = set(find_skills(joined)) | tagged
+    flat = _flat(joined)
+    for key, value in sorted(profile.evidence.items()):
+        if value < 1.0 or key in mentioned or _flat(profile.label_for(key)) in flat:
+            continue
+        yield finding(
+            "unproven-evidence", Severity.WARNING,
+            f"'{profile.label_for(key)}' is marked as demonstrated but no achievement mentions it.",
+            hint="Either the achievement that proved it changed, or it is written differently "
+                 "in the CV. Until then, matching counts it as proven: lower its evidence in "
+                 "Settings, or name it in the achievement that shows it.",
+        )
+
+
+def rule_impossible_ceiling(profile: Profile, language: str) -> Iterator[LintFinding]:
+    """A ceiling can never promise more than the evidence allows."""
+    for key, cap in sorted(profile.ceiling.items()):
+        base = profile.evidence.get(key, 0.0)
+        if base == 0.0 and cap > 0.0:
+            yield finding(
+                "impossible-ceiling", Severity.ERROR,
+                f"'{profile.label_for(key)}' has a ceiling of {cap:g} and no evidence.",
+                hint="A skill your CV does not show can never be raised, so this ceiling is "
+                     "ignored — but it says you could claim something you do not have. "
+                     "Remove it, or add the evidence first.",
+            )
+        elif cap < base:
+            yield finding(
+                "impossible-ceiling", Severity.WARNING,
+                f"'{profile.label_for(key)}' has a ceiling of {cap:g}, below its evidence "
+                f"of {base:g}.",
+                hint="A tailored CV never lowers what is already proven, so this ceiling "
+                     "means nothing. Set it at least to the evidence.",
+            )
+
+
+def rule_unknown_listed_skills(profile: Profile, language: str) -> Iterator[LintFinding]:
+    """Skills listed on the CV that the evidence model does not know.
+
+    They do not count when matching, so an ad asking for one shows a gap that
+    is not really there.
+    """
+    known = {_flat(profile.label_for(key)) for key in profile.evidence} | {
+        _flat(key) for key in profile.evidence}
+    unknown: list[str] = []
+    for group in profile.skills:
+        for item in group.items:
+            keys = set(find_skills(item))
+            if keys & set(profile.evidence) or _flat(item) in known or not _flat(item):
+                continue
+            unknown.append(item)
+    if unknown:
+        shown = ", ".join(f"'{item}'" for item in unknown[:6])
+        more = f" and {len(unknown) - 6} more" if len(unknown) > 6 else ""
+        yield finding(
+            "unknown-listed-skills", Severity.INFO,
+            f"Listed but unknown to matching: {shown}{more}.",
+            hint="Add them in Settings → Your skills with the evidence you have, so ads that "
+                 "ask for them count them.",
+        )
+
+
+# ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 
@@ -412,6 +516,10 @@ PROFILE_RULES: tuple[Rule, ...] = (
     rule_skill_stuffing,
     rule_orphan_skills,
     rule_acronyms,
+    rule_position_without_achievements,
+    rule_unproven_evidence,
+    rule_impossible_ceiling,
+    rule_unknown_listed_skills,
 )
 
 

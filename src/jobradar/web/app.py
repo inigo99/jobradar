@@ -67,6 +67,7 @@ from ..models import (
     Profile,
     Salary,
     SalaryOrigin,
+    SkillGroup,
     localized,
 )
 from ..pipeline import run_search, sweep_closed
@@ -76,6 +77,7 @@ from ..pipeline.focus import focus_for
 from ..pipeline.salary import ExchangeRates
 from ..pipeline.scoring import score_job
 from ..profile import import_profile
+from ..profile.vocabulary import SkillEdit, apply_skill_edits, carry_over
 from ..sources import available as available_sources
 from ..storage import Database
 from ..textutils import slugify
@@ -92,6 +94,7 @@ from .api import (
     ProfilePatch,
     QuestionPayload,
     SettingsPayload,
+    SkillsPayload,
 )
 
 log = logging.getLogger(__name__)
@@ -396,8 +399,11 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
             ],
             "skills": [
                 {"key": key, "label": profile.label_for(key),
-                 "evidence": value, "ceiling": profile.ceiling.get(key, value)}
-                for key, value in sorted(profile.evidence.items(), key=lambda item: -item[1])
+                 "evidence": value, "ceiling": profile.ceiling.get(key, value),
+                 "custom": key in profile.custom_skills,
+                 "aliases": profile.custom_skills.get(key, [])}
+                for key, value in sorted(profile.evidence.items(),
+                                         key=lambda item: (-item[1], profile.label_for(item[0])))
             ],
             "skill_groups": [
                 {"key": group.key, "label": localized(group.label, profile.default_language),
@@ -526,6 +532,23 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
         database.save_profile(profile)
         return {"ok": True, "profile": _profile_summary(profile)}
 
+    @app.put("/api/profile/skills")
+    def update_skills(payload: SkillsPayload):
+        """Add, edit and delete skills; the listed groups, evidence and ceilings."""
+        profile = require_profile()
+        language = profile.default_language
+        groups = [
+            SkillGroup(key=group.key or slugify(group.label, 20) or f"group{index}",
+                       label={language: group.label.strip()},
+                       items=[item.strip() for item in group.items if item.strip()])
+            for index, group in enumerate(payload.groups)
+        ]
+        rows = [SkillEdit(name=row.name, evidence=row.evidence, ceiling=row.ceiling,
+                          key=row.key, aliases=tuple(row.aliases)) for row in payload.skills]
+        apply_skill_edits(profile, groups, rows, payload.deleted)
+        database.save_profile(profile)
+        return {"ok": True, "profile": _profile_summary(profile)}
+
     @app.post("/api/profile/reimport")
     async def reimport(cv_file: UploadFile = File(...)):
         """Replace the profile from a new CV file."""
@@ -539,6 +562,9 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
         finally:
             if llm:
                 llm.close()
+        previous = database.load_profile()
+        if previous is not None:
+            carry_over(previous, profile)
         database.save_profile(profile)
         return {"ok": True, "notes": notes, "profile": _profile_summary(profile)}
 

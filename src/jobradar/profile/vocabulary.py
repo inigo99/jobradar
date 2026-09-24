@@ -15,8 +15,11 @@ against this set and reports whatever is not in it.
 
 from __future__ import annotations
 
-from ..models import Profile, localized
-from ..taxonomy import find_skills, label_for
+import re
+from dataclasses import dataclass
+
+from ..models import Profile, SkillGroup, localized
+from ..taxonomy import CUSTOM_PREFIX, find_skills, label_for, skill_for_name, use_custom_skills
 
 #: Evidence assigned to a skill demonstrated inside a bullet or the summary.
 DEMONSTRATED = 1.0
@@ -70,6 +73,8 @@ def derive_evidence(profile: Profile, languages: tuple[str, ...] = ("en", "es"))
         for detected in find_skills(key):
             evidence[detected] = DEMONSTRATED
 
+    for removed in profile.removed_skills:
+        evidence.pop(removed, None)
     return evidence
 
 
@@ -98,7 +103,9 @@ def refresh(profile: Profile) -> Profile:
             suggested[key] = max(evidence[key], min(1.0, value))
     profile.evidence = evidence
     profile.ceiling = suggested
-    profile.skill_labels = {key: label_for(key) for key in evidence}
+    profile.skill_labels = {key: profile.skill_labels.get(key) or label_for(key)
+                            if key in profile.custom_skills else label_for(key)
+                            for key in evidence}
     return profile
 
 
@@ -159,3 +166,127 @@ def profile_text(profile: Profile, languages: tuple[str, ...] = ("en", "es")) ->
         for language_skill in (profile.languages or []):
             chunks.append(f"{localized(language_skill.name, language) or ''} {language_skill.level or ''}")
     return "\n".join(chunk for chunk in chunks if chunk and chunk.strip())
+
+
+# ---------------------------------------------------------------------------
+# Editing the skills by hand (Settings)
+# ---------------------------------------------------------------------------
+
+
+def activate_custom_skills(profile: Profile) -> None:
+    """Register the profile's own skills with the taxonomy (see ``Profile.custom_skills``)."""
+    use_custom_skills({key: (profile.skill_labels.get(key) or key[len(CUSTOM_PREFIX):], aliases)
+                       for key, aliases in profile.custom_skills.items()})
+
+
+def custom_key(name: str) -> str:
+    """The key of a user-added skill: ``custom_`` plus a readable slug."""
+    slug = re.sub(r"[^a-z0-9]+", "_", name.strip().lower()).strip("_")
+    return f"{CUSTOM_PREFIX}{slug or 'skill'}"
+
+
+@dataclass
+class SkillEdit:
+    """One row of the skills table in Settings.
+
+    ``key`` is empty for a skill the user just added; it is resolved from
+    ``name`` — to a known skill when the taxonomy has one by that name, to a
+    new custom skill otherwise.
+    """
+
+    name: str
+    evidence: float
+    ceiling: float
+    key: str = ""
+    aliases: tuple[str, ...] = ()
+
+
+def apply_skill_edits(
+    profile: Profile,
+    groups: list[SkillGroup],
+    rows: list[SkillEdit],
+    deleted: list[str],
+) -> Profile:
+    """Apply the Settings skills editor to the profile.
+
+    * ``groups`` replace the listed skills (the CV's "Skills" block);
+    * ``rows`` are authoritative for the evidence and ceiling of every skill
+      they name, including new ones;
+    * ``deleted`` keys, and rows set to evidence 0, are removed and
+      remembered, so they are not derived again from the text on the next
+      edit or re-import;
+    * a skill the new groups mention that no row covers is added with the
+      evidence the text gives it, so typing it into a group is enough.
+    """
+    profile.skills = groups
+    for key in deleted:
+        if key not in profile.removed_skills:
+            profile.removed_skills.append(key)
+        profile.custom_skills.pop(key, None)
+
+    wanted: dict[str, tuple[float, float]] = {}
+    for row in rows:
+        name = row.name.strip()
+        if not name and not row.key:
+            continue
+        key = row.key or skill_for_name(name) or custom_key(name)
+        if key.startswith(CUSTOM_PREFIX):
+            aliases = [a.strip().lower() for a in row.aliases if a.strip()]
+            profile.custom_skills[key] = aliases or profile.custom_skills.get(key, [])
+            profile.skill_labels[key] = name or profile.skill_labels.get(key, key)
+        if row.evidence <= 0.0:  # "I do not have it" is a deletion
+            if key not in profile.removed_skills:
+                profile.removed_skills.append(key)
+            profile.custom_skills.pop(key, None)
+            continue
+        if key in profile.removed_skills:  # added back by hand
+            profile.removed_skills.remove(key)
+        wanted[key] = (max(0.0, min(1.0, row.evidence)), max(0.0, min(1.0, row.ceiling)))
+    activate_custom_skills(profile)
+
+    derived = derive_evidence(profile)
+    suggested = suggest_ceilings(derived)
+    evidence: dict[str, float] = {}
+    ceiling: dict[str, float] = {}
+    for key, (value, cap) in wanted.items():
+        evidence[key] = value
+        ceiling[key] = max(value, cap)  # never below what is already proven
+    for key, value in derived.items():
+        if key not in evidence:
+            evidence[key] = value
+            if key in suggested:
+                ceiling[key] = suggested[key]
+    for key in profile.removed_skills:
+        evidence.pop(key, None)
+        ceiling.pop(key, None)
+    profile.evidence = evidence
+    profile.ceiling = ceiling
+    profile.skill_labels = {
+        key: (profile.skill_labels.get(key) if key in profile.custom_skills else None)
+        or label_for(key) for key in profile.evidence}
+    return profile
+
+
+def carry_over(old: Profile, new: Profile) -> Profile:
+    """Keep the user's own choices when a new CV replaces the profile.
+
+    The CV's facts come from the new file; what the user decided about them
+    — skills added or deleted by hand, tuned ceilings, CV variants per job
+    family — carries over wherever it still applies.
+    """
+    new.custom_skills = dict(old.custom_skills)
+    new.removed_skills = list(old.removed_skills)
+    new.family_variants = dict(old.family_variants)
+    for key in old.custom_skills:
+        if key in old.skill_labels:
+            new.skill_labels[key] = old.skill_labels[key]
+    activate_custom_skills(new)
+    refresh(new)
+    for key, value in old.evidence.items():
+        if key in old.custom_skills and key not in new.evidence:
+            new.evidence[key] = value  # a skill only the user knew about
+            new.skill_labels[key] = old.skill_labels.get(key, key)
+    for key, value in old.ceiling.items():
+        if key in new.evidence:
+            new.ceiling[key] = max(new.evidence[key], value)
+    return new

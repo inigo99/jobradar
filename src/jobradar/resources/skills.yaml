@@ -66,7 +66,7 @@ pandas: {label: Pandas / NumPy, group: data, aliases: [pandas, numpy]}
 spark: {label: Spark, group: data, aliases: [spark, pyspark, databricks]}
 etl: {label: ETL / data pipelines, group: data, aliases: [etl, elt, "data pipeline", "pipelines de datos", airflow, dbt]}
 data_analysis: {label: Data analysis, group: data, aliases: ["data analysis", "analisis de datos", "análisis de datos", "data mining", analytics]}
-data_viz: {label: Data visualisation, group: data, aliases: [tableau, "power bi", powerbi, looker, "data visualization", "visualizacion de datos"]}
+data_viz: {label: Data visualisation, group: data, aliases: [tableau, "power bi", powerbi, looker, "data visualization", "data visualisation", "visualizacion de datos"]}
 statistics: {label: Statistics, group: data, aliases: [statistics, estadistica, estadística, "a/b testing", econometrics]}
 warehouse: {label: Data warehousing, group: data, aliases: [snowflake, redshift, bigquery, "data warehouse", "data lake"]}
 

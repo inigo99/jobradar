@@ -51,6 +51,33 @@ class ApplicationPayload(BaseModel):
     notes: str = ""
 
 
+class SkillGroupEdit(BaseModel):
+    """One line of the CV's skills block, as edited in Settings."""
+
+    key: str = ""
+    label: str = Field(min_length=1, max_length=80)
+    items: list[str] = Field(default_factory=list)
+
+
+class SkillRowEdit(BaseModel):
+    """One skill of the evidence table in Settings; ``key`` empty for a new one."""
+
+    key: str = ""
+    name: str = Field(default="", max_length=80)
+    evidence: float = Field(ge=0.0, le=1.0)
+    ceiling: float = Field(ge=0.0, le=1.0)
+    #: Other names the skill goes by in ads (only for skills JobRadar did not know).
+    aliases: list[str] = Field(default_factory=list)
+
+
+class SkillsPayload(BaseModel):
+    """The whole skills editor: listed groups, evidence table, deleted skills."""
+
+    groups: list[SkillGroupEdit] = Field(default_factory=list)
+    skills: list[SkillRowEdit] = Field(default_factory=list)
+    deleted: list[str] = Field(default_factory=list)
+
+
 class ProfilePatch(BaseModel):
     """Edits to the parts of the profile the dashboard exposes directly."""
 
