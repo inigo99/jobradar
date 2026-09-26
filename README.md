@@ -94,11 +94,12 @@ Without Playwright the CV is still a PDF, laid out more plainly by a built-in wr
 ## Quick start
 
 ```bash
-jobradar demo       # a synthetic profile and ten synthetic jobs; no network
+jobradar demo                   # a synthetic profile and its jobs; no network
+jobradar demo --profile nurse   # or lawyer, teacher, data (the default)
 jobradar serve
 ```
 
-The demo jobs exercise the interesting cases: a US-only "remote" role, an EMEA one, an agency posting that hides its client, an ad with no salary, an on-site job outside your areas.
+Each demo is a different kind of work — an intensive-care nurse in Bilbao, a litigation lawyer in Madrid, an English teacher in Valencia, a data engineer — and its jobs exercise the interesting cases: an ad asking for more years than you have, an agency hiding its client, an ad with no salary, one abroad, one outside your areas.
 
 For yourself, run `jobradar serve` and follow the setup wizard, or from the terminal:
 
@@ -132,7 +133,7 @@ jobradar serve
 | Command | What it does |
 |---|---|
 | `jobradar init [--cv FILE] [--config FILE]` | Set up, interactively or from YAML |
-| `jobradar demo` | Load the synthetic dataset |
+| `jobradar demo [--profile data\|nurse\|lawyer\|teacher]` | Load a synthetic profile and its jobs |
 | `jobradar search [--explain] [--no-llm] [--no-enrich] [--refresh] [--notify]` | Run the pipeline. Ads already on file are not re-read unless `--refresh` |
 | `jobradar sweep [--limit N]` | Retire ads that have closed |
 | `jobradar tailor [JOB_ID] [--top N] [--no-llm]` | Generate tailored CVs |

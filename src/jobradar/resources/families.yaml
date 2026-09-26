@@ -118,7 +118,8 @@ legal:
   label: Legal
   keywords: [lawyer, abogad*, solicitor, attorney, paralegal, jurista, "legal counsel",
              "asesor jurídico", "asesora jurídica", "compliance", notari*, "legal assistant",
-             "procurador*", "graduado social"]
+             "procurador*", "graduado social", "cumplimiento normativo", mediador*,
+             "asociado/a", "associate lawyer", "m&a"]
   bands: {junior: [20000, 28000], mid: [28000, 42000], senior: [42000, 65000], lead: [60000, 100000]}
 
 human_resources:

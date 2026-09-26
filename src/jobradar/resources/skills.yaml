@@ -133,7 +133,7 @@ recruitment: {label: Recruitment, group: hr, aliases: [recruitment, reclutamient
 # --- Healthcare and care ------------------------------------------------------
 patient_care: {label: Patient care, group: healthcare, aliases: ["patient care", "atencion al paciente", "atención al paciente", "cuidados de enfermeria", "cuidados de enfermería", "nursing care"]}
 first_aid: {label: First aid / life support, group: healthcare, aliases: ["first aid", "primeros auxilios", "basic life support", "soporte vital basico", "soporte vital básico", "soporte vital avanzado", "advanced life support", bls, acls, rcp, cpr]}
-medication: {label: Medication administration, group: healthcare, aliases: ["medication administration", "administracion de medicacion", "administración de medicación", "farmacologia", "farmacología"]}
+medication: {label: Medication administration, group: healthcare, aliases: ["medication administration", "administracion de medicacion", "administración de medicación"]}
 elderly_care: {label: Elderly care, group: care, aliases: ["elderly care", "atencion a personas mayores", "atención a personas mayores", geriatria, geriatría, "dependencia", "personas dependientes"]}
 childcare: {label: Childcare, group: care, aliases: [childcare, "cuidado infantil", "educacion infantil", "educación infantil", "early years", "atencion a la infancia"]}
 mental_health: {label: Mental health, group: healthcare, aliases: ["mental health", "salud mental", psiquiatria, psiquiatría]}
@@ -143,14 +143,14 @@ clinical_records: {label: Clinical records, group: healthcare, aliases: ["histor
 lesson_planning: {label: Lesson planning, group: education, aliases: ["lesson planning", "programacion didactica", "programación didáctica", "curriculum design", "diseño curricular"]}
 classroom_management: {label: Classroom management, group: education, aliases: ["classroom management", "gestion del aula", "gestión del aula"]}
 special_needs: {label: Special educational needs, group: education, aliases: ["special educational needs", sen, "necesidades educativas especiales", "atencion a la diversidad", "atención a la diversidad", "pedagogia terapeutica"]}
-elearning: {label: E-learning, group: education, aliases: [e-learning, elearning, moodle, "teleformacion", "teleformación", lms]}
-teaching_certificate: {label: Teaching qualification, group: education, aliases: ["master del profesorado", "máster del profesorado", pgce, "cap docente", "teaching certificate", "qualified teacher", celta, delta]}
+elearning: {label: E-learning, group: education, aliases: [e-learning, elearning, moodle, "google classroom", "teleformacion", "teleformación", lms]}
+teaching_certificate: {label: Teaching qualification, group: education, aliases: ["master del profesorado", "máster del profesorado", pgce, "cap docente", "teaching certificate", "qualified teacher"]}
 
 # --- Hospitality, retail and customer-facing -------------------------------------
 food_handling: {label: Food safety / handling, group: hospitality, aliases: ["manipulador de alimentos", "food handling", "food safety", "food hygiene", appcc, haccp, "seguridad alimentaria"]}
 cooking: {label: Cooking, group: hospitality, aliases: [cocina, cooking, "cocina mediterranea", "cocina mediterránea", "pasteleria", "pastelería", "reposteria", "repostería", "mise en place"]}
 table_service: {label: Table and bar service, group: hospitality, aliases: ["servicio de sala", "table service", "servicio de barra", "bar service", "cocteleria", "coctelería", mixology]}
-front_desk: {label: Front desk / reception, group: hospitality, aliases: ["front desk", recepcion, recepción, "check-in", "gestion de reservas", "gestión de reservas", opera, "property management system"]}
+front_desk: {label: Front desk / reception, group: hospitality, aliases: ["front desk", recepcion, recepción, "check-in", "gestion de reservas", "gestión de reservas", opera]}
 cash_handling: {label: Cash handling / POS, group: retail, aliases: ["cash handling", "manejo de caja", "cuadre de caja", tpv, pos, "point of sale"]}
 visual_merchandising: {label: Visual merchandising, group: retail, aliases: ["visual merchandising", escaparatismo, merchandising]}
 stock_management: {label: Stock management, group: operations, aliases: ["stock management", "gestion de stock", "gestión de stock", inventario, inventory, "control de inventario", reposicion, reposición]}
@@ -167,7 +167,7 @@ welding: {label: Welding, group: trades, aliases: [welding, soldadura, "soldadur
 hvac: {label: HVAC, group: trades, aliases: [hvac, climatizacion, climatización, "aire acondicionado", refrigeracion, refrigeración, "calefaccion", "calefacción"]}
 cnc_machining: {label: CNC machining, group: trades, aliases: [cnc, "control numerico", "control numérico", mecanizado, machining, torno, fresadora]}
 maintenance: {label: Maintenance, group: trades, aliases: ["preventive maintenance", "mantenimiento preventivo", "mantenimiento correctivo", "industrial maintenance", "mantenimiento industrial"]}
-technical_drawing: {label: Technical drawing / CAD, group: trades, aliases: [autocad, "technical drawing", "dibujo tecnico", "dibujo técnico", solidworks, revit, catia, "interpretacion de planos", "interpretación de planos", "blueprint reading"]}
+technical_drawing: {label: Technical drawing / CAD, group: trades, aliases: [autocad, "technical drawing", "dibujo tecnico", "dibujo técnico", solidworks, catia, "interpretacion de planos", "interpretación de planos", "blueprint reading"]}
 quality_control: {label: Quality control, group: operations, aliases: ["quality control", "control de calidad", "iso 9001", "quality assurance", "aseguramiento de la calidad", "lean manufacturing", "six sigma", "5s"]}
 health_safety: {label: Health and safety, group: operations, aliases: ["health and safety", "prevencion de riesgos laborales", "prevención de riesgos laborales", prl, "osha", "nebosh", "seguridad y salud"]}
 
@@ -204,6 +204,146 @@ portuguese: {label: Portuguese, group: language, aliases: [portuguese, portugues
 # Resolution order: a skill's own `difficulty:` field, then `overrides`, then
 # `by_group`, then `default`. Editing this costs nothing downstream.
 # ---------------------------------------------------------------------------
+# --- Healthcare (in depth) --------------------------------------------------
+nursing: {label: Nursing, group: healthcare, aliases: [nursing, "registered nurse", "diplomado en enfermería", "grado en enfermería"]}
+triage: {label: Triage, group: healthcare, aliases: [triaje, "manchester triage", "clinical triage", "patient triage", "triage nurse"]}
+wound_care: {label: Wound care, group: healthcare, aliases: ["wound care", "cura de heridas", "curas de heridas", "úlceras por presión", "pressure ulcers"]}
+venepuncture: {label: Venepuncture / IV access, group: healthcare, aliases: [venepuncture, venipuncture, phlebotomy, venopunción, "extracción de sangre", "extracciones sanguíneas", "canalización de vías", "vía periférica", "iv therapy", cannulation]}
+critical_care: {label: Critical care / ICU, group: healthcare, aliases: ["intensive care", "critical care", icu, uci, "cuidados intensivos", "unidad de cuidados intensivos"]}
+emergency_care: {label: Emergency care, group: healthcare, aliases: ["emergency department", "emergency care", "servicio de urgencias", "urgencias hospitalarias", "emergencias sanitarias", "a&e"]}
+operating_theatre: {label: Operating theatre, group: healthcare, aliases: ["operating theatre", "operating room", quirófano, "instrumentación quirúrgica", "scrub nurse", "bloque quirúrgico"]}
+pharmacology: {label: Pharmacology, group: healthcare, aliases: [pharmacology, farmacología, farmacoterapia, pharmacotherapy]}
+pharmacy_dispensing: {label: Pharmacy dispensing, group: healthcare, aliases: ["oficina de farmacia", "dispensación de medicamentos", "pharmacy dispensing", "community pharmacy", "atención farmacéutica"]}
+diagnostic_imaging: {label: Diagnostic imaging, group: healthcare, aliases: [radiology, radiología, radiodiagnóstico, "diagnostic imaging", ultrasound, ecografía, "resonancia magnética", "mri scanning", "rayos x", "x-ray"]}
+clinical_lab: {label: Clinical laboratory, group: healthcare, aliases: ["clinical laboratory", "laboratorio clínico", "análisis clínicos", "técnico de laboratorio", "biomedical scientist"]}
+physiotherapy: {label: Physiotherapy, group: healthcare, aliases: [physiotherapy, physiotherapist, "physical therapy", fisioterapia, fisioterapeuta, "rehabilitación funcional"]}
+dental_care: {label: Dental care, group: healthcare, aliases: [dentistry, odontología, "higiene bucodental", "dental hygiene", "dental nurse", "auxiliar de odontología", "clínica dental"]}
+midwifery: {label: Midwifery / obstetrics, group: healthcare, aliases: [midwifery, midwife, matrona, obstetricia, obstetrics, "paritorio", "labour ward"]}
+paediatrics: {label: Paediatrics, group: healthcare, aliases: [paediatrics, pediatrics, pediatría, neonatología, neonatal]}
+primary_care: {label: Primary care, group: healthcare, aliases: ["primary care", "atención primaria", "centro de salud", "general practice", "medicina de familia", "family medicine"]}
+infection_control: {label: Infection control, group: healthcare, aliases: ["infection control", "infection prevention", "control de infecciones", asepsia, "medidas de aislamiento", esterilización, sterilisation]}
+clinical_coding: {label: Clinical coding, group: healthcare, aliases: ["clinical coding", "medical coding", "codificación clínica", "cie-10", "icd-10", "icd-11"]}
+clinical_trials: {label: Clinical trials, group: science, aliases: ["clinical trials", "ensayos clínicos", "clinical research associate", "good clinical practice", "buenas prácticas clínicas", "monitor de ensayos"]}
+nutrition: {label: Nutrition / dietetics, group: healthcare, aliases: [nutrition, dietetics, nutrición, dietética, dietista, nutricionista, dietitian]}
+psychology: {label: Psychology / therapy, group: healthcare, aliases: ["clinical psychology", "psicología clínica", psicoterapia, psychotherapy, "psicólogo sanitario", "psicología general sanitaria", counselling]}
+occupational_therapy: {label: Occupational therapy, group: healthcare, aliases: ["occupational therapy", "terapia ocupacional", "terapeuta ocupacional"]}
+speech_therapy: {label: Speech and language therapy, group: healthcare, aliases: ["speech therapy", "speech and language therapy", logopedia, logopeda]}
+veterinary: {label: Veterinary care, group: healthcare, aliases: [veterinary, veterinaria, "clínica veterinaria", "auxiliar veterinario", "veterinary nurse"]}
+professional_registration: {label: Professional registration, group: licence, aliases: ["número de colegiado", colegiado, colegiada, "colegiación obligatoria", "professional registration", "nmc registration", "gmc registration", "hcpc registered"]}
+
+# --- Legal -------------------------------------------------------------------
+litigation: {label: Litigation, group: legal, aliases: [litigation, litigios, litigación, "derecho procesal", "procedimientos judiciales", "court proceedings", pleitos]}
+civil_law: {label: Civil law, group: legal, aliases: ["civil law", "derecho civil", "litigación civil", "procedimiento civil", "responsabilidad civil", "civil litigation"]}
+criminal_law: {label: Criminal law, group: legal, aliases: ["criminal law", "derecho penal", "penal económico", "criminal defence"]}
+corporate_law: {label: Corporate law / M&A, group: legal, aliases: ["corporate law", "derecho societario", "derecho mercantil societario", "m&a", "fusiones y adquisiciones", "mergers and acquisitions", "due diligence"]}
+tax_law: {label: Tax law, group: legal, aliases: ["tax law", "derecho tributario", "derecho fiscal", "asesoría fiscal", "tax advisory"]}
+administrative_law: {label: Administrative law / public procurement, group: legal, aliases: ["administrative law", "derecho administrativo", "contratación pública", "public procurement", "licitaciones públicas"]}
+family_law: {label: Family law, group: legal, aliases: ["family law", "derecho de familia", divorcios, "custodia de menores"]}
+real_estate_law: {label: Real estate law, group: legal, aliases: ["real estate law", "derecho inmobiliario", "property law", "conveyancing", "derecho urbanístico"]}
+intellectual_property: {label: Intellectual property, group: legal, aliases: ["intellectual property", "propiedad intelectual", "propiedad industrial", patentes, patents, trademarks, "marcas y patentes"]}
+data_protection: {label: Data protection, group: legal, aliases: ["data protection", "protección de datos", "delegado de protección de datos", "data protection officer", lopdgdd]}
+legal_research: {label: Legal research, group: legal, aliases: ["legal research", jurisprudencia, "case law", aranzadi, vlex, westlaw, lexisnexis, "tirant lo blanch"]}
+legal_drafting: {label: Legal drafting, group: legal, aliases: ["legal drafting", "redacción de escritos", "redacción de demandas", "escritos procesales", "drafting pleadings", "drafting contracts"]}
+bar_admission: {label: Bar admission, group: licence, aliases: ["abogado ejerciente", "colegiado ejerciente", "máster de acceso a la abogacía", "acceso a la abogacía", "bar admission", "admitted to the bar", "qualified solicitor", "sqe qualified"]}
+mediation: {label: Mediation / arbitration, group: legal, aliases: [mediation, mediación, arbitration, arbitraje, "resolución de conflictos", "dispute resolution"]}
+insolvency: {label: Insolvency, group: legal, aliases: [insolvency, "derecho concursal", "concurso de acreedores", restructuring, reestructuraciones]}
+immigration_law: {label: Immigration law, group: legal, aliases: ["immigration law", extranjería, "derecho de extranjería", "visados y permisos", "work permits"]}
+
+# --- Education (in depth) ----------------------------------------------------
+primary_teaching: {label: Primary teaching, group: education, aliases: ["primary teacher", "primary school", "educación primaria", "maestro de primaria", "maestra de primaria", "key stage 2"]}
+secondary_teaching: {label: Secondary teaching, group: education, aliases: ["secondary school", "secondary teacher", "educación secundaria", bachillerato, "profesor de secundaria", "profesora de secundaria", "gcse", "a-level", "a levels"]}
+vocational_training: {label: Vocational training, group: education, aliases: ["formación profesional", "vocational training", "ciclos formativos", "certificados de profesionalidad", "formador ocupacional", "further education"]}
+language_teaching: {label: Language teaching, group: education, aliases: [tefl, tesol, "cambridge celta", "cambridge delta", "english as a foreign language", "español como lengua extranjera", "profesor de idiomas", "language teacher"]}
+tutoring: {label: Tutoring, group: education, aliases: [tutoring, "private tutor", "clases particulares", "refuerzo escolar", "apoyo escolar"]}
+student_assessment: {label: Student assessment, group: education, aliases: ["student assessment", "evaluación educativa", "evaluación del alumnado", "exam marking", "corrección de exámenes", rúbricas]}
+educational_guidance: {label: Educational guidance, group: education, aliases: ["orientación educativa", orientador, orientadora, "school counsellor", "careers guidance", "orientación laboral"]}
+university_teaching: {label: University teaching, group: education, aliases: ["docencia universitaria", "university lecturer", "profesor universitario", "profesora universitaria", "higher education teaching", "profesor asociado"]}
+academic_research: {label: Academic research, group: science, aliases: ["peer-reviewed", "publicaciones científicas", "scientific publications", "tesis doctoral", doctorado, phd, "grupo de investigación", "research grant", "proyectos de investigación"]}
+bilingual_teaching: {label: Bilingual teaching (CLIL), group: education, aliases: [clil, aicle, "habilitación lingüística", "bilingual teaching", "enseñanza bilingüe"]}
+montessori: {label: Montessori / alternative pedagogy, group: education, aliases: [montessori, waldorf, "reggio emilia", "pedagogías activas"]}
+
+# --- Care and social work -------------------------------------------------------
+social_work: {label: Social work, group: care, aliases: ["social work", "social worker", "trabajo social", "trabajador social", "trabajadora social", "servicios sociales"]}
+disability_support: {label: Disability support, group: care, aliases: ["disability support", "atención a personas con discapacidad", "diversidad funcional", "learning disabilities", "discapacidad intelectual", "support worker"]}
+home_care: {label: Home care, group: care, aliases: ["home care", "domiciliary care", "ayuda a domicilio", "servicio de ayuda a domicilio", "auxiliar de ayuda a domicilio"]}
+sociosanitary_certificate: {label: Social-health care certificate, group: licence, aliases: ["atención sociosanitaria", "certificado de profesionalidad de atención sociosanitaria", "técnico en cuidados auxiliares de enfermería", tcae, "care certificate", "nvq level 3"]}
+addiction_support: {label: Addiction support, group: care, aliases: [adicciones, drogodependencias, "addiction support", "substance misuse"]}
+social_education: {label: Social education / youth work, group: care, aliases: ["educación social", "educador social", "educadora social", "youth work", "monitor de tiempo libre", "intervención socioeducativa", "intervención social"]}
+
+# --- Hospitality and tourism (in depth) ------------------------------------------
+housekeeping: {label: Housekeeping, group: hospitality, aliases: [housekeeping, "camarera de pisos", "camarero de pisos", "limpieza de habitaciones", "room attendant"]}
+barista: {label: Barista, group: hospitality, aliases: [barista, "latte art", "café de especialidad", "specialty coffee"]}
+wine_service: {label: Wine service, group: hospitality, aliases: [sommelier, sumiller, "wine service", enología, "carta de vinos"]}
+event_planning: {label: Event planning, group: hospitality, aliases: ["event planning", "event management", "organización de eventos", "gestión de eventos", catering, banquetes]}
+tour_guiding: {label: Tour guiding, group: hospitality, aliases: ["tour guide", "guía turístico", "guía turística", "guía oficial de turismo", "tour leader"]}
+revenue_management: {label: Revenue management, group: hospitality, aliases: ["revenue management", "revenue manager", "yield management", "gestión de ingresos hoteleros"]}
+hotel_pms: {label: Hotel PMS, group: hospitality, aliases: ["opera pms", "hotel pms", mews, cloudbeds, "sistema de reservas hotelero"]}
+
+# --- Retail, sales and customer contact -----------------------------------------
+retail_sales: {label: Retail sales, group: retail, aliases: ["retail sales", "venta al público", "atención en tienda", "shop floor", "dependiente de tienda", "dependienta"]}
+call_centre: {label: Call centre / telemarketing, group: sales, aliases: ["call centre", "call center", "contact center", teleoperador, teleoperadora, telemarketing, televenta, "atención telefónica"]}
+negotiation: {label: Negotiation, group: soft, aliases: [negotiation, negociación, "negotiation skills", "capacidad de negociación"]}
+
+# --- Office and administration ------------------------------------------------
+diary_management: {label: Diary and travel management, group: office, aliases: ["diary management", "gestión de agendas", "travel arrangements", "organización de viajes", "executive assistant", "asistente de dirección"]}
+document_management: {label: Document management / filing, group: office, aliases: ["document management", "gestión documental", "archivo documental", filing, "records management"]}
+translation: {label: Translation / interpreting, group: language, aliases: [translation, traducción, interpreting, "interpretación simultánea", "interpretación consecutiva", "traductor jurado", "sworn translator", localisation, localización]}
+switchboard: {label: Switchboard / reception, group: office, aliases: [switchboard, centralita, "atención de llamadas", "front of house"]}
+
+# --- Finance, insurance and business ----------------------------------------------
+financial_reporting: {label: Financial reporting, group: finance, aliases: ["financial reporting", ifrs, niif, "cierres contables", "cierre contable", "month-end close", "estados financieros", "financial statements", "plan general contable"]}
+budgeting: {label: Budgeting and forecasting, group: finance, aliases: [budgeting, presupuestos, "control presupuestario", "budget control", "financial forecasting", "control de gestión"]}
+banking: {label: Banking, group: finance, aliases: [banking, banca, "sector bancario", "entidad financiera", "banca comercial", "retail banking"]}
+insurance: {label: Insurance, group: finance, aliases: ["insurance sector", "insurance broker", "compañía de seguros", "sector asegurador", siniestros, "claims handling", underwriting, "tramitación de siniestros", "mediador de seguros"]}
+treasury: {label: Treasury, group: finance, aliases: [treasury, tesorería, "cash management", "gestión de cobros", "credit control"]}
+risk_management: {label: Risk management, group: finance, aliases: ["risk management", "gestión de riesgos", "análisis de riesgos", "credit risk", "riesgo de crédito"]}
+real_estate: {label: Real estate sales / letting, group: sales, aliases: ["real estate agent", "agente inmobiliario", "asesor inmobiliario", "estate agent", "letting agent", "gestión de alquileres"]}
+learning_development: {label: Learning and development, group: hr, aliases: ["learning and development", "formación interna", "planes de formación", "training needs analysis", "detección de necesidades formativas"]}
+onboarding: {label: Onboarding, group: hr, aliases: ["employee onboarding", "acogida de empleados", "incorporación de empleados", "plan de acogida"]}
+
+# --- Logistics, transport and trade -------------------------------------------
+route_planning: {label: Route planning, group: logistics, aliases: ["route planning", "planificación de rutas", "gestión de rutas", "delivery routes"]}
+customs: {label: Customs / international trade, group: logistics, aliases: [customs, aduanas, "customs clearance", "despacho aduanero", "comercio exterior", "international trade", incoterms]}
+fleet_management: {label: Fleet management, group: logistics, aliases: ["fleet management", "gestión de flotas", "jefe de tráfico", "traffic manager"]}
+dangerous_goods: {label: Dangerous goods (ADR), group: licence, aliases: ["dangerous goods", "mercancías peligrosas", "carnet adr", "adr licence", "certificado adr"]}
+delivery_driving: {label: Delivery driving, group: logistics, aliases: ["delivery driver", repartidor, repartidora, "reparto de paquetería", "last mile delivery", "última milla"]}
+
+# --- Trades and construction -----------------------------------------------------
+carpentry: {label: Carpentry / joinery, group: trades, aliases: [carpentry, joinery, carpintería, ebanistería, "carpintero"]}
+masonry: {label: Masonry / bricklaying, group: trades, aliases: [bricklaying, masonry, albañilería, albañil, "obra civil"]}
+painting_decorating: {label: Painting and decorating, group: trades, aliases: ["painting and decorating", "pintura de interiores", "pintor de obra", "pintura decorativa"]}
+site_management: {label: Construction site management, group: trades, aliases: ["site manager", "jefe de obra", "encargado de obra", "dirección de obra", "construction management", "site supervision"]}
+bim: {label: BIM, group: trades, aliases: [bim, "building information modelling", archicad]}
+surveying: {label: Surveying, group: trades, aliases: [surveying, topografía, "quantity surveying", "mediciones y presupuestos", presto]}
+gas_installation: {label: Gas installation, group: trades, aliases: ["gas safe", "instalador de gas", "instalaciones de gas", "gas engineer"]}
+vehicle_mechanics: {label: Vehicle mechanics, group: trades, aliases: ["vehicle mechanic", "motor mechanic", "mecánica del automóvil", "mecánico de automoción", "electromecánica", "chapa y pintura"]}
+industrial_automation: {label: Industrial automation / PLC, group: trades, aliases: [plc, "programación de autómatas", "industrial automation", "automatización industrial", scada, siemens tia portal]}
+cleaning_services: {label: Cleaning services, group: operations, aliases: ["cleaning services", "servicios de limpieza", "limpieza industrial", "limpieza de oficinas", janitorial, "limpiador", "limpiadora"]}
+security_guarding: {label: Security guarding, group: public, aliases: ["vigilante de seguridad", "security guard", "security officer", "sia licence", "habilitación de seguridad privada"]}
+firefighting: {label: Firefighting / emergency response, group: public, aliases: [firefighter, bombero, bombera, "extinción de incendios", "fire safety", "prevención de incendios"]}
+public_administration: {label: Public administration, group: public, aliases: ["administración pública", "public sector administration", "procedimiento administrativo", "oposiciones", "civil service"]}
+
+# --- Agriculture and environment ---------------------------------------------
+agriculture: {label: Agriculture, group: agriculture, aliases: [agriculture, agricultura, "explotación agrícola", "farm work", agronomía, agronomy]}
+gardening: {label: Gardening / landscaping, group: agriculture, aliases: [gardening, jardinería, landscaping, paisajismo, "mantenimiento de jardines"]}
+environmental_management: {label: Environmental management, group: agriculture, aliases: ["environmental management", "gestión ambiental", "iso 14001", "environmental consultant", "evaluación de impacto ambiental"]}
+pesticide_licence: {label: Pesticide handling licence, group: licence, aliases: ["carné de aplicador de productos fitosanitarios", "carnet fitosanitario", "carné fitosanitario", "pesticide licence", "pa1 pa6"]}
+
+# --- Creative and media ----------------------------------------------------------
+photography: {label: Photography, group: design, aliases: [photography, fotografía, "fotógrafo", "lightroom"]}
+video_editing: {label: Video editing, group: design, aliases: ["video editing", "edición de vídeo", "edición de video", "premiere pro", "final cut", "davinci resolve", "after effects"]}
+journalism: {label: Journalism / writing, group: marketing, aliases: [journalism, periodismo, "redacción periodística", "news writing", "corrector de textos", proofreading]}
+social_media: {label: Social media, group: marketing, aliases: ["social media", "redes sociales", "community manager", "gestión de redes sociales"]}
+
+# --- Science and regulated manufacturing ----------------------------------------
+lab_techniques: {label: Laboratory techniques, group: science, aliases: [pcr, qpcr, hplc, "cultivo celular", "cell culture", "western blot", "elisa assay", "ensayo elisa", "espectrometría de masas", "mass spectrometry"]}
+gmp: {label: GMP, group: science, aliases: [gmp, "good manufacturing practice", "normas de correcta fabricación", "buenas prácticas de fabricación", gxp]}
+regulatory_affairs: {label: Regulatory affairs, group: science, aliases: ["regulatory affairs", "asuntos regulatorios", "registros sanitarios", "marcado ce", "ce marking", "regulatory submissions"]}
+
+# --- Management ------------------------------------------------------------------
+pnl_management: {label: P&L responsibility, group: management, aliases: ["p&l", "cuenta de resultados", "profit and loss", "gestión de la cuenta de explotación"]}
+strategic_planning: {label: Strategic planning, group: management, aliases: ["strategic planning", "planificación estratégica", "plan estratégico", "business strategy"]}
+
 _learning_difficulty:
   default: medium
   by_group:
@@ -239,7 +379,25 @@ _learning_difficulty:
     logistics: medium
     licence: slow
     trades: slow
+    public: slow
+    agriculture: medium
+    science: slow
+    management: slow
   overrides:
+    # Learnt on the job in days.
+    barista: fast
+    housekeeping: fast
+    retail_sales: fast
+    call_centre: fast
+    switchboard: fast
+    hotel_pms: fast
+    document_management: fast
+    diary_management: fast
+    route_planning: fast
+    delivery_driving: fast
+    cleaning_services: fast
+    onboarding: fast
+    social_media: fast
     # Tools and frameworks on top of a base you already have.
     fastapi: fast
     flask: fast
