@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+## 1.4.1 — 2026-09-26
+
+### Added
+
+- **SECURITY.md**: how to report a vulnerability privately.
+
+### Fixed
+
+- The project page on PyPI: links and screenshots in the README now work
+  there (they were relative to the repository).
+- The license is declared in the current packaging format, with no
+  deprecation warnings when the package is built.
+- `jobradar doctor` names Indeed among the sources that need Scrapling's
+  browsers.
+
 ## 1.4.0 — 2026-09-26
 
 ### Added
@@ -13,7 +28,6 @@ All notable changes to this project are documented here. The format follows
 - **`pip install jobradar-cv`**: the package is published on PyPI when a
   version is tagged, and tested on Linux, Windows and macOS. The command is
   still `jobradar`; `jobradar` itself was too close to an existing project.
-- **SECURITY.md**: how to report a vulnerability privately.
 - **Docker**: `docker compose up -d` runs the dashboard with its data in a
   volume, as a non-root user, on the host's loopback only.
 - **The dashboard in Spanish.** Every screen, message, alert, filter reason,
