@@ -202,11 +202,12 @@ def _ask(prompt: str, default: str = "") -> str:
 
 def cmd_demo(args: argparse.Namespace) -> int:
     """Load the synthetic dataset."""
-    from .demo import load_demo
+    from .demo import DEMO_PROFILES, load_demo
 
     database = _database(args)
-    count, _settings = load_demo(database, database.paths)
-    out(f"Loaded a demo profile and [bold]{count}[/bold] synthetic jobs. "
+    count, _settings = load_demo(database, database.paths, args.profile)
+    out(f"Loaded the demo profile of {DEMO_PROFILES[args.profile].description} and "
+        f"[bold]{count}[/bold] synthetic jobs. "
         "Try [bold]jobradar jobs[/bold] or [bold]jobradar serve[/bold].")
     database.close()
     return 0
@@ -696,6 +697,8 @@ def cmd_doctor(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
+    from .demo import DEFAULT_DEMO, DEMO_PROFILES
+
     parser = argparse.ArgumentParser(
         prog="jobradar",
         description="Search job boards, score openings against your CV, and tailor an honest CV for each.",
@@ -711,6 +714,8 @@ def build_parser() -> argparse.ArgumentParser:
     init.set_defaults(func=cmd_init)
 
     demo = sub.add_parser("demo", help="Load a synthetic profile and jobs")
+    demo.add_argument("--profile", choices=sorted(DEMO_PROFILES), default=DEFAULT_DEMO,
+                      help=f"Which kind of work the demo shows (default: {DEFAULT_DEMO})")
     demo.set_defaults(func=cmd_demo)
 
     search = sub.add_parser("search", help="Run the search pipeline")

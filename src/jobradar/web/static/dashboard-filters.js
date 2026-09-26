@@ -9,8 +9,9 @@
 const BOARD_FILTERS = ["f_text", "f_mode", "f_where", "f_family", "f_source", "f_language",
                        "f_salary", "f_score"];
 const FILTER_STORE = "jobradar.board-filters";
-const LANGUAGE_NAMES = { en: "English", es: "Spanish", fr: "French", de: "German",
-                         pt: "Portuguese", it: "Italian", nl: "Dutch" };
+const languageName = code => ({ en: t("English"), es: t("Spanish"), fr: t("French"),
+                                de: t("German"), pt: t("Portuguese"), it: t("Italian"),
+                                nl: t("Dutch") }[code] || code.toUpperCase());
 
 function salaryMidpoint(job) {
   if (!job.salary_min && !job.salary_max) return null;
@@ -18,7 +19,7 @@ function salaryMidpoint(job) {
 }
 
 function money0(value, currency) {
-  return new Intl.NumberFormat(undefined, { style: "currency", currency: currency || "EUR",
+  return new Intl.NumberFormat(localeTag(), { style: "currency", currency: currency || "EUR",
                                             maximumFractionDigits: 0 }).format(value);
 }
 
@@ -42,10 +43,10 @@ function refreshFilterOptions() {
   const families = {};
   jobs.forEach(j => { if (j.family) families[j.family] = j.family_label || j.family; });
   fillSelect("f_family", Object.entries(families).sort((a, b) => a[1].localeCompare(b[1])),
-             "All families");
-  fillSelect("f_source", Object.keys(count("source")).sort().map(s => [s, s]), "All sources");
+             t("All families"));
+  fillSelect("f_source", Object.keys(count("source")).sort().map(s => [s, s]), t("All sources"));
   fillSelect("f_language", Object.keys(count("language")).sort()
-    .map(code => [code, LANGUAGE_NAMES[code] || code.toUpperCase()]), "Any language");
+    .map(code => [code, languageName(code)]), t("Any language"));
 
   const top = Math.max(0, ...jobs.map(j => salaryMidpoint(j) || 0));
   const slider = $("#f_salary");
@@ -57,9 +58,9 @@ function refreshFilterOptions() {
 function showRangeValues() {
   const currency = (STATE && STATE.settings.filters.salary_currency) || "EUR";
   const salary = Number($("#f_salary").value);
-  $("#f_salary_value").textContent = salary ? `from ${money0(salary, currency)}` : "any";
+  $("#f_salary_value").textContent = salary ? t("from {value}", { value: money0(salary, currency) }) : t("any");
   const score = Number($("#f_score").value);
-  $("#f_score_value").textContent = score ? `from ${score}%` : "any";
+  $("#f_score_value").textContent = score ? t("from {value}", { value: `${score}%` }) : t("any");
 }
 
 /* Does a job pass the board filters? Unknown values never pass a filter

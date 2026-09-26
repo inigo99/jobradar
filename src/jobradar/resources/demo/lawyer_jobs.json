@@ -1,0 +1,21 @@
+[
+ {"source": "demo", "native_id": "l01", "title": "Abogado/a Asociado/a Procesal Civil", "company": "Despacho Garrigues-Sanz", "location": "Madrid", "country": "ES", "work_mode": "hybrid", "url": "https://example.com/jobs/l01", "posted_at": "2026-09-18", "language": "es",
+  "salary": {"minimum": 40000, "maximum": 50000, "currency": "EUR", "origin": "published", "basis": "Publicado en la oferta."}, "min_years_experience": 4,
+  "description": "Buscamos abogado/a con 4-6 años de experiencia en litigación civil y mercantil. Abogado ejerciente, redacción de escritos procesales, investigación jurisprudencial. Inglés alto. Modelo híbrido."},
+ {"source": "demo", "native_id": "l02", "title": "Legal Counsel — Data Protection", "company": "Nimbus Cloud Iberia", "location": "Madrid", "country": "ES", "work_mode": "hybrid", "url": "https://example.com/jobs/l02", "posted_at": "2026-09-15", "language": "en",
+  "min_years_experience": 5,
+  "description": "In-house legal counsel for data protection and commercial contracts. GDPR, data protection officer support, contract drafting in English. Bar admission in Spain. 5+ years."},
+ {"source": "demo", "native_id": "l03", "title": "Abogado/a Penalista", "company": "Estudio Jurídico Vallejo", "location": "Madrid", "country": "ES", "work_mode": "onsite", "url": "https://example.com/jobs/l03", "posted_at": "2026-09-14", "language": "es",
+  "min_years_experience": 3,
+  "description": "Incorporamos abogado/a especialista en derecho penal económico. Colegiado ejerciente con experiencia en instrucción y juicio oral."},
+ {"source": "demo", "native_id": "l04", "title": "Asociado/a Senior M&A", "company": "Firma internacional (confidencial)", "location": "Madrid", "country": "ES", "work_mode": "onsite", "url": "https://example.com/jobs/l04", "posted_at": "2026-09-11", "language": "es",
+  "min_years_experience": 7,
+  "description": "Importante firma internacional busca asociado/a senior para fusiones y adquisiciones: due diligence, contratos de compraventa y financiación. Más de 7 años en despacho de primer nivel. Inglés bilingüe."},
+ {"source": "demo", "native_id": "l05", "title": "Abogado/a Laboralista", "company": "Grupo Asesor Levante", "location": "Valencia", "country": "ES", "work_mode": "onsite", "url": "https://example.com/jobs/l05", "posted_at": "2026-09-19", "language": "es",
+  "description": "Abogado/a para derecho laboral: despidos, negociación colectiva y relaciones laborales. Se ofrece contrato indefinido."},
+ {"source": "demo", "native_id": "l06", "title": "Técnico/a de Cumplimiento Normativo", "company": "Caja Rural Centro", "location": "Madrid", "country": "ES", "work_mode": "hybrid", "url": "https://example.com/jobs/l06", "posted_at": "2026-09-16", "language": "es",
+  "salary": {"minimum": 38000, "maximum": 44000, "currency": "EUR", "origin": "published", "basis": "Publicado en la oferta."}, "min_years_experience": 3,
+  "description": "Técnico/a de compliance en entidad financiera: prevención de blanqueo, protección de datos y normativa bancaria. Grado en Derecho. Sector bancario valorado."},
+ {"source": "demo", "native_id": "l07", "title": "Mediador/a civil y mercantil", "company": "Centro de Mediación Madrid", "location": "Madrid", "country": "ES", "work_mode": "hybrid", "url": "https://example.com/jobs/l07", "posted_at": "2026-09-05", "language": "es",
+  "description": "Buscamos mediador/a inscrito en el registro de mediadores para asuntos civiles y mercantiles. Formación en mediación y experiencia en resolución de conflictos."}
+]

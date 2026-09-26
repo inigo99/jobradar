@@ -13,6 +13,7 @@ and everything downstream keeps working.
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -77,8 +78,9 @@ def use_custom_skills(custom: dict[str, list[str]], labels: dict[str, str] | Non
     wanted = {}
     for key, aliases in custom.items():
         label = labels.get(key) or key.removeprefix(CUSTOM_PREFIX).replace("_", " ")
-        names = dict.fromkeys(a.strip().lower() for a in (label, *aliases) if a and a.strip())
-        wanted[key] = Skill(key=key, label=label, group="custom", aliases=tuple(names),
+        names = tuple(dict.fromkeys(a.strip().lower() for a in (label, *aliases)
+                                    if a and a.strip()))
+        wanted[key] = Skill(key=key, label=label, group="custom", aliases=names,
                             difficulty=_difficulty_rules()[0])
     if wanted == _CUSTOM:
         return
@@ -91,6 +93,13 @@ def use_custom_skills(custom: dict[str, list[str]], labels: dict[str, str] | Non
 def taxonomy() -> dict[str, Skill]:
     """Every skill known to JobRadar, keyed by its stable key: shipped, then the user's."""
     return {**_shipped(), **_CUSTOM} if _CUSTOM else _shipped()
+
+
+def _without_accents(text: str) -> str:
+    """``atención`` -> ``atencion``. Matching ignores accents, because ads and
+    CVs drop them as often as they keep them."""
+    return "".join(c for c in unicodedata.normalize("NFD", text)
+                   if unicodedata.category(c) != "Mn")
 
 
 @lru_cache(maxsize=1)
@@ -129,7 +138,7 @@ def _matchers() -> list[tuple[str, re.Pattern[str]]]:
     """
     patterns: list[tuple[str, re.Pattern[str], int]] = []
     for skill in taxonomy().values():
-        for alias in skill.aliases:
+        for alias in dict.fromkeys(_without_accents(a) for a in skill.aliases):
             escaped = re.escape(alias).replace(r"\ ", r"[\s\-]+")
             # Allow a trailing plural "s" when the alias ends in a letter, so
             # "REST API" also matches "REST APIs".
@@ -156,7 +165,7 @@ def _names() -> dict[str, str]:
 
 
 def _plain_name(name: str) -> str:
-    return re.sub(r"[\s\-_]+", " ", str(name or "").strip().lower())
+    return re.sub(r"[\s\-_]+", " ", _without_accents(str(name or "").strip().lower()))
 
 
 def skill_for_name(name: str) -> str | None:
@@ -181,6 +190,7 @@ def find_skills(text: str) -> dict[str, int]:
     """
     if not text:
         return {}
+    text = _without_accents(text)
     counts: dict[str, int] = {}
     for key, pattern in _matchers():
         hits = len(pattern.findall(text))

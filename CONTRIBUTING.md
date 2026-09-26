@@ -61,6 +61,15 @@ defaults.
 (board, mail, answers, jobs, insights, wizard, settings) and `dashboard-main.js`
 last. No framework, no build step, nothing loaded from outside the machine.
 
+**Translations.** The dashboard speaks English and Spanish. Every string the
+page shows goes through `t("English text", {vars})` (or `tn()` for plurals, or
+a `data-i18n` attribute in the HTML), and its Spanish goes in
+`web/static/dashboard-i18n-es.js`. Text the server writes — alerts, reasons,
+findings, errors — stays English in the code and is translated on the way out
+from `resources/i18n/es.yaml` (exact sentences, or patterns with `{name}`).
+`tests/test_i18n.py` fails on a string with no translation, a translation no
+longer used, or placeholders that do not match.
+
 **The mailbox.** `mail/imap.py` opens the folder read-only and fetches with
 `BODY.PEEK`. Keep it that way: reading a user's email must never mark, move or
 delete anything.

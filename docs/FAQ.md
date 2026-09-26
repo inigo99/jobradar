@@ -97,6 +97,16 @@ Add its domain under **Settings → Companies to watch**. JobRadar detects which
 applicant tracking system it uses and reads that board's API directly — which is
 both more reliable and more polite than scraping the careers page.
 
+### Does it work outside software — for a nurse, a lawyer, a teacher?
+
+Yes; that is the point. The skill vocabulary covers healthcare, law,
+education, care, hospitality, retail, logistics, trades, finance, public
+services and more, in English and Spanish (accents optional), and every job is
+put in one of 23 families. Try `jobradar demo --profile nurse` (or `lawyer`,
+`teacher`) to see a board in another field. What matters most is the sources:
+the default ones lean towards remote and tech work, so for most fields enable
+Adzuna or Jooble (free keys) and the national boards you use.
+
 ### It is not finding jobs in my field.
 
 First the search terms: **Settings → What you're looking for** are sent as they

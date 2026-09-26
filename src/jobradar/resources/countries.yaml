@@ -30,7 +30,7 @@ DE:
   currency: EUR
   languages: [de, en]
   adzuna: de
-  national_sources: [arbeitnow]
+  national_sources: [arbeitnow, arbeitsagentur]
 
 AT:
   name: Austria

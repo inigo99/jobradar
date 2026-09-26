@@ -1,0 +1,816 @@
+# Spanish text for what the server shows in the dashboard. See jobradar/i18n.py.
+#
+# exact     English sentence -> Spanish, looked up as is.
+# patterns  English template -> Spanish; {name} matches any text, and that text
+#           is looked up in `exact` too (a family label, a company type).
+# skills    skill key -> display name (resources/skills.yaml).
+# families  family key -> display name (resources/families.yaml).
+#
+# A sentence missing here is shown in English: add it rather than work around it.
+exact:
+  posted over a week ago: publicada hace más de una semana
+  posted over two weeks ago: publicada hace más de dos semanas
+  posted over three weeks ago — probably closed: 'publicada hace más de tres semanas: probablemente cerrada'
+  the title is pitched at a senior or architect profile: el puesto apunta a un perfil sénior o de arquitectura
+  publishes a salary band: publica banda salarial
+  Listed as remote by the board, but the ad text never says so — confirm the work mode.: 'El portal la
+    anuncia en remoto, pero el texto de la oferta no lo dice: confirma la modalidad.'
+  Remote, but the ad does not say from which countries — confirm before applying.: 'Remoto, pero la oferta
+    no dice desde qué países: confírmalo antes de aplicar.'
+  The end client is not named — ask who the employer actually is.: 'No se nombra al cliente final: pregunta
+    quién es realmente la empresa.'
+  Salary is an estimate, not a published figure.: El salario es una estimación, no una cifra publicada.
+  Work mode unclear — check whether office days are expected.: 'Modalidad poco clara: comprueba si esperan
+    días de oficina.'
+  No publication date; the ad may be older than it looks.: Sin fecha de publicación; la oferta puede ser
+    más antigua de lo que parece.
+  Remote with a residency condition that names no country — confirm it covers yours.: 'Remoto con una
+    condición de residencia que no nombra país: confirma que incluye el tuyo.'
+  Remote scope not stated — confirm you may work from your country.: 'No indica desde dónde se puede trabajar
+    en remoto: confirma que puedes hacerlo desde tu país.'
+  No salary information at all.: Ningún dato de salario.
+  no publication date: sin fecha de publicación
+  publication date is in the future: fecha de publicación en el futuro
+  international remote is switched off: el remoto internacional está desactivado
+  no published salary: sin salario publicado
+  none of the required keywords present: no aparece ninguna de las palabras obligatorias
+  deleted by you: borrada por ti
+  on-site/hybrid outside your areas: presencial/híbrido fuera de tus zonas
+  excluded company: empresa excluida
+  duplicate of a job already on file: duplicado de una oferta que ya tenías
+  previously recorded as closed: ya registrada como cerrada
+  weekly source, not its day: fuente semanal, hoy no le toca
+  'Estimated: no salary published': 'Estimado: la oferta no publica salario'
+  No reference band for this role.: No hay banda de referencia para este puesto.
+  Edit resources/families.yaml and salary_bands.yaml to match your market.: Edita resources/families.yaml
+    y salary_bands.yaml para ajustarlos a tu mercado.
+  Published in the job ad.: Publicado en la oferta.
+  Published in the job ad (read by the language model).: Publicado en la oferta (leído por el modelo de
+    lenguaje).
+  typed in by you: introducido por ti
+  no anchor country: sin país de referencia
+  junior: junior
+  mid: intermedio
+  senior: sénior
+  lead: responsable
+  public sector: sector público
+  non-profit: entidad sin ánimo de lucro
+  consultancy or staffing agency: consultora o empresa de trabajo temporal
+  large company: gran empresa
+  startup: startup
+  small business: pequeña empresa
+  company of unknown type: empresa de tipo desconocido
+  asks for 5+ years: pide 5 años o más
+  asks for 2 years or fewer: pide 2 años o menos
+  requires fluent English in a non-English market: exige inglés fluido en un mercado no anglófono
+  agency ad that does not name the employer: oferta de agencia que no nombra a la empresa
+  regulated sector (banking, insurance, pharma, energy): sector regulado (banca, seguros, farmacia, energía)
+  under 60 %: menos del 60 %
+  60–75 %: 60–75 %
+  75–90 %: 75–90 %
+  90 % or more: 90 % o más
+  Days to a week on top of what you already know — worth a look before an interview.: 'De unos días a
+    una semana sobre lo que ya sabes: merece un repaso antes de una entrevista.'
+  Several weeks of real work to discuss it with any authority, rather than by hearsay.: Varias semanas
+    de trabajo real para poder hablar de ello con criterio y no de oídas.
+  Not realistic inside one hiring process. Prepare an honest answer instead of cramming.: No es realista
+    dentro de un proceso de selección. Prepara una respuesta honesta en vez de estudiarlo a la carrera.
+  The CV has no name on it.: El CV no lleva nombre.
+  No email address.: No hay dirección de correo.
+  Email is how almost every reply arrives. It has to be there.: Casi todas las respuestas llegan por correo.
+    Tiene que estar.
+  Only an email address — no phone or LinkedIn.: 'Solo hay correo: ni teléfono ni LinkedIn.'
+  Recruiters routinely call before they write.: Los reclutadores suelen llamar antes de escribir.
+  An undated position is assumed to be short or to be padding.: Un puesto sin fechas se da por breve o
+    por relleno.
+  ? Reverse-chronological order is what every reader expects. Reordering jobs to lead with the most relevant
+    one is spotted immediately.
+  : El orden cronológico inverso es lo que espera cualquier lector. Reordenar los puestos para poner primero
+    el más relevante se nota enseguida.
+  ? Not a problem in itself — an unexplained one is. A one-line entry (study, caring, contracting, a deliberate
+    break) closes it.
+  : No es un problema en sí; sí lo es sin explicar. Una línea (estudios, cuidados, trabajos por cuenta
+    propia, una pausa elegida) lo resuelve.
+  No achievements are listed under any position.: No hay logros en ningún puesto.
+  A CV without achievements gives a reader nothing to compare.: Un CV sin logros no le da al lector nada
+    que comparar.
+  ? Aim for half or more. 'Cut processing time by 85%' lands; 'improved processing time' does not. Estimates
+    are fine if you can defend them.
+  : Apunta a la mitad o más. «Reduje el tiempo de proceso un 85 %» se entiende; «mejoré el tiempo de proceso»,
+    no. Las estimaciones valen si puedes defenderlas.
+  'Start with the result and the verb that produced it: ''Cut X by N% by doing Z''.': 'Empieza por el
+    resultado y el verbo que lo produjo: «Reduje X un N % haciendo Z».'
+  Two lines is the limit in a scan. Split it or cut the setup.: Dos líneas es el límite en una lectura
+    rápida. Divídelo o recorta el contexto.
+  The tailoring step already orders them, so the weakest are last.: La adaptación ya los ordena, así que
+    los más flojos quedan al final.
+  Pick one and keep it across the whole CV.: Elige uno y mantenlo en todo el CV.
+  'CV convention drops the pronoun: ''Cut errors by 50%…''.': 'En un CV se omite el pronombre: «Reduje
+    los errores un 50 %…».'
+  There is no professional summary.: No hay resumen profesional.
+  The first three lines decide whether the rest is read.: Las tres primeras líneas deciden si se lee el
+    resto.
+  Three to five sentences. Anything longer is skipped.: De tres a cinco frases. Lo que pase de ahí se
+    salta.
+  The summary contains no concrete figure.: El resumen no incluye ninguna cifra concreta.
+  One real number in the opening paragraph does more than a paragraph of adjectives.: Una cifra real en
+    el párrafo inicial hace más que un párrafo de adjetivos.
+  ? Say the thing it is standing in for, or cut it. Everyone claims this; nobody is asked to prove it,
+    which is exactly why it carries no weight.
+  : Di lo que está sustituyendo o quítalo. Todo el mundo lo afirma y nadie tiene que demostrarlo, y por
+    eso mismo no pesa nada.
+  Repetition does not improve ATS ranking on any modern system.: Repetir no mejora la posición en ningún
+    ATS moderno.
+  ? Fine for tools you genuinely use; a long list of them invites the interview question you least want.
+    Consider trimming the weakest.
+  : Está bien para herramientas que usas de verdad; una lista larga invita a la pregunta de entrevista
+    que menos quieres. Plantéate quitar las más flojas.
+  The summary is mostly acronyms.: El resumen es casi todo siglas.
+  The first reader is often not technical. Say what you did, then name the tools.: El primer lector a
+    menudo no es técnico. Di qué hiciste y luego nombra las herramientas.
+  Add one or two results from that job. Without them it proves no skill, so nothing from it can be used to match an ad.: Añade
+    uno o dos resultados de ese trabajo. Sin ellos no demuestra ninguna competencia y no sirve para encajar
+    con una oferta.
+  ? 'Either the achievement that proved it changed, or it is written differently in the CV. Until then,
+    matching counts it as proven: lower its evidence in Settings, or name it in the achievement that shows
+    it.'
+  : 'O ha cambiado el logro que la demostraba, o en el CV se escribe de otra forma. Mientras tanto la
+    coincidencia la cuenta como demostrada: baja su evidencia en Configuración o nómbrala en el logro
+    que la muestra.'
+  ? A skill your CV does not show can never be raised, so this ceiling is ignored — but it says you could
+    claim something you do not have. Remove it, or add the evidence first.
+  : Una competencia que tu CV no muestra nunca puede subir, así que este techo se ignora; pero sugiere
+    que podrías presumir de algo que no tienes. Quítalo o añade antes la evidencia.
+  A tailored CV never lowers what is already proven, so this ceiling means nothing. Set it at least to the evidence.: Un
+    CV adaptado nunca baja lo que ya está demostrado, así que este techo no significa nada. Ponlo al menos
+    al nivel de la evidencia.
+  Add them in Settings → Your skills with the evidence you have, so ads that ask for them count them.: Añádelas
+    en Configuración → Tus competencias con la evidencia que tengas, para que cuenten en las ofertas que
+    las pidan.
+  Cut the oldest position's weakest achievement first; it is the one a reader is least likely to reach.: 'Quita
+    primero el logro más flojo del puesto más antiguo: es el que menos probabilidades tiene de leerse.'
+  The deterministic version was used instead.: Se ha usado en su lugar la versión determinista.
+  Models round numbers without saying so, and this is the figure you will be asked about. Use the real one or drop it.: Los
+    modelos redondean cifras sin avisar, y es justo la cifra por la que te preguntarán. Usa la real o
+    quítala.
+  If that is what the ad asks for, make it clear the sentence is about them.: Si es lo que pide la oferta,
+    deja claro que la frase habla de ellos.
+  Naming it as a gap is honest; it must not read as if you had it.: Nombrarla como carencia es honesto;
+    no debe sonar a que la tienes.
+  Say the specific thing instead, in your own words.: Di en su lugar lo concreto, con tus palabras.
+  It never names the company.: No nombra a la empresa en ningún sitio.
+  A letter that fits any company reads as exactly that.: Una carta que vale para cualquier empresa se
+    lee exactamente así.
+  The email does not start with a subject line.: El correo no empieza con una línea de asunto.
+  'Start with ''Subject: …'' so it can be pasted as is.': 'Empieza con «Asunto: …» para poder pegarlo
+    tal cual.'
+  There is no [name] placeholder in the greeting.: El saludo no lleva el marcador [nombre].
+  If you do not know who reads it, keep the greeting without a name.: Si no sabes quién lo lee, deja el
+    saludo sin nombre.
+  They are there because the fact is not in your profile.: Están ahí porque ese dato no está en tu perfil.
+  Ask for a shorter version in the thread, or trim it.: Pide una versión más corta en el hilo o recórtala.
+  Either remove it, or add real evidence for it to your profile and re-generate.: Quítala, o añade evidencia
+    real en tu perfil y vuelve a generar.
+  Numbers on a CV get asked about. Use the real one or drop the claim.: Por las cifras de un CV se pregunta.
+    Usa la real o quita la afirmación.
+  Count only what your dated positions add up to.: Cuenta solo lo que suman tus puestos con fechas.
+  Fine if it is the company you are applying to; otherwise remove it.: Bien si es la empresa a la que
+    aplicas; si no, quítala.
+  ? 'Playwright is not installed, so the CV was printed with the built-in PDF writer (plainer layout).
+    For the HTML template''s typography: pip install ''jobradar[pdf]'' && playwright install chromium'
+  : 'Playwright no está instalado, así que el CV se ha generado con el creador de PDF integrado (diseño
+    más sencillo). Para la tipografía de la plantilla HTML: pip install ''jobradar[pdf]'' && playwright
+    install chromium'
+  Very little text could be read from that file — check it is not a scan.: 'Se ha podido leer muy poco
+    texto de ese archivo: comprueba que no sea un escaneo.'
+  The language model could not parse the CV; fell back to the text parser.: El modelo de lenguaje no ha
+    podido interpretar el CV; se ha usado el lector de texto.
+  ? 'Parsed without a language model: review the experience, dates and skills, which the text parser gets
+    approximately right at best.'
+  : 'Leído sin modelo de lenguaje: revisa la experiencia, las fechas y las competencias, que el lector
+    de texto acierta como mucho de forma aproximada.'
+  Could not find your name in the CV — add it in settings.: 'No se ha encontrado tu nombre en el CV: añádelo
+    en Configuración.'
+  No work experience was recognised — add at least one position.: 'No se ha reconocido experiencia laboral:
+    añade al menos un puesto.'
+  No profile yet — finish the setup first.: 'Aún no hay perfil: termina primero la configuración.'
+  That job is not on the board any more; reload the page.: Esa oferta ya no está en el tablero; recarga
+    la página.
+  No file was attached; choose your CV file first.: No se ha adjuntado ningún archivo; elige primero tu
+    CV.
+  No CV has been generated for this job yet; press Tailor CV first.: Aún no se ha generado un CV para
+    esta oferta; pulsa antes «Adaptar CV».
+  The CV file is gone from disk — generate it again: 'El archivo del CV ya no está en el disco: vuelve
+    a generarlo'
+  That document has not been written yet; press Cover letter or Application email first.: Ese documento
+    aún no está redactado; pulsa antes «Carta de presentación» o «Correo de candidatura».
+  There is no answer at that position in this job's thread; reload it.: No hay ninguna respuesta en esa
+    posición del hilo de esta oferta; recárgalo.
+  An answer cannot be empty; write something or delete the thread.: Una respuesta no puede quedar vacía;
+    escribe algo o vacía el hilo.
+  That answer is no longer in the bank; reload the page.: Esa respuesta ya no está en el banco; recarga
+    la página.
+  Finish the setup first: Termina primero la configuración
+  A search is already running: Ya hay una búsqueda en marcha
+  A sweep is already running: Ya hay una revisión de ofertas cerradas en marcha
+  No interview time was found for this job: No se ha encontrado hora de entrevista para esta oferta
+  That ad is no longer in the filtered list; reload the page.: Esa oferta ya no está en la lista de filtradas;
+    recarga la página.
+  The uploaded file has no usable name.: El archivo subido no tiene un nombre utilizable.
+  Rename the file (e.g. cv.pdf) and upload it again.: Cambia el nombre del archivo (p. ej. cv.pdf) y vuelve
+    a subirlo.
+  Upload the CV file itself.: Sube el propio archivo del CV.
+  Upload a smaller export of your CV (PDF or DOCX).: Sube una exportación más ligera de tu CV (PDF o DOCX).
+  Check that the data directory is writable.: Comprueba que se puede escribir en la carpeta de datos.
+  No text could be read from the CV.: No se ha podido leer texto del CV.
+  If it is a scanned PDF, export a text PDF or paste the text instead.: Si es un PDF escaneado, exporta
+    un PDF con texto o pega el texto.
+  Reading PDF CVs needs the 'parse' extra.: Leer CV en PDF necesita el complemento «parse».
+  Reading Word CVs needs the 'parse' extra.: Leer CV en Word necesita el complemento «parse».
+  Save an unprotected copy of the PDF and upload that.: Guarda una copia del PDF sin contraseña y súbela.
+  Re-export it from your editor, or upload the .docx version.: Vuelve a exportarlo desde tu editor o sube
+    la versión .docx.
+  Open it in Word and save it again as .docx, or upload a PDF.: Ábrelo en Word y guárdalo de nuevo como
+    .docx, o sube un PDF.
+  'Supported formats: PDF, DOCX, HTML, Markdown or plain text.': 'Formatos admitidos: PDF, DOCX, HTML,
+    Markdown o texto plano.'
+  Old Word .doc files cannot be read; save it as .docx or PDF.: Los archivos .doc antiguos no se pueden
+    leer; guárdalo como .docx o PDF.
+  OpenDocument files cannot be read; export it as PDF or .docx.: Los archivos OpenDocument no se pueden
+    leer; expórtalo como PDF o .docx.
+  Pages files cannot be read; export it as PDF or .docx.: Los archivos de Pages no se pueden leer; expórtalo
+    como PDF o .docx.
+  Images cannot be read; upload the PDF or Word version of your CV.: Las imágenes no se pueden leer; sube
+    la versión en PDF o Word de tu CV.
+  No job source can run with the current settings.: Con la configuración actual no puede funcionar ninguna
+    fuente.
+  Enable at least one source (see 'jobradar sources'), or set the API keys the enabled ones need.: Activa
+    al menos una fuente (mira «jobradar sources») o configura las claves que necesitan las activas.
+  Add them to .env (see .env.example). Use an app password, not your normal one.: Añádelas a .env (mira
+    .env.example). Usa una contraseña de aplicación, no la normal.
+  Check JOBRADAR_IMAP_HOST and JOBRADAR_IMAP_PORT (usually 993).: Revisa JOBRADAR_IMAP_HOST y JOBRADAR_IMAP_PORT
+    (normalmente 993).
+  ? 'Use an app password (Gmail: myaccount.google.com/apppasswords; Outlook: account security settings),
+    and check IMAP is enabled for the account.'
+  : 'Usa una contraseña de aplicación (Gmail: myaccount.google.com/apppasswords; Outlook: ajustes de seguridad
+    de la cuenta) y comprueba que IMAP está activado en la cuenta.'
+  Check JOBRADAR_IMAP_FOLDER, or leave it empty for INBOX.: Revisa JOBRADAR_IMAP_FOLDER o déjalo vacío
+    para usar la bandeja de entrada.
+  Try again; if it keeps happening, check your network.: Vuelve a intentarlo; si sigue pasando, revisa
+    tu conexión.
+  Wait for the other JobRadar command (or the dashboard's search) to finish.: Espera a que termine el
+    otro comando de JobRadar (o la búsqueda del panel).
+  Check the permissions of the data directory.: Revisa los permisos de la carpeta de datos.
+  Free some disk space and try again.: Libera espacio en disco y vuelve a intentarlo.
+  Restore the database from a backup, or delete that record.: Restaura la base de datos desde una copia
+    o borra ese registro.
+  Restore the database from a backup, or regenerate that record.: Restaura la base de datos desde una
+    copia o vuelve a generar ese registro.
+  Import your CV again with 'jobradar init --cv <file>'.: Vuelve a importar tu CV con «jobradar init --cv
+    <archivo>».
+  Run the search again; the job will be re-read from its board.: Vuelve a lanzar la búsqueda; la oferta
+    se releerá desde su portal.
+  It will come back on the next search if the ad is still published.: Volverá en la próxima búsqueda si
+    la oferta sigue publicada.
+  Empty the filtered list with 'jobradar filtered --clear'.: Vacía la lista de filtradas con «jobradar
+    filtered --clear».
+  Set its status again from the dashboard.: Vuelve a indicar su estado desde el panel.
+  Clear the thread from the dashboard to start it again.: Vacía el hilo desde el panel para empezar de
+    nuevo.
+  The CV templates are missing from the installation.: Faltan las plantillas del CV en la instalación.
+  Reinstall JobRadar.: Reinstala JobRadar.
+  If you edited the template, check its syntax.: Si editaste la plantilla, revisa su sintaxis.
+  Check that the data directory is writable and the disk is not full.: Comprueba que se puede escribir
+    en la carpeta de datos y que el disco no está lleno.
+  See docs/CONFIGURATION.md for the accepted values.: Consulta docs/CONFIGURATION.md para ver los valores
+    admitidos.
+  Point --home (or JOBRADAR_HOME) at a folder you can write to.: Indica en --home (o JOBRADAR_HOME) una
+    carpeta en la que se pueda escribir.
+  Move it aside or choose another data directory.: Muévelo o elige otra carpeta de datos.
+  Restore the database from a backup, or set it up again.: Restaura la base de datos desde una copia o
+    vuelve a configurarla.
+  Something went wrong on the server. The details are in the terminal running 'jobradar serve'.: Algo
+    ha fallado en el servidor. Los detalles están en la terminal donde se ejecuta «jobradar serve».
+  Software & IT: Software e informática
+  Data & analytics: Datos y análisis
+  Engineering (non-software): Ingeniería (no software)
+  Healthcare: Sanidad
+  Social care & community: Atención social y comunitaria
+  Education & training: Educación y formación
+  Sales & business development: Ventas y desarrollo de negocio
+  Marketing & communication: Marketing y comunicación
+  Customer service & support: Atención al cliente
+  Finance & accounting: Finanzas y contabilidad
+  Legal: Jurídico
+  Human resources: Recursos humanos
+  Administration & office: Administración y oficina
+  Logistics & transport: Logística y transporte
+  Manufacturing & skilled trades: Industria y oficios
+  Construction & property: Construcción e inmobiliaria
+  Hospitality, food & tourism: Hostelería, restauración y turismo
+  Retail: Comercio
+  Design & creative: Diseño y creatividad
+  Science & research: Ciencia e investigación
+  Public sector, security & safety: Sector público y seguridad
+  Agriculture & environment: Agricultura y medio ambiente
+  Management & leadership: Dirección y gestión
+  General: General
+  # Source terms notes (Settings and the wizard).
+  Indeed's terms of service prohibit scraping its site. Enabling this adapter is your decision and your responsibility; keep the request delay high and the volume comparable to browsing by hand.: Las condiciones de Indeed prohíben extraer datos de su web. Activar esta fuente es decisión y responsabilidad tuya; mantén una pausa alta entre peticiones y un volumen parecido al de buscar a mano.
+  InfoJobs' terms of use restrict automated collection of its listings. InfoJobs also publishes an official partner API — if you can get a key, prefer it. Enabling this adapter is your decision and your responsibility.: 'Las condiciones de InfoJobs restringen la recogida automática de sus ofertas. InfoJobs también tiene una API oficial para socios: si consigues una clave, úsala. Activar esta fuente es decisión y responsabilidad tuya.'
+  LinkedIn's User Agreement restricts automated access, including scraping of public pages. Enabling this adapter is your decision and your responsibility; keep the request delay high and the volume comparable to browsing by hand.: El acuerdo de usuario de LinkedIn restringe el acceso automático, incluida la extracción de páginas públicas. Activar esta fuente es decisión y responsabilidad tuya; mantén una pausa alta entre peticiones y un volumen parecido al de buscar a mano.
+  Tecnoempleo's terms restrict automated collection. Enabling this adapter is your decision and your responsibility; keep the volume low.: Las condiciones de Tecnoempleo restringen la recogida automática. Activar esta fuente es decisión y responsabilidad tuya; mantén un volumen bajo.
+  Public JSON API behind the agency's own job search, with a public client id; documented by the community at jobsuche.api.bund.dev, not by the agency.: API JSON pública que usa el buscador de la propia agencia, con un identificador de cliente público; documentada por la comunidad en jobsuche.api.bund.dev, no por la agencia.
+patterns:
+- en: you prioritise {family} (x{factor})
+  es: das prioridad a {family} (x{factor})
+- en: you deprioritise {family} (x{factor})
+  es: restas prioridad a {family} (x{factor})
+- en: 'Residency condition that names no country: “{sentence}” — confirm it covers yours.'
+  es: 'Condición de residencia que no nombra país: «{sentence}»; confirma que incluye el tuyo.'
+- en: Could not convert {currency}.
+  es: No se ha podido convertir {currency}.
+- en: 'Converted from {currency} at the rate of {date}: ≈ {amount} {target}, within {margin} of your minimum
+    — check today''s rate before dismissing it.'
+  es: 'Convertido desde {currency} al cambio del {date}: ≈ {amount} {target}, a menos del {margin} de
+    tu mínimo; revisa el cambio de hoy antes de descartarla.'
+- en: Estimated salary ≈ {amount} {currency}, below your minimum — an estimate, not the ad's figure.
+  es: 'Salario estimado ≈ {amount} {currency}, por debajo de tu mínimo: es una estimación, no la cifra
+    de la oferta.'
+- en: published {age} days ago (limit {limit})
+  es: publicada hace {age} días (límite {limit})
+- en: work mode is {mode}
+  es: la modalidad es {mode}
+- en: on-site/hybrid outside your areas ({place})
+  es: presencial/híbrido fuera de tus zonas ({place})
+- en: remote but restricted to {where}
+  es: remoto pero limitado a {where}
+- en: remote limited to {where}
+  es: remoto limitado a {where}
+- en: salary ≈ {amount} {currency} (below {minimum} {currency2})
+  es: salario ≈ {amount} {currency} (por debajo de {minimum} {currency2})
+- en: asks for {years} years, you have {held} — just short by {short}
+  es: 'pide {years} años y tienes {held}: te faltan {short}'
+- en: asks for {years} years, you have {held} (short by {short})
+  es: pide {years} años y tienes {held} (te faltan {short})
+- en: excluded company ({company})
+  es: empresa excluida ({company})
+- en: published {age} days ago
+  es: publicada hace {age} días
+- en: asks for {years} years, you have {held}
+  es: pide {years} años y tienes {held}
+- en: salary ≈ {amount} {currency}
+  es: salario ≈ {amount} {currency}
+- en: excluded keyword '{word}'
+  es: palabra excluida «{word}»
+- en: duplicate of a job already on file ({company} — {title})
+  es: duplicado de una oferta que ya tenías ({company} — {title})
+- en: missing {names}
+  es: falta {names}
+- en: '{family} / {seniority} band'
+  es: banda {family} / {seniority}
+- en: hired in {where} x{factor}
+  es: contratación en {where} x{factor}
+- en: '{label} x{factor}'
+  es: '{label} x{factor}'
+- en: Converted from {currency} at the ECB rate of {date}
+  es: Convertido desde {currency} al cambio del BCE del {date}
+- en: '{score}/100 — {errors} to fix, {warnings} worth improving, {total} notes in total'
+  es: '{score}/100: {errors} por corregir, {warnings} mejorables, {total} observaciones en total'
+- en: '''{place}'' has no start date.'
+  es: «{place}» no tiene fecha de inicio.
+- en: '''{first}'' is listed before ''{second}'' but started earlier.'
+  es: «{first}» aparece antes que «{second}» pero empezó antes.
+- en: '{months} months between ''{older}'' and ''{newer}''.'
+  es: '{months} meses entre «{older}» y «{newer}».'
+- en: Only {count} of {total} achievements contain a number ({share}).
+  es: Solo {count} de {total} logros incluyen una cifra ({share}).
+- en: '''{place}'': an achievement starts with ''{opener}''.'
+  es: '«{place}»: un logro empieza por «{opener}».'
+- en: '''{place}'': an achievement runs to {n} characters.'
+  es: '«{place}»: un logro ocupa {n} caracteres.'
+- en: '''{place}'' has {n} achievements.'
+  es: «{place}» tiene {n} logros.
+- en: Beyond about {n} the later ones are not read. The tailoring step already orders them, so the weakest
+    are last.
+  es: A partir de unos {n}, los últimos no se leen. La adaptación ya los ordena, así que los más flojos
+    quedan al final.
+- en: '''{place}'' mixes ''-ing'' and past-tense openings.'
+  es: «{place}» mezcla logros en gerundio y en pasado.
+- en: '{n} achievements start with ''I'' or ''My''.'
+  es: '{n} logros empiezan con «Yo» o «Mi».'
+- en: The summary is {n} characters.
+  es: El resumen tiene {n} caracteres.
+- en: The CV contains '{phrase}'.
+  es: El CV contiene «{phrase}».
+- en: '{n} separate skills are listed.'
+  es: Hay {n} competencias distintas en la lista.
+- en: Past roughly {n} the list reads as keyword stuffing and devalues the ones you are actually good
+    at.
+  es: A partir de unas {n}, la lista parece relleno de palabras clave y resta valor a las que dominas
+    de verdad.
+- en: '''{skill}'' appears {n} times in the achievements.'
+  es: «{skill}» aparece {n} veces en los logros.
+- en: '{n} skills are listed but never appear in an achievement.'
+  es: '{n} competencias están en la lista pero no aparecen en ningún logro.'
+- en: '''{title}'' at {company} has no achievements.'
+  es: «{title}» en {company} no tiene logros.
+- en: '''{skill}'' is marked as demonstrated but no achievement mentions it.'
+  es: «{skill}» figura como demostrada, pero ningún logro la menciona.
+- en: '''{skill}'' has a ceiling of {cap} and no evidence.'
+  es: «{skill}» tiene un techo de {cap} y ninguna evidencia.
+- en: '''{skill}'' has a ceiling of {cap}, below its evidence of {base}.'
+  es: «{skill}» tiene un techo de {cap}, por debajo de su evidencia de {base}.
+- en: 'Listed but unknown to matching: {items}.'
+  es: 'En la lista pero desconocidas para la coincidencia: {items}.'
+- en: The rule '{rule}' encountered an error and could not finish.
+  es: La regla «{rule}» ha fallado y no ha podido terminar.
+- en: 'Error detail: {detail}'
+  es: 'Detalle del error: {detail}'
+- en: The CV runs to {pages} pages (limit {limit}).
+  es: El CV ocupa {pages} páginas (límite {limit}).
+- en: 'A generated draft was rejected: {note}'
+  es: 'Se ha rechazado un borrador generado: {note}'
+- en: 'Figures that are neither in your profile nor in the ad: {figures}.'
+  es: 'Cifras que no están ni en tu perfil ni en la oferta: {figures}.'
+- en: It says '{claim}' and your dated positions add up to {years}.
+  es: Dice «{claim}» y tus puestos con fechas suman {years}.
+- en: '''{skill}'' is not in your profile.'
+  es: «{skill}» no está en tu perfil.
+- en: 'Reads like a template: {phrases}.'
+  es: 'Suena a plantilla: {phrases}.'
+- en: '{n} part in brackets still to fill in, e.g. {example}.'
+  es: '{n} parte entre corchetes por rellenar, p. ej. {example}.'
+- en: '{n} parts in brackets still to fill in, e.g. {example}.'
+  es: '{n} partes entre corchetes por rellenar, p. ej. {example}.'
+- en: '{n} characters — the form cuts at {limit}.'
+  es: '{n} caracteres: el formulario corta en {limit}.'
+- en: '{n} words — the form cuts at {limit}.'
+  es: '{n} palabras: el formulario corta en {limit}.'
+- en: The document claims '{skill}', which your profile has no evidence for.
+  es: El documento afirma «{skill}», y tu perfil no tiene evidencia de ello.
+- en: The figure '{figure}' does not appear anywhere in your profile.
+  es: La cifra «{figure}» no aparece en ninguna parte de tu perfil.
+- en: The document claims {claimed} years of experience; your profile supports {actual}.
+  es: El documento afirma {claimed} años de experiencia; tu perfil respalda {actual}.
+- en: '''{name}'' is named but is not in your profile.'
+  es: Se nombra «{name}», que no está en tu perfil.
+- en: The CV still runs to {pages} pages at the smallest readable size. Shorten an achievement or drop
+    an older position rather than shrinking further.
+  es: El CV sigue ocupando {pages} páginas con la letra más pequeña legible. Acorta un logro o quita un
+    puesto antiguo en lugar de reducir más.
+- en: '{failure} The built-in PDF writer was used instead.'
+  es: '{failure} Se ha usado en su lugar el creador de PDF integrado.'
+- en: '''{place}'' has no achievements yet.'
+  es: «{place}» aún no tiene logros.
+- en: '{checked} messages read since {since}: {news} replies matched to jobs, {orphans} about applications
+    not on the board.'
+  es: '{checked} mensajes leídos desde el {since}: {news} respuestas asociadas a ofertas, {orphans} sobre
+    candidaturas que no están en el tablero.'
+- en: checked {checked}, closed {closed}, kept {tracked} tracked, {unreachable} unreachable
+  es: revisadas {checked}, cerradas {closed}, {tracked} en seguimiento conservadas, {unreachable} inaccesibles
+- en: Unknown job family '{family}'. Pick one from the list, or add it in Settings → Job families.
+  es: 'Familia de empleo desconocida: «{family}». Elige una de la lista o añádela en Configuración → Familias
+    de empleo.'
+- en: Unknown document type '{kind}'; use cover_letter or email.
+  es: 'Tipo de documento desconocido: «{kind}»; usa cover_letter o email.'
+- en: '{name} is empty.'
+  es: '{name} está vacío.'
+- en: '{name} is larger than {mb} MB.'
+  es: '{name} ocupa más de {mb} MB.'
+- en: 'Cannot save the upload: {reason}.'
+  es: 'No se ha podido guardar el archivo subido: {reason}.'
+- en: Cannot read {name}.
+  es: No se puede leer {name}.
+- en: '{name} is password-protected.'
+  es: '{name} está protegido con contraseña.'
+- en: '{name} could not be read as a PDF: {reason}'
+  es: '{name} no se ha podido leer como PDF: {reason}'
+- en: '{name} could not be read as a Word document.'
+  es: '{name} no se ha podido leer como documento de Word.'
+- en: '{name} is not a text file.'
+  es: '{name} no es un archivo de texto.'
+- en: Reading your email needs {names}.
+  es: Para leer tu correo hace falta {names}.
+- en: 'Cannot connect to the mail server {server}: {reason}.'
+  es: 'No se puede conectar con el servidor de correo {server}: {reason}.'
+- en: '{server} refused the login for {user}.'
+  es: '{server} ha rechazado el inicio de sesión de {user}.'
+- en: The folder {folder} does not exist on {server}.
+  es: La carpeta {folder} no existe en {server}.
+- en: 'The mail server {server} answered with an error: {reason}.'
+  es: 'El servidor de correo {server} ha respondido con un error: {reason}.'
+- en: 'The connection to {server} dropped: {reason}.'
+  es: 'Se ha cortado la conexión con {server}: {reason}.'
+- en: The database {path} is locked by another process.
+  es: La base de datos {path} está bloqueada por otro proceso.
+- en: The database {path} is read-only.
+  es: La base de datos {path} es de solo lectura.
+- en: 'Could not write to the database {path}: {reason}.'
+  es: 'No se ha podido escribir en la base de datos {path}: {reason}.'
+- en: The stored {what} is corrupt and cannot be read.
+  es: El registro guardado ({what}) está dañado y no se puede leer.
+- en: 'The stored {what} is invalid: {reason}'
+  es: 'El registro guardado ({what}) no es válido: {reason}'
+- en: 'The stored profile is invalid: {reason}'
+  es: 'El perfil guardado no es válido: {reason}'
+- en: 'The stored job {job} is invalid: {reason}'
+  es: 'La oferta guardada {job} no es válida: {reason}'
+- en: 'The deleted job {job} cannot be restored: its saved copy is unreadable ({reason}).'
+  es: 'La oferta borrada {job} no se puede recuperar: su copia guardada es ilegible ({reason}).'
+- en: 'The CV template ''{name}'' could not be rendered: {reason}'
+  es: 'La plantilla de CV «{name}» no se ha podido generar: {reason}'
+- en: 'Cannot write the CV to {path}: {reason}.'
+  es: 'No se puede escribir el CV en {path}: {reason}.'
+- en: 'Invalid {what}: {reason}'
+  es: '{what} no válido: {reason}'
+- en: Invalid request — {details}
+  es: 'Petición no válida: {details}'
+- en: Invalid data — {details}
+  es: 'Datos no válidos: {details}'
+- en: '{label} ({weight})'
+  es: '{label} ({weight})'
+skills:
+  python: Python
+  java: Java
+  javascript: JavaScript
+  typescript: TypeScript
+  csharp: C#
+  cpp: C / C++
+  golang: Go
+  rust: Rust
+  php: PHP
+  ruby: Ruby
+  kotlin: Kotlin
+  swift: Swift
+  scala: Scala
+  r_lang: R
+  sql: SQL
+  bash: Scripts de shell
+  react: React
+  angular: Angular
+  vue: Vue
+  nextjs: Next.js
+  html_css: HTML / CSS
+  node: Node.js
+  django: Django
+  flask: Flask
+  fastapi: FastAPI
+  spring: Spring
+  rest_apis: APIs REST
+  graphql: GraphQL
+  microservices: Microservicios
+  distributed_systems: Sistemas distribuidos
+  fullstack: Desarrollo full-stack
+  machine_learning: Aprendizaje automático
+  deep_learning: Aprendizaje profundo
+  nlp: Procesamiento del lenguaje natural
+  computer_vision: Visión por computador
+  llm: Modelos de lenguaje (LLM)
+  genai: IA generativa
+  rag: RAG / búsqueda vectorial
+  langchain: LangChain / agentes
+  mlops: MLOps
+  pytorch_tf: PyTorch / TensorFlow
+  huggingface: Hugging Face
+  sklearn: Scikit-learn
+  pandas: Pandas / NumPy
+  spark: Spark
+  etl: ETL / flujos de datos
+  data_analysis: Análisis de datos
+  data_viz: Visualización de datos
+  statistics: Estadística
+  warehouse: Almacenes de datos
+  postgres: PostgreSQL
+  mysql: MySQL
+  mongodb: MongoDB
+  oracle_db: Oracle
+  redis: Redis
+  aws: AWS
+  azure: Azure
+  gcp: Google Cloud
+  docker: Docker
+  kubernetes: Kubernetes
+  terraform: Terraform / IaC
+  cicd: CI/CD
+  git: Git
+  linux: Linux
+  monitoring: Monitorización / observabilidad
+  security: Seguridad informática
+  testing: Pruebas de software
+  agile: Agile / Scrum
+  code_review: Revisión de código
+  documentation: Documentación técnica
+  debugging: Depuración / resolución de incidencias
+  architecture: Arquitectura de software
+  performance: Optimización del rendimiento
+  product_management: Gestión de producto
+  ux_research: Investigación UX
+  ui_design: Diseño de interfaces
+  design_systems: Sistemas de diseño
+  adobe_suite: Adobe
+  seo: SEO / SEM
+  content_marketing: Marketing de contenidos
+  paid_media: Publicidad de pago
+  crm: CRM
+  b2b_sales: Ventas B2B
+  customer_success: Atención al cliente
+  project_management: Gestión de proyectos
+  finance: Finanzas / contabilidad
+  hr: RR. HH. / selección
+  legal: Legal / cumplimiento normativo
+  supply_chain: Cadena de suministro / logística
+  teaching: Docencia / formación
+  healthcare: Ámbito sanitario
+  excel: Excel / hojas de cálculo
+  office_suite: Paquete ofimático
+  data_entry: Grabación de datos
+  bookkeeping: Administración contable
+  payroll: Nóminas
+  tax: Fiscalidad
+  auditing: Auditoría
+  accounting_software: Software de contabilidad
+  contract_law: Derecho de contratos
+  employment_law: Derecho laboral
+  recruitment: Selección de personal
+  patient_care: Atención al paciente
+  first_aid: Primeros auxilios / soporte vital
+  medication: Administración de medicación
+  elderly_care: Atención a personas mayores
+  childcare: Atención infantil
+  mental_health: Salud mental
+  clinical_records: Historia clínica
+  lesson_planning: Programación didáctica
+  classroom_management: Gestión del aula
+  special_needs: Necesidades educativas especiales
+  elearning: Formación en línea
+  teaching_certificate: Habilitación docente
+  food_handling: Manipulación de alimentos
+  cooking: Cocina
+  table_service: Servicio de sala y barra
+  front_desk: Recepción
+  cash_handling: Caja / TPV
+  visual_merchandising: Escaparatismo y merchandising
+  stock_management: Gestión de stock
+  driving_licence_b: Carné de conducir (B)
+  driving_licence_c: Carné de camión (C/CE)
+  forklift: Carretilla elevadora
+  warehouse_ops: Operaciones de almacén
+  procurement: Compras
+  electrical_work: Instalaciones eléctricas
+  plumbing: Fontanería
+  welding: Soldadura
+  hvac: Climatización
+  cnc_machining: Mecanizado CNC
+  maintenance: Mantenimiento
+  technical_drawing: Dibujo técnico / CAD
+  quality_control: Control de calidad
+  health_safety: Prevención de riesgos laborales
+  leadership: Liderazgo
+  communication: Comunicación
+  teamwork: Trabajo en equipo
+  problem_solving: Resolución de problemas
+  autonomy: Autonomía
+  customer_focus: Orientación al cliente
+  english: Inglés
+  spanish: Español
+  french: Francés
+  german: Alemán
+  portuguese: Portugués
+  nursing: Enfermería
+  triage: Triaje
+  wound_care: Cura de heridas
+  venepuncture: Venopunción / vías
+  critical_care: Cuidados intensivos / UCI
+  emergency_care: Urgencias
+  operating_theatre: Quirófano
+  pharmacology: Farmacología
+  pharmacy_dispensing: Dispensación farmacéutica
+  diagnostic_imaging: Diagnóstico por imagen
+  clinical_lab: Laboratorio clínico
+  physiotherapy: Fisioterapia
+  dental_care: Odontología
+  midwifery: Matronas / obstetricia
+  paediatrics: Pediatría
+  primary_care: Atención primaria
+  infection_control: Control de infecciones
+  clinical_coding: Codificación clínica
+  clinical_trials: Ensayos clínicos
+  nutrition: Nutrición / dietética
+  psychology: Psicología / terapia
+  occupational_therapy: Terapia ocupacional
+  speech_therapy: Logopedia
+  veterinary: Veterinaria
+  professional_registration: Colegiación profesional
+  litigation: Litigación
+  civil_law: Derecho civil
+  criminal_law: Derecho penal
+  corporate_law: Derecho societario / M&A
+  tax_law: Derecho tributario
+  administrative_law: Derecho administrativo / contratación pública
+  family_law: Derecho de familia
+  real_estate_law: Derecho inmobiliario
+  intellectual_property: Propiedad intelectual
+  data_protection: Protección de datos
+  legal_research: Investigación jurídica
+  legal_drafting: Redacción jurídica
+  bar_admission: Ejercicio de la abogacía
+  mediation: Mediación / arbitraje
+  insolvency: Derecho concursal
+  immigration_law: Extranjería
+  primary_teaching: Educación primaria
+  secondary_teaching: Educación secundaria
+  vocational_training: Formación profesional
+  language_teaching: Enseñanza de idiomas
+  tutoring: Clases particulares
+  student_assessment: Evaluación del alumnado
+  educational_guidance: Orientación educativa
+  university_teaching: Docencia universitaria
+  academic_research: Investigación académica
+  bilingual_teaching: Enseñanza bilingüe (AICLE)
+  montessori: Montessori / pedagogías alternativas
+  social_work: Trabajo social
+  disability_support: Atención a la discapacidad
+  home_care: Ayuda a domicilio
+  sociosanitary_certificate: Certificado de atención sociosanitaria
+  addiction_support: Atención a adicciones
+  social_education: Educación social / tiempo libre
+  housekeeping: Pisos (hostelería)
+  barista: Barista
+  wine_service: Sumillería
+  event_planning: Organización de eventos
+  tour_guiding: Guía turístico
+  revenue_management: Revenue management
+  hotel_pms: PMS hotelero
+  retail_sales: Venta al público
+  call_centre: Atención telefónica / televenta
+  negotiation: Negociación
+  diary_management: Gestión de agendas y viajes
+  document_management: Gestión documental
+  translation: Traducción / interpretación
+  switchboard: Centralita / recepción
+  financial_reporting: Información financiera
+  budgeting: Presupuestos y previsiones
+  banking: Banca
+  insurance: Seguros
+  treasury: Tesorería
+  risk_management: Gestión de riesgos
+  real_estate: Venta y alquiler inmobiliario
+  learning_development: Formación y desarrollo
+  onboarding: Acogida de empleados
+  route_planning: Planificación de rutas
+  customs: Aduanas / comercio exterior
+  fleet_management: Gestión de flotas
+  dangerous_goods: Mercancías peligrosas (ADR)
+  delivery_driving: Reparto
+  carpentry: Carpintería
+  masonry: Albañilería
+  painting_decorating: Pintura y decoración
+  site_management: Jefatura de obra
+  bim: BIM
+  surveying: Topografía y mediciones
+  gas_installation: Instalaciones de gas
+  vehicle_mechanics: Mecánica del automóvil
+  industrial_automation: Automatización industrial / PLC
+  cleaning_services: Limpieza
+  security_guarding: Vigilancia de seguridad
+  firefighting: Extinción de incendios / emergencias
+  public_administration: Administración pública
+  agriculture: Agricultura
+  gardening: Jardinería / paisajismo
+  environmental_management: Gestión ambiental
+  pesticide_licence: Carné de fitosanitarios
+  photography: Fotografía
+  video_editing: Edición de vídeo
+  journalism: Periodismo / redacción
+  social_media: Redes sociales
+  lab_techniques: Técnicas de laboratorio
+  gmp: Normas GMP
+  regulatory_affairs: Asuntos regulatorios
+  pnl_management: Cuenta de resultados
+  strategic_planning: Planificación estratégica
+families:
+  software_it: Software e informática
+  data_analytics: Datos y análisis
+  engineering: Ingeniería (no software)
+  healthcare: Sanidad
+  care_social: Atención social y comunitaria
+  education: Educación y formación
+  sales: Ventas y desarrollo de negocio
+  marketing_communication: Marketing y comunicación
+  customer_service: Atención al cliente
+  finance_accounting: Finanzas y contabilidad
+  legal: Jurídico
+  human_resources: Recursos humanos
+  administration_office: Administración y oficina
+  logistics_transport: Logística y transporte
+  manufacturing_trades: Industria y oficios
+  construction_property: Construcción e inmobiliaria
+  hospitality_tourism: Hostelería, restauración y turismo
+  retail: Comercio
+  design_creative: Diseño y creatividad
+  science_research: Ciencia e investigación
+  public_security: Sector público y seguridad
+  agriculture_environment: Agricultura y medio ambiente
+  management: Dirección y gestión
+  general: General

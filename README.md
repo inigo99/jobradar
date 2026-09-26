@@ -65,25 +65,33 @@ The details, including every linter rule and every warning: **[docs/CV_TAILORING
 
 ## Install
 
-Requires Python 3.10 or newer.
+Requires Python 3.10 or newer, on Linux, macOS or Windows.
 
 ```bash
-git clone https://github.com/inigo99/jobradar.git
-cd jobradar
-python -m venv .venv && source .venv/bin/activate    # Windows: .venv\Scripts\activate
-pip install -e ".[all]"
-playwright install chromium   # optional: the HTML templates' own typography in the PDF
-scrapling install             # only if you enable LinkedIn, InfoJobs, Tecnoempleo or Indeed
+pipx install "jobradar-cv[all]"  # or: pip install "jobradar-cv[all]"
+playwright install chromium      # optional: the HTML templates' own typography in the PDF
+scrapling install                # only if you enable LinkedIn, InfoJobs, Tecnoempleo or Indeed
 ```
 
-Or only what you need:
+The package is `jobradar-cv` on PyPI; the command it installs is `jobradar`. Or only what you need:
 
 ```bash
-pip install -e .                # everything, including PDF CVs from the built-in writer
-pip install -e ".[pdf]"         # + PDFs printed from the HTML templates (headless Chromium)
-pip install -e ".[parse]"       # + importing a PDF or DOCX CV
-pip install -e ".[excel]"       # + .xlsx export
+pip install jobradar-cv             # everything, including PDF CVs from the built-in writer
+pip install "jobradar-cv[pdf]"      # + PDFs printed from the HTML templates (headless Chromium)
+pip install "jobradar-cv[parse]"    # + importing a PDF or DOCX CV
+pip install "jobradar-cv[excel]"    # + .xlsx export
 ```
+
+**With Docker** instead — nothing else to install, browsers included:
+
+```bash
+git clone https://github.com/inigo99/jobradar.git && cd jobradar
+docker compose up -d                # then open http://localhost:8000
+```
+
+Your data stays in a Docker volume, the dashboard is published on your own machine only, and keys go in a `.env` file next to `docker-compose.yml` (see `.env.example`). Run the CLI inside it with `docker compose exec jobradar jobradar search`.
+
+**From source**, to change the code: clone the repository and `pip install -e ".[all,dev]"`.
 
 Without Playwright the CV is still a PDF, laid out more plainly by a built-in writer. With it, run `playwright install chromium` again after upgrading Playwright; if its browser build is missing, any other installed Chromium is used, or the one in `JOBRADAR_CHROMIUM_PATH`.
 
@@ -94,11 +102,12 @@ Without Playwright the CV is still a PDF, laid out more plainly by a built-in wr
 ## Quick start
 
 ```bash
-jobradar demo       # a synthetic profile and ten synthetic jobs; no network
+jobradar demo                   # a synthetic profile and its jobs; no network
+jobradar demo --profile nurse   # or lawyer, teacher, data (the default)
 jobradar serve
 ```
 
-The demo jobs exercise the interesting cases: a US-only "remote" role, an EMEA one, an agency posting that hides its client, an ad with no salary, an on-site job outside your areas.
+Each demo is a different kind of work — an intensive-care nurse in Bilbao, a litigation lawyer in Madrid, an English teacher in Valencia, a data engineer — and its jobs exercise the interesting cases: an ad asking for more years than you have, an agency hiding its client, an ad with no salary, one abroad, one outside your areas.
 
 For yourself, run `jobradar serve` and follow the setup wizard, or from the terminal:
 
@@ -121,7 +130,7 @@ jobradar serve
 
 ![Answering an application form's questions](docs/images/form-answers.png)
 
-**Settings** covers your details, target titles, every filter, which sources run (and which only weekly), job families and their priority, the mailbox check, the language model, phrases you never use, **your skills** with their evidence and ceiling, and the **CV for each job family**.
+**Settings** covers your details, target titles, every filter, which sources run (and which only weekly), job families and their priority, the mailbox check, the interface language (English or Spanish), the language model, phrases you never use, **your skills** with their evidence and ceiling, and the **CV for each job family**.
 
 ![Settings: your skills](docs/images/settings.png)
 
@@ -132,7 +141,7 @@ jobradar serve
 | Command | What it does |
 |---|---|
 | `jobradar init [--cv FILE] [--config FILE]` | Set up, interactively or from YAML |
-| `jobradar demo` | Load the synthetic dataset |
+| `jobradar demo [--profile data\|nurse\|lawyer\|teacher]` | Load a synthetic profile and its jobs |
 | `jobradar search [--explain] [--no-llm] [--no-enrich] [--refresh] [--notify]` | Run the pipeline. Ads already on file are not re-read unless `--refresh` |
 | `jobradar sweep [--limit N]` | Retire ads that have closed |
 | `jobradar tailor [JOB_ID] [--top N] [--no-llm]` | Generate tailored CVs |
@@ -165,6 +174,7 @@ The full reference — every filter, job families, how salaries are estimated, t
 |---|---|---|
 | RemoteOK, We Work Remotely, Himalayas, Arbeitnow | open | Public APIs and feeds |
 | Manfred (Spain) | open | Publishes salary, remote share and each skill's required level |
+| Bundesagentur für Arbeit (Germany) | open | The public employment service: every sector. Runs only when Germany is one of your countries |
 | Company career boards | open | Greenhouse, Lever, Ashby, Workable, Recruitee, SmartRecruiters, Personio — detected from a domain |
 | Adzuna, Jooble | credentials | Free keys; many countries |
 | LinkedIn, InfoJobs, Tecnoempleo, Indeed | restricted | Off by default; fetched through a real browser ([Scrapling](https://github.com/D4Vinci/Scrapling)) |

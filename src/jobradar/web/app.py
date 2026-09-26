@@ -38,6 +38,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.requests import Request
 
 from .. import __version__
@@ -81,6 +82,7 @@ from ..profile.vocabulary import SkillEdit, apply_skill_edits, carry_over
 from ..sources import available as available_sources
 from ..storage import Database
 from ..textutils import contains_phrase, slugify
+from . import localize
 from .api import (
     AnswerLimitPayload,
     ApplicationPayload,
@@ -259,7 +261,17 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
     async def expected_error(request: Request, exc: JobRadarError):
         """A failure JobRadar knows how to explain: say what it is and what to do."""
         log.warning("%s %s failed: %s", request.method, request.url.path, exc.message)
-        return JSONResponse(status_code=exc.status_code, content=exc.to_dict())
+        body = exc.to_dict()
+        for key in ("detail", "hint"):
+            if isinstance(body.get(key), str):
+                body[key] = localize.message(body[key])
+        return JSONResponse(status_code=exc.status_code, content=body)
+
+    @app.exception_handler(StarletteHTTPException)
+    async def http_error(request: Request, exc: StarletteHTTPException):
+        detail = localize.message(exc.detail) if isinstance(exc.detail, str) else exc.detail
+        return JSONResponse(status_code=exc.status_code, content={"detail": detail},
+                            headers=getattr(exc, "headers", None))
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(request: Request, exc: RequestValidationError):
@@ -270,7 +282,7 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
             location = ".".join(str(p) for p in error.get("loc", ()) if p != "body")
             parts.append(f"{location or 'request'}: {error.get('msg', 'invalid')}")
         return JSONResponse(status_code=422, content={
-            "detail": "Invalid request — " + "; ".join(parts),
+            "detail": localize.message("Invalid request — " + "; ".join(parts)),
             "error": "ValidationError",
             "errors": jsonable_encoder(exc.errors()),
         })
@@ -278,7 +290,7 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
     @app.exception_handler(ValidationError)
     async def invalid_payload(request: Request, exc: ValidationError):
         return JSONResponse(status_code=422, content={
-            "detail": f"Invalid data — {validation_summary(exc)}",
+            "detail": localize.message(f"Invalid data — {validation_summary(exc)}"),
             "error": "ValidationError",
         })
 
@@ -287,13 +299,14 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
         """A bug. The traceback goes to the server log, never to the browser."""
         log.exception("Unexpected error on %s %s", request.method, request.url.path)
         return JSONResponse(status_code=500, content={
-            "detail": "Something went wrong on the server. The details are in the "
-                      "terminal running 'jobradar serve'.",
+            "detail": localize.message("Something went wrong on the server. The details are "
+                                       "in the terminal running 'jobradar serve'."),
             "error": "InternalError",
         })
 
     @app.middleware("http")
     async def refuse_foreign_requests(request: Request, call_next):
+        localize.use_language(localize.request_language(request))
         refusal = request_refusal(request.method, request.headers, hosts)
         if refusal:
             return JSONResponse({"detail": refusal}, status_code=403)
@@ -363,11 +376,11 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
         for job in database.list_jobs(include_closed=True, limit=limit, offset=offset):
             application = applications.get(job.id) or Application(job_id=job.id)
             documents = database.documents_for(job.id)
-            jobs.append(
+            jobs.append(localize.job(
                 _job_view(job, scores.get(job.id), application, documents, profile_years,
                           families, settings.filters)
                 .model_dump(mode="json")
-            )
+            ))
         # Focus order by default: once a profile covers most of what the ads
         # ask for, sorting by match score is sorting by noise.
         jobs.sort(key=lambda item: (-item["focus"], -item["score_tailored"], item["company"]))
@@ -376,25 +389,26 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
         return {
             "onboarded": settings.onboarded,
             "settings": settings.model_dump(mode="json"),
-            "profile": _profile_summary(profile),
+            "profile": localize.profile(_profile_summary(profile)),
             "jobs": jobs,
-            "sources": available_sources(),
-            "families": catalogue_view(settings),
+            "sources": [{**source, "tos_note": localize.message(source["tos_note"])}
+                        for source in available_sources()],
+            "families": localize.families(catalogue_view(settings)),
             "mail": {job_id: news.model_dump(mode="json")
                      for job_id, news in database.mail_news().items()},
             "mail_orphans": [news.model_dump(mode="json") for news in database.mail_orphans()],
             "mail_configured": mail_configured(),
             "countries": {code: entry.get("name", code) for code, entry in countries().items()},
             "runs": runs,
-            "filtered": [FilteredView(**entry, family_label=family_label(entry.get("family", ""),
-                                                                          families)
-                                      if entry.get("family") else "").model_dump(mode="json")
-                         for entry in database.list_filtered()],
+            "filtered": [localize.filtered(
+                FilteredView(**entry, family_label=family_label(entry.get("family", ""), families)
+                             if entry.get("family") else "").model_dump(mode="json"))
+                for entry in database.list_filtered()],
             # For the "just short on years" table, recomputed live so a
             # change of margin shows at once.
             "experience": {"held": experience_ceiling(settings.filters, profile_years),
                            "margin": settings.filters.years_margin},
-            "filtered_tally": database.filtered_tally(),
+            "filtered_tally": localize.tally(database.filtered_tally()),
             "running": app.state.running,
             "version": __version__,
         }
@@ -500,7 +514,8 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
         settings.onboarded = True
         database.save_profile(profile)
         database.save_settings(settings)
-        return {"ok": True, "notes": notes, "profile": _profile_summary(profile)}
+        return {"ok": True, "notes": [localize.message(note) for note in notes],
+                "profile": localize.profile(_profile_summary(profile))}
 
     # -- settings and profile ---------------------------------------------
 
@@ -552,7 +567,7 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
                 if variant != CvVariant()  # an untouched variant is no variant
             }
         database.save_profile(profile)
-        return {"ok": True, "profile": _profile_summary(profile)}
+        return {"ok": True, "profile": localize.profile(_profile_summary(profile))}
 
     @app.put("/api/profile/skills")
     def update_skills(payload: SkillsPayload):
@@ -569,7 +584,7 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
                           key=row.key, aliases=tuple(row.aliases)) for row in payload.skills]
         apply_skill_edits(profile, groups, rows, payload.deleted)
         database.save_profile(profile)
-        return {"ok": True, "profile": _profile_summary(profile)}
+        return {"ok": True, "profile": localize.profile(_profile_summary(profile))}
 
     @app.post("/api/profile/reimport")
     async def reimport(cv_file: UploadFile = File(...)):
@@ -589,7 +604,8 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
         if previous is not None:
             carry_over(previous, profile)
         database.save_profile(profile)
-        return {"ok": True, "notes": notes, "profile": _profile_summary(profile)}
+        return {"ok": True, "notes": [localize.message(note) for note in notes],
+                "profile": localize.profile(_profile_summary(profile))}
 
     # -- tracking ---------------------------------------------------------
 
@@ -705,13 +721,13 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
             "generated_by": tailored.generated_by,
             "pages": result.pages,
             "scale": result.scale,
-            "warnings": result.warnings,
-            "validation_notes": tailored.validation_notes,
-            "lint": {
+            "warnings": [localize.message(w) for w in result.warnings],
+            "validation_notes": [localize.message(n) for n in tailored.validation_notes],
+            "lint": localize.lint({
                 "score": lint.score(),
                 "summary": lint.summary(),
                 "findings": [f.model_dump(mode="json") for f in lint.findings],
-            },
+            }),
         }
 
     @app.get("/api/jobs/{job_id}/cv/download")
@@ -799,9 +815,9 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
         view = document.model_dump(mode="json")
         profile = database.load_profile()
         if document.kind in LETTER_KINDS and profile is not None:
-            view["warnings"] = [f.model_dump(mode="json") for f in review_text(
+            view["warnings"] = localize.findings([f.model_dump(mode="json") for f in review_text(
                 document.text, profile, job, document.kind,
-                extra_phrases=database.load_settings().banned_phrases)]
+                extra_phrases=database.load_settings().banned_phrases)])
         return view
 
     # -- form answers and the answer bank ------------------------------------
@@ -817,9 +833,9 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
             if message.role == "answer":
                 view["length"] = measure(message.text, thread.unit)
                 view["in_bank"] = message.text in banked
-                view["warnings"] = [f.model_dump(mode="json") for f in review_text(
+                view["warnings"] = localize.findings([f.model_dump(mode="json") for f in review_text(
                     message.text, profile, job, "answer", extra_phrases=banned,
-                    limit=thread.limit, unit=thread.unit)]
+                    limit=thread.limit, unit=thread.unit)])
             messages.append(view)
         return {"limit": thread.limit, "unit": thread.unit.value, "messages": messages}
 
@@ -932,7 +948,8 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
     async def search():
         """Run a full search. Long, so it runs in a worker thread."""
         if app.state.running["search"]:
-            return JSONResponse({"ok": False, "detail": "A search is already running"}, status_code=409)
+            return JSONResponse({"ok": False, "detail": localize.message("A search is already running")},
+                                status_code=409)
         settings = database.load_settings()
         if not settings.onboarded:
             raise HTTPException(status_code=409, detail="Finish the setup first")
@@ -960,14 +977,17 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
         settings = database.load_settings()
         report = funnel(database.list_jobs(include_closed=True), database.all_applications(),
                         database.all_scores(), database.mail_news(), families_for(settings))
-        return {"funnel": report.as_dict(), "history": history(database.recent_runs(runs))}
+        funnel_view, history_view = localize.insights(report.as_dict(),
+                                                      history(database.recent_runs(runs)))
+        return {"funnel": funnel_view, "history": history_view}
 
     @app.post("/api/mail/check")
     async def mail_check():
         """Read new replies from the inbox. Read-only on the mail server."""
         settings = database.load_settings()
         report = await asyncio.to_thread(check_mail, database, settings)
-        return {"ok": True, "summary": report.summary(), "replies": len(report.news),
+        return {"ok": True, "summary": localize.message(report.summary()),
+                "replies": len(report.news),
                 "orphans": len(report.orphans)}
 
     @app.get("/api/jobs/{job_id}/interview.ics")
@@ -984,7 +1004,8 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
     async def sweep():
         """Check the active jobs and retire the ads that have closed."""
         if app.state.running["sweep"]:
-            return JSONResponse({"ok": False, "detail": "A sweep is already running"}, status_code=409)
+            return JSONResponse({"ok": False, "detail": localize.message("A sweep is already running")},
+                                status_code=409)
         app.state.running["sweep"] = True
 
         def work():
@@ -996,7 +1017,7 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
         report = await asyncio.to_thread(work)
         return {
             "ok": True,
-            "summary": report.summary(),
+            "summary": localize.message(report.summary()),
             "closed": [{"id": i, "job": j, "reason": r} for i, j, r in report.closed],
         }
 

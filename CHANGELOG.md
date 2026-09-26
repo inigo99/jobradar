@@ -6,13 +6,36 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
-### Removed
-
-- The `llm` install extra, and `anthropic` / `openai` from `all`: no code used
-  them. Every language-model provider is called over plain HTTP.
+## 1.4.0 — 2026-09-26
 
 ### Added
 
+- **`pip install jobradar-cv`**: the package is published on PyPI when a
+  version is tagged, and tested on Linux, Windows and macOS. The command is
+  still `jobradar`; `jobradar` itself was too close to an existing project.
+- **Docker**: `docker compose up -d` runs the dashboard with its data in a
+  volume, as a non-root user, on the host's loopback only.
+- **The dashboard in Spanish.** Every screen, message, alert, filter reason,
+  linter finding and error is shown in English or Spanish — the browser's
+  language by default, or the one chosen under Settings → Interface language.
+  What you or an employer wrote (your CV, notes, ads, emails) is never
+  translated.
+- **Bundesagentur für Arbeit** (Germany's public employment service, every
+  sector) as an open source; it runs only when Germany is one of your
+  countries.
+- **A vocabulary for every sector.** The skill taxonomy grows from 146 to
+  over 250 skills: in-depth healthcare (nursing, triage, ICU, emergency care,
+  theatre, midwifery, physiotherapy, pharmacy…), law (litigation, civil,
+  criminal, corporate/M&A, tax, public procurement, data protection, bar
+  admission…), education (primary and secondary teaching, TEFL/CELTA, CLIL,
+  vocational training, tutoring…), care and social work, hospitality,
+  retail, office, finance and insurance, logistics, trades and construction,
+  public services, agriculture, science and management — with English and
+  Spanish aliases.
+- **Accent-insensitive matching**: "atencion" and "atención" are the same
+  skill, in ads, CVs and skill names.
+- **Demo profiles for other kinds of work**: `jobradar demo --profile nurse`,
+  `lawyer` or `teacher` (Spanish and English CVs and ads), besides `data`.
 - **Board filters**: text, work mode, where (your areas, your country, abroad,
   not stated), job family, source, language, minimum salary (midpoint of the
   band) and minimum match, with a count of what is shown and one button to
@@ -115,6 +138,11 @@ All notable changes to this project are documented here. The format follows
   unknown source ids in `sources.enabled`; and settings that leave no source
   able to run.
 - `--limit`, `--top` and `--port` reject values that make no sense.
+
+### Removed
+
+- The `llm` install extra, and `anthropic` / `openai` from `all`: no code used
+  them. Every language-model provider is called over plain HTTP.
 
 ### Fixed
 

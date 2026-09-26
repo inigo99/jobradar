@@ -78,23 +78,18 @@ Register-ScheduledTask -TaskName "JobRadar" -Action $action -Trigger $trigger `
 
 ## Docker
 
-```dockerfile
-FROM python:3.12-slim
-WORKDIR /app
-COPY . .
-RUN pip install --no-cache-dir -e ".[all]" && playwright install --with-deps chromium
-VOLUME ["/app/data"]
-EXPOSE 8000
-CMD ["jobradar", "serve", "--host", "0.0.0.0"]
+The repository's `Dockerfile` and `docker-compose.yml` run the dashboard (see
+the README). To search every morning, schedule the command inside the running
+container from the host:
+
+```cron
+30 8 * * 1-5  cd /path/to/jobradar && docker compose exec -T jobradar jobradar search --notify
 ```
 
-```bash
-docker build -t jobradar .
-docker run -d -p 8000:8000 -v "$PWD/data:/app/data" --env-file .env jobradar
-```
-
-Binding to `0.0.0.0` puts your CV and your job-search history on the network.
-Only do it behind something that authenticates.
+Compose publishes the port on `127.0.0.1` only. Publishing it wider puts your
+CV and your job-search history on the network: only do it behind something
+that authenticates, and list the names it is reached by in
+`JOBRADAR_ALLOWED_HOSTS`.
 
 ## GitHub Actions
 

@@ -1,0 +1,21 @@
+[
+ {"source": "demo", "native_id": "t01", "title": "English Teacher — Secondary (CLIL)", "company": "British School of Valencia", "location": "Valencia", "country": "ES", "work_mode": "onsite", "url": "https://example.com/jobs/t01", "posted_at": "2026-09-18", "language": "en",
+  "salary": {"minimum": 28000, "maximum": 33000, "currency": "EUR", "origin": "published", "basis": "Published in the job ad."}, "min_years_experience": 3,
+  "description": "Secondary school English teacher for our bilingual programme. PGCE or equivalent teaching qualification, CLIL experience, lesson planning and student assessment for GCSE and A levels."},
+ {"source": "demo", "native_id": "t02", "title": "Profesor/a de Inglés — Secundaria y Bachillerato", "company": "Colegio Concertado Santa Ana", "location": "Valencia", "country": "ES", "work_mode": "onsite", "url": "https://example.com/jobs/t02", "posted_at": "2026-09-15", "language": "es",
+  "min_years_experience": 2,
+  "description": "Buscamos profesor/a de inglés para educación secundaria y bachillerato. Imprescindible máster del profesorado y habilitación lingüística. Se valora experiencia en AICLE."},
+ {"source": "demo", "native_id": "t03", "title": "Online English Tutor (adults)", "company": "Lingoly", "location": "Remote (Europe)", "country": "", "work_mode": "remote", "url": "https://example.com/jobs/t03", "posted_at": "2026-09-17", "language": "en",
+  "salary": {"minimum": 18000, "maximum": 24000, "currency": "EUR", "origin": "published", "basis": "Published in the job ad."},
+  "description": "Teach business English online to adult learners. TEFL or Cambridge CELTA required. Flexible hours, private tutoring format."},
+ {"source": "demo", "native_id": "t04", "title": "Head of Languages Department", "company": "Colegio Internacional Mediterráneo", "location": "Alicante", "country": "ES", "work_mode": "onsite", "url": "https://example.com/jobs/t04", "posted_at": "2026-09-09", "language": "en",
+  "min_years_experience": 10,
+  "description": "Head of department for modern languages. 10+ years of teaching, leadership of a team of 8 teachers, curriculum design and quality control of assessment."},
+ {"source": "demo", "native_id": "t05", "title": "Maestro/a de Primaria bilingüe", "company": "CEIP Les Arts", "location": "Valencia", "country": "ES", "work_mode": "onsite", "url": "https://example.com/jobs/t05", "posted_at": "2026-09-19", "language": "es",
+  "description": "Maestro/a de educación primaria para programa bilingüe. Grado en Magisterio y habilitación lingüística en inglés."},
+ {"source": "demo", "native_id": "t06", "title": "Instructional Designer — E-learning", "company": "EduForma", "location": "Spain (remote)", "country": "ES", "work_mode": "remote", "url": "https://example.com/jobs/t06", "posted_at": "2026-09-12", "language": "en",
+  "min_years_experience": 3,
+  "description": "Design e-learning courses in Moodle and Articulate for corporate clients. Teaching background, lesson planning and student assessment. SCORM a plus."},
+ {"source": "demo", "native_id": "t07", "title": "Profesor/a de Inglés en academia (tardes)", "company": "Academia Speak Up", "location": "Torrent, Valencia", "country": "ES", "work_mode": "onsite", "url": "https://example.com/jobs/t07", "posted_at": "2026-09-16", "language": "es",
+  "description": "Profesor/a de inglés para grupos de niños y preparación de exámenes Cambridge. Se valora CELTA. Horario de tarde."}
+]

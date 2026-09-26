@@ -30,6 +30,13 @@ const el = (tag, props = {}, ...children) => {
   return node;
 };
 
+/* Like node.append(), but skips null and undefined — DOM append() would
+   print them as the text "null". */
+function appendAll(node, ...children) {
+  node.append(...children.flat().filter(child => child != null));
+  return node;
+}
+
 function toast(message, ms = 3200) {
   const node = el("div", { className: "toast", textContent: message });
   document.body.append(node);
@@ -42,18 +49,16 @@ const localDateString = (date = new Date()) => {
 };
 
 async function api(path, options = {}) {
-  const response = await fetch(path, {
-    headers: options.body && !(options.body instanceof FormData)
-      ? { "content-type": "application/json" } : undefined,
-    ...options,
-  });
+  const headers = { "x-jobradar-language": LANG };
+  if (options.body && !(options.body instanceof FormData)) headers["content-type"] = "application/json";
+  const response = await fetch(path, { ...options, headers });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     // `detail` is a sentence for JobRadar's own errors, but a list for a
     // request the framework rejected before it reached JobRadar.
     let message = typeof payload.detail === "string" ? payload.detail
       : Array.isArray(payload.detail) ? payload.detail.map(e => e.msg).join("; ")
-      : response.statusText || `Request failed (HTTP ${response.status})`;
+      : response.statusText || t("Request failed (HTTP {status})", { status: response.status });
     if (payload.hint) message += ` — ${payload.hint}`;
     throw new Error(message);
   }
@@ -62,17 +67,35 @@ async function api(path, options = {}) {
 
 async function refresh() {
   STATE = await api("/api/state");
+  if (STATE.settings) chooseLanguage(STATE.settings.ui_language);
   render();
 }
 
+/* Values the server sends as codes, shown in the interface language. */
+const workModeLabel = mode => ({ remote: t("remote"), hybrid: t("hybrid"), onsite: t("on-site"),
+                                 unknown: t("work mode not stated") }[mode] || mode);
+const stageLabel = stage => ({ applied: t("applied"), screening: t("screening"),
+                               interview: t("interview"), offer: t("offer"),
+                               rejected: t("rejected") }[stage] || stage);
+const severityLabel = sev => ({ error: t("error"), warning: t("warning"), info: t("note") }[sev] || sev);
+/* A country's name in the interface language, from the browser's own data;
+   the server's English name when the browser has none. */
+function countryName(code, fallback) {
+  try {
+    return new Intl.DisplayNames([LANG], { type: "region" }).of(code) || fallback;
+  } catch (_) { return fallback; }
+}
+
+const difficultyLabel = level => ({ fast: t("fast"), medium: t("medium"), slow: t("slow") }[level] || level);
+
 function money(job) {
-  if (!job.salary_min) return "salary not stated";
-  const fmt = value => new Intl.NumberFormat(undefined, {
+  if (!job.salary_min) return t("salary not stated");
+  const fmt = value => new Intl.NumberFormat(localeTag(), {
     style: "currency", currency: job.salary_currency || "EUR", maximumFractionDigits: 0,
   }).format(value);
   const range = job.salary_max && job.salary_max !== job.salary_min
     ? `${fmt(job.salary_min)}–${fmt(job.salary_max)}` : fmt(job.salary_min);
-  return job.salary_origin === "estimated" ? `${range} (estimated)` : range;
+  return job.salary_origin === "estimated" ? t("{range} (estimated)", { range }) : range;
 }
 
 function jobCard(job) {
@@ -83,15 +106,17 @@ function jobCard(job) {
     el("div", { style: "flex:1" },
       el("h3", {}, job.title),
       el("div", { className: "meta" },
-        [job.company || "unnamed company", job.location, job.work_mode,
-         job.posted_at || "no date", money(job), job.family_label, job.source]
+        [job.company || t("unnamed company"), job.location, workModeLabel(job.work_mode),
+         job.posted_at || t("no date"), money(job), job.family_label, job.source]
           .filter(Boolean).join(" · ")),
     ),
     el("div", { className: "score" },
       el("div", { className: "big" }, job.score_tailored ? job.score_tailored.toFixed(0) + "%" : "—"),
       el("div", { className: "delta" },
-        job.score_base ? `${job.score_base.toFixed(0)}% as-is · +${job.score_delta.toFixed(0)} tailored` : "not scored"),
-      job.focus ? el("div", { className: "focus" }, `focus ${job.focus.toFixed(0)}`) : null,
+        job.score_base ? t("{base}% as-is · +{delta} tailored", { base: job.score_base.toFixed(0),
+                                                                  delta: job.score_delta.toFixed(0) })
+          : t("not scored")),
+      job.focus ? el("div", { className: "focus" }, t("focus {n}", { n: job.focus.toFixed(0) })) : null,
     ),
   ));
 
@@ -106,7 +131,8 @@ function jobCard(job) {
       job.gaps.slice(0, 4).map(g => {
         const detail = byKey[g];
         const chip = el("span", { className: "chip " + (detail ? detail.difficulty : "gap") },
-                        detail ? `gap: ${g} · ${detail.difficulty}` : "gap: " + g);
+                        detail ? t("gap: {skill} · {difficulty}", { skill: g, difficulty: difficultyLabel(detail.difficulty) })
+                               : t("gap: {skill}", { skill: g }));
         if (detail) chip.title = detail.note;
         return chip;
       }),
@@ -115,7 +141,7 @@ function jobCard(job) {
   const news = mailBlock(job);
   if (news) card.append(news);
   if (job.focus_reason) {
-    card.append(el("div", { className: "why" }, "Why it is here: " + job.focus_reason + "."));
+    card.append(el("div", { className: "why" }, t("Why it is here: {reason}.", { reason: job.focus_reason })));
   }
   for (const alert of job.alerts.slice(0, 3)) {
     card.append(el("div", { className: "alert" }, alert));
@@ -124,27 +150,27 @@ function jobCard(job) {
   /* Actions. Applying is never automated: the button opens the ad. */
   const actions = el("div", { className: "job-actions" });
   actions.append(el("a", { href: job.url, target: "_blank", rel: "noopener" },
-    el("button", { className: "primary" }, "Open the ad")));
-  actions.append(button("Tailor CV", () => buildCv(job, card)));
-  actions.append(button("Cover letter", () => buildDoc(job, "cover_letter", card)));
-  actions.append(button("Application email", () => buildDoc(job, "email", card)));
-  actions.append(button("Form answers", () => openAnswers(job, card)));
+    el("button", { className: "primary" }, t("Open the ad"))));
+  actions.append(button(t("Tailor CV"), () => buildCv(job, card)));
+  actions.append(button(t("Cover letter"), () => buildDoc(job, "cover_letter", card)));
+  actions.append(button(t("Application email"), () => buildDoc(job, "email", card)));
+  actions.append(button(t("Form answers"), () => openAnswers(job, card)));
   if (job.has_cv) {
     actions.append(el("a", { href: `/api/jobs/${encodeURIComponent(job.id)}/cv/download` },
-      el("button", {}, "Download CV")));
+      el("button", {}, t("Download CV"))));
   }
   if (job.status !== "discarded") {
-    actions.append(button("Not interested", () => track(job, { status: "discarded" })));
+    actions.append(button(t("Not interested"), () => track(job, { status: "discarded" })));
   } else {
-    actions.append(button("Restore", () => track(job, { status: "active" })));
+    actions.append(button(t("Restore"), () => track(job, { status: "active" })));
   }
   if (job.status !== "applied") {
-    actions.append(button("Mark as applied", () =>
+    actions.append(button(t("Mark as applied"), () =>
       track(job, { status: "applied", stage: "applied", applied_on: localDateString() })));
   }
-  const remove = button("Delete", () => deleteJobs([job.id]));
+  const remove = button(t("Delete"), () => deleteJobs([job.id]));
   remove.className = "ghost danger";
-  remove.title = "Take it off the board; a later search will not bring it back (undo for a week)";
+  remove.title = t("Take it off the board; a later search will not bring it back (undo for a week)");
   actions.append(remove);
   card.append(actions);
 
@@ -152,25 +178,25 @@ function jobCard(job) {
   if (job.status === "applied") {
     const stage = el("select", {},
       ...["applied", "screening", "interview", "offer", "rejected"].map(value =>
-        el("option", { value, selected: job.stage === value }, value)));
+        el("option", { value, selected: job.stage === value }, stageLabel(value))));
     stage.onchange = () => track(job, { status: "applied", stage: stage.value,
                                         applied_on: job.applied_on, notes: job.notes });
-    const notes = el("input", { value: job.notes || "", placeholder: "Notes (saved when you leave the field)" });
+    const notes = el("input", { value: job.notes || "", placeholder: t("Notes (saved when you leave the field)") });
     notes.onchange = () => track(job, { status: "applied", stage: job.stage,
                                         applied_on: job.applied_on, notes: notes.value });
     card.append(el("div", { className: "track" },
-      el("div", {}, el("label", {}, "Stage"), stage),
-      el("div", { style: "grid-column: span 2" }, el("label", {}, "Notes"), notes),
+      el("div", {}, el("label", {}, t("Stage")), stage),
+      el("div", { style: "grid-column: span 2" }, el("label", {}, t("Notes")), notes),
     ));
   }
 
   const detail = el("details", { className: "detail" },
-    el("summary", {}, "What this job asks for"),
+    el("summary", {}, t("What this job asks for")),
     el("div", { className: "detail-body" },
       el("div", { className: "chips" }, job.requirements.map(r => el("span", { className: "chip" }, r))),
       job.salary_basis ? el("p", { className: "hint" }, job.salary_basis) : null,
       job.min_years_experience ? el("p", { className: "hint" },
-        `Asks for ${job.min_years_experience}+ years of experience.`) : null,
+        t("Asks for {n}+ years of experience.", { n: job.min_years_experience })) : null,
     ));
   card.append(detail);
 
@@ -186,7 +212,7 @@ function button(text, onclick) {
   node.onclick = async () => {
     node.disabled = true;
     const original = node.textContent;
-    node.textContent = "Working…";
+    node.textContent = t("Working…");
     try { await onclick(); } catch (error) { toast(error.message); }
     node.textContent = original;
     node.disabled = false;
@@ -206,15 +232,17 @@ async function buildCv(job, card) {
   const result = await api(`/api/jobs/${encodeURIComponent(job.id)}/cv`, { method: "POST" });
   const output = $(".job-output", card);
   output.innerHTML = "";
-  output.append(
-    el("h4", { style: "margin:14px 0 4px" }, "Tailored CV"),
+  appendAll(output,
+    el("h4", { style: "margin:14px 0 4px" }, t("Tailored CV")),
     el("p", { className: "hint" },
-      `${result.pages || "?"} page(s) · type scale ${result.scale} · written by ${result.generated_by}`),
+      t("{pages} page(s) · type scale {scale} · written by {by}",
+        { pages: result.pages || "?", scale: result.scale,
+          by: result.generated_by === "llm" ? t("the language model") : t("rules") })),
     el("div", { className: "doc-text" }, `${result.headline}\n\n${result.summary}`),
     lintBlock(result.lint),
     ...(result.warnings || []).map(w => el("div", { className: "alert" }, w)),
     ...(result.validation_notes || []).map(n =>
-      el("div", { className: "alert" }, "Draft rejected: " + n)),
+      el("div", { className: "alert" }, t("Draft rejected: {reason}", { reason: n }))),
   );
   await refresh();
 }
@@ -249,19 +277,19 @@ function showDoc(job, kind, card, documentData) {
     return saved.document;
   };
   output.innerHTML = "";
-  output.append(
-    el("h4", { style: "margin:14px 0 4px" }, kind === "email" ? "Application email" : "Cover letter"),
+  appendAll(output,
+    el("h4", { style: "margin:14px 0 4px" }, kind === "email" ? t("Application email") : t("Cover letter")),
     el("p", { className: "hint" },
-      documentData.llm_generated ? "Written by the language model. Edit it freely." :
-      "Skeleton from your profile — the bracketed parts are yours to write."),
+      documentData.llm_generated ? t("Written by the language model. Edit it freely.") :
+      t("Skeleton from your profile — the bracketed parts are yours to write.")),
     warnings,
     box,
     el("div", { className: "actions" },
-      button("Save and check", async () => { await save(); toast("Saved"); }),
-      button("Copy", async () => { await navigator.clipboard.writeText(box.value); toast("Copied"); }),
-      button("Download PDF", async () => { await save(); window.location.href = url + "/pdf"; }),
-      button("Write it again", async () => {
-        if (confirm("Replace this text with a new draft? Your edits will be lost.")) {
+      button(t("Save and check"), async () => { await save(); toast(t("Saved")); }),
+      button(t("Copy"), async () => { await navigator.clipboard.writeText(box.value); toast(t("Copied")); }),
+      button(t("Download PDF"), async () => { await save(); window.location.href = url + "/pdf"; }),
+      button(t("Write it again"), async () => {
+        if (confirm(t("Replace this text with a new draft? Your edits will be lost."))) {
           await writeDoc(job, kind, card);
         }
       })),
@@ -271,15 +299,15 @@ function showDoc(job, kind, card, documentData) {
 function lintBlock(lint) {
   if (!lint) return null;
   const wrapper = el("details", { className: "detail", open: lint.findings.some(f => f.severity === "error") },
-    el("summary", {}, `Red-flag check: ${lint.summary}`));
+    el("summary", {}, t("Red-flag check: {summary}", { summary: lint.summary })));
   const body = el("div", { className: "detail-body" });
   for (const finding of lint.findings) {
     body.append(el("div", { className: "lint-finding" },
-      el("span", { className: "sev " + finding.severity }, finding.severity + " · "),
+      el("span", { className: "sev " + finding.severity }, severityLabel(finding.severity) + " · "),
       el("span", {}, finding.message),
       finding.hint ? el("div", { className: "hint" }, finding.hint) : null));
   }
-  if (!lint.findings.length) body.append(el("p", { className: "hint" }, "Nothing flagged."));
+  if (!lint.findings.length) body.append(el("p", { className: "hint" }, t("Nothing flagged.")));
   wrapper.append(body);
   return wrapper;
 }
