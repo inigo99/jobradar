@@ -46,3 +46,12 @@ def test_the_version_is_the_same_everywhere():
     assert declared and declared.group(1) == jobradar.__version__
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     assert f"## {jobradar.__version__} " in changelog, "CHANGELOG.md has no entry for this version"
+
+
+def test_readme_links_work_on_pypi():
+    """PyPI shows the README without the repository around it: a relative link
+    or image there is broken, and a release's page cannot be changed later."""
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    relative = [target for target in re.findall(r"\]\(([^)\s]+)\)", readme)
+                if not target.startswith(("http://", "https://", "#", "mailto:"))]
+    assert not relative, f"Use absolute URLs in README.md: {relative}"

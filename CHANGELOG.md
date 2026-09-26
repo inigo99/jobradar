@@ -13,6 +13,7 @@ All notable changes to this project are documented here. The format follows
 - **`pip install jobradar-cv`**: the package is published on PyPI when a
   version is tagged, and tested on Linux, Windows and macOS. The command is
   still `jobradar`; `jobradar` itself was too close to an existing project.
+- **SECURITY.md**: how to report a vulnerability privately.
 - **Docker**: `docker compose up -d` runs the dashboard with its data in a
   volume, as a non-root user, on the host's loopback only.
 - **The dashboard in Spanish.** Every screen, message, alert, filter reason,

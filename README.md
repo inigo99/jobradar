@@ -10,7 +10,7 @@ jobradar demo      # synthetic data, no network calls
 jobradar serve     # dashboard on http://127.0.0.1:8000
 ```
 
-![The JobRadar dashboard: filters and the board](docs/images/dashboard.png)
+![The JobRadar dashboard: filters and the board](https://raw.githubusercontent.com/inigo99/jobradar/master/docs/images/dashboard.png)
 
 ---
 
@@ -59,7 +59,7 @@ Most CV tools optimise for a keyword match, which produces a CV you cannot defen
 - **A red-flag linter** (`jobradar lint`) reports gaps, missing dates, duty language, achievements without numbers, skills your achievements never show, and more.
 - **ATS-safe output.** One column of real text, a standard font, nothing in the margins.
 
-The details, including every linter rule and every warning: **[docs/CV_TAILORING.md](docs/CV_TAILORING.md)**.
+The details, including every linter rule and every warning: **[docs/CV_TAILORING.md](https://github.com/inigo99/jobradar/blob/master/docs/CV_TAILORING.md)**.
 
 ---
 
@@ -128,11 +128,11 @@ jobradar serve
 
 **Per job**: open the ad, tailor the CV, write a cover letter or the application email, answer the application form's questions, mark it, or delete it. Tick several jobs to delete them at once.
 
-![Answering an application form's questions](docs/images/form-answers.png)
+![Answering an application form's questions](https://raw.githubusercontent.com/inigo99/jobradar/master/docs/images/form-answers.png)
 
 **Settings** covers your details, target titles, every filter, which sources run (and which only weekly), job families and their priority, the mailbox check, the interface language (English or Spanish), the language model, phrases you never use, **your skills** with their evidence and ceiling, and the **CV for each job family**.
 
-![Settings: your skills](docs/images/settings.png)
+![Settings: your skills](https://raw.githubusercontent.com/inigo99/jobradar/master/docs/images/settings.png)
 
 ---
 
@@ -164,7 +164,7 @@ Global flags: `--home DIR` (where the data lives; default `./data` or `$JOBRADAR
 
 Everything is stored in `data/jobradar.sqlite3` and edited from the dashboard or `jobradar init`; `jobradar init --config settings.yaml` loads it from a file for unattended installs. Secrets live in `.env` (copy `.env.example`) and are never written to the database.
 
-The full reference — every filter, job families, how salaries are estimated, the mailbox, environment variables and the editable data files (`skills.yaml`, `families.yaml`, `salary_bands.yaml`, `countries.yaml`) — is in **[docs/CONFIGURATION.md](docs/CONFIGURATION.md)**.
+The full reference — every filter, job families, how salaries are estimated, the mailbox, environment variables and the editable data files (`skills.yaml`, `families.yaml`, `salary_bands.yaml`, `countries.yaml`) — is in **[docs/CONFIGURATION.md](https://github.com/inigo99/jobradar/blob/master/docs/CONFIGURATION.md)**.
 
 ---
 
@@ -179,7 +179,7 @@ The full reference — every filter, job families, how salaries are estimated, t
 | Adzuna, Jooble | credentials | Free keys; many countries |
 | LinkedIn, InfoJobs, Tecnoempleo, Indeed | restricted | Off by default; fetched through a real browser ([Scrapling](https://github.com/D4Vinci/Scrapling)) |
 
-**Open** sources run by default, **credentials** ones once their key is set, and **restricted** ones — pages built for people, whose terms may not allow automated access — only if you switch them on by name. That decision is yours, under the site's terms and your jurisdiction. Every source is fetched politely: one request per second per host, an hour of caching, backoff on 429 and an honest user agent; open and credentials sources also honour `robots.txt`. Any source can be set to run once a week. Details, and how to add a source in one file: **[docs/SOURCES.md](docs/SOURCES.md)**.
+**Open** sources run by default, **credentials** ones once their key is set, and **restricted** ones — pages built for people, whose terms may not allow automated access — only if you switch them on by name. That decision is yours, under the site's terms and your jurisdiction. Every source is fetched politely: one request per second per host, an hour of caching, backoff on 429 and an honest user agent; open and credentials sources also honour `robots.txt`. Any source can be set to run once a week. Details, and how to add a source in one file: **[docs/SOURCES.md](https://github.com/inigo99/jobradar/blob/master/docs/SOURCES.md)**.
 
 ---
 
@@ -203,7 +203,7 @@ The provider can also be chosen in Settings (`.env` wins). Busy, retired or rati
 jobradar sweep && jobradar search --notify
 ```
 
-Configure an email or Telegram digest in `.env` and enable it in Settings. Nothing is sent when nothing is new. With the mailbox on, the same search also reads new replies. Recipes for cron, systemd, Windows Task Scheduler and GitHub Actions: **[docs/SCHEDULING.md](docs/SCHEDULING.md)**.
+Configure an email or Telegram digest in `.env` and enable it in Settings. Nothing is sent when nothing is new. With the mailbox on, the same search also reads new replies. Recipes for cron, systemd, Windows Task Scheduler and GitHub Actions: **[docs/SCHEDULING.md](https://github.com/inigo99/jobradar/blob/master/docs/SCHEDULING.md)**.
 
 ---
 
@@ -227,7 +227,7 @@ src/jobradar/
 └── resources/           skills · families · countries · salary bands · demo data
 ```
 
-**[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** explains why the pipeline is ordered the way it is and where to hook in.
+**[docs/ARCHITECTURE.md](https://github.com/inigo99/jobradar/blob/master/docs/ARCHITECTURE.md)** explains why the pipeline is ordered the way it is and where to hook in.
 
 ---
 
@@ -254,6 +254,6 @@ src/jobradar/
 
 ## Contributing and licence
 
-New sources, skills and job families for under-covered fields, salary bands, CV templates and linter rules are welcome — see **[CONTRIBUTING.md](CONTRIBUTING.md)**. The test suite is fully offline: `pytest` needs no network and no keys. The full history is in **[CHANGELOG.md](CHANGELOG.md)**.
+New sources, skills and job families for under-covered fields, salary bands, CV templates and linter rules are welcome — see **[CONTRIBUTING.md](https://github.com/inigo99/jobradar/blob/master/CONTRIBUTING.md)**. The test suite is fully offline: `pytest` needs no network and no keys. The full history is in **[CHANGELOG.md](https://github.com/inigo99/jobradar/blob/master/CHANGELOG.md)**.
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](https://github.com/inigo99/jobradar/blob/master/LICENSE). Found a security problem? See [SECURITY.md](https://github.com/inigo99/jobradar/blob/master/SECURITY.md).
