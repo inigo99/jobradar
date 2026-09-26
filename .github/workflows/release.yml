@@ -5,7 +5,7 @@ name: Release
 #
 # One-time setup (by the repository owner):
 #   1. On pypi.org → Your projects → Publishing, add a "pending publisher":
-#      project jobradar, owner inigo99, repository jobradar,
+#      project jobradar-cv, owner inigo99, repository jobradar,
 #      workflow release.yml, environment pypi.
 #   2. On GitHub → Settings → Environments, create the environment "pypi"
 #      (optionally requiring your approval before each release).
@@ -42,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/jobradar
+      url: https://pypi.org/p/jobradar-cv
     permissions:
       id-token: write   # trusted publishing
     steps:

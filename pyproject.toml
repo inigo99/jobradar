@@ -3,7 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "jobradar"
+# "jobradar" is taken on PyPI (too close to "job-radar"); the import package
+# and the command are still `jobradar`.
+name = "jobradar-cv"
 version = "1.4.0"
 description = "Self-hosted job radar: searches job boards, scores openings against your CV, and tailors an honest one-page CV for each one."
 readme = "README.md"

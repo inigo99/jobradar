@@ -10,8 +10,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
-- **`pip install jobradar`**: the package is published on PyPI when a version
-  is tagged, and tested on Linux, Windows and macOS.
+- **`pip install jobradar-cv`**: the package is published on PyPI when a
+  version is tagged, and tested on Linux, Windows and macOS. The command is
+  still `jobradar`; `jobradar` itself was too close to an existing project.
 - **Docker**: `docker compose up -d` runs the dashboard with its data in a
   volume, as a non-root user, on the host's loopback only.
 - **The dashboard in Spanish.** Every screen, message, alert, filter reason,

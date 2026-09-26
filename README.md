@@ -68,18 +68,18 @@ The details, including every linter rule and every warning: **[docs/CV_TAILORING
 Requires Python 3.10 or newer, on Linux, macOS or Windows.
 
 ```bash
-pipx install "jobradar[all]"     # or: pip install "jobradar[all]"
+pipx install "jobradar-cv[all]"  # or: pip install "jobradar-cv[all]"
 playwright install chromium      # optional: the HTML templates' own typography in the PDF
 scrapling install                # only if you enable LinkedIn, InfoJobs, Tecnoempleo or Indeed
 ```
 
-Or only what you need:
+The package is `jobradar-cv` on PyPI; the command it installs is `jobradar`. Or only what you need:
 
 ```bash
-pip install jobradar                # everything, including PDF CVs from the built-in writer
-pip install "jobradar[pdf]"         # + PDFs printed from the HTML templates (headless Chromium)
-pip install "jobradar[parse]"       # + importing a PDF or DOCX CV
-pip install "jobradar[excel]"       # + .xlsx export
+pip install jobradar-cv             # everything, including PDF CVs from the built-in writer
+pip install "jobradar-cv[pdf]"      # + PDFs printed from the HTML templates (headless Chromium)
+pip install "jobradar-cv[parse]"    # + importing a PDF or DOCX CV
+pip install "jobradar-cv[excel]"    # + .xlsx export
 ```
 
 **With Docker** instead — nothing else to install, browsers included:
