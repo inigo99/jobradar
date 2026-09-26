@@ -15,6 +15,7 @@ from ..config import Settings, SourceSettings
 from ..errors import ConfigError
 from .adzuna import AdzunaSource
 from .arbeitnow import ArbeitnowSource
+from .arbeitsagentur import ArbeitsagenturSource
 from .ats import CompanyBoardsSource
 from .base import Fetcher, JobSource, SearchQuery
 from .himalayas import HimalayasSource
@@ -37,6 +38,7 @@ REGISTRY: tuple[type[JobSource], ...] = (
     HimalayasSource,
     ArbeitnowSource,
     ManfredSource,
+    ArbeitsagenturSource,
     CompanyBoardsSource,
     # tos_tier == "credentials": on as soon as the user supplies a free key.
     AdzunaSource,

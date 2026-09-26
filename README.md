@@ -166,6 +166,7 @@ The full reference — every filter, job families, how salaries are estimated, t
 |---|---|---|
 | RemoteOK, We Work Remotely, Himalayas, Arbeitnow | open | Public APIs and feeds |
 | Manfred (Spain) | open | Publishes salary, remote share and each skill's required level |
+| Bundesagentur für Arbeit (Germany) | open | The public employment service: every sector. Runs only when Germany is one of your countries |
 | Company career boards | open | Greenhouse, Lever, Ashby, Workable, Recruitee, SmartRecruiters, Personio — detected from a domain |
 | Adzuna, Jooble | credentials | Free keys; many countries |
 | LinkedIn, InfoJobs, Tecnoempleo, Indeed | restricted | Off by default; fetched through a real browser ([Scrapling](https://github.com/D4Vinci/Scrapling)) |

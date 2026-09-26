@@ -27,6 +27,26 @@ the volume of a person doing their own job search.
 Shipped restricted adapters: LinkedIn (guest endpoint), InfoJobs, Tecnoempleo
 and Indeed. Manfred is `open`: it serves its offers as public JSON.
 
+## Public employment services
+
+For nurses, teachers, lawyers, tradespeople and most of the jobs that are not
+in tech, a country's public employment service is often the fullest board.
+JobRadar ships one:
+
+- **Bundesagentur für Arbeit** (`arbeitsagentur`, Germany, `open`): the JSON
+  API behind the agency's own search, with its public client id, documented
+  at [jobsuche.api.bund.dev](https://jobsuche.api.bund.dev). It runs only
+  when `DE` is one of your countries. Search results carry no text, so each
+  ad's text is fetched later, one request per ad, and only for ads that
+  survived the filters. The ads are in German, and the skill vocabulary is
+  English and Spanish, so expect fewer skill matches than for Spanish or
+  English ads.
+
+Others were looked at and left out because they offer nothing to build on:
+SEPE / Empléate (Spain) and EURES (EU) have no public search API, and France
+Travail's official API needs an application registered with it — a
+`credentials` adapter for it would be welcome.
+
 ## Being a good citizen
 
 `sources/base.Fetcher` enforces this for every adapter, so you get it for free:

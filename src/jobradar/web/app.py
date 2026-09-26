@@ -391,7 +391,8 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
             "settings": settings.model_dump(mode="json"),
             "profile": localize.profile(_profile_summary(profile)),
             "jobs": jobs,
-            "sources": available_sources(),
+            "sources": [{**source, "tos_note": localize.message(source["tos_note"])}
+                        for source in available_sources()],
             "families": localize.families(catalogue_view(settings)),
             "mail": {job_id: news.model_dump(mode="json")
                      for job_id, news in database.mail_news().items()},

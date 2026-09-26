@@ -315,6 +315,12 @@ exact:
   Agriculture & environment: Agricultura y medio ambiente
   Management & leadership: Dirección y gestión
   General: General
+  # Source terms notes (Settings and the wizard).
+  Indeed's terms of service prohibit scraping its site. Enabling this adapter is your decision and your responsibility; keep the request delay high and the volume comparable to browsing by hand.: Las condiciones de Indeed prohíben extraer datos de su web. Activar esta fuente es decisión y responsabilidad tuya; mantén una pausa alta entre peticiones y un volumen parecido al de buscar a mano.
+  InfoJobs' terms of use restrict automated collection of its listings. InfoJobs also publishes an official partner API — if you can get a key, prefer it. Enabling this adapter is your decision and your responsibility.: 'Las condiciones de InfoJobs restringen la recogida automática de sus ofertas. InfoJobs también tiene una API oficial para socios: si consigues una clave, úsala. Activar esta fuente es decisión y responsabilidad tuya.'
+  LinkedIn's User Agreement restricts automated access, including scraping of public pages. Enabling this adapter is your decision and your responsibility; keep the request delay high and the volume comparable to browsing by hand.: El acuerdo de usuario de LinkedIn restringe el acceso automático, incluida la extracción de páginas públicas. Activar esta fuente es decisión y responsabilidad tuya; mantén una pausa alta entre peticiones y un volumen parecido al de buscar a mano.
+  Tecnoempleo's terms restrict automated collection. Enabling this adapter is your decision and your responsibility; keep the volume low.: Las condiciones de Tecnoempleo restringen la recogida automática. Activar esta fuente es decisión y responsabilidad tuya; mantén un volumen bajo.
+  Public JSON API behind the agency's own job search, with a public client id; documented by the community at jobsuche.api.bund.dev, not by the agency.: API JSON pública que usa el buscador de la propia agencia, con un identificador de cliente público; documentada por la comunidad en jobsuche.api.bund.dev, no por la agencia.
 patterns:
 - en: you prioritise {family} (x{factor})
   es: das prioridad a {family} (x{factor})

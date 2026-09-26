@@ -13,6 +13,9 @@ All notable changes to this project are documented here. The format follows
   language by default, or the one chosen under Settings → Interface language.
   What you or an employer wrote (your CV, notes, ads, emails) is never
   translated.
+- **Bundesagentur für Arbeit** (Germany's public employment service, every
+  sector) as an open source; it runs only when Germany is one of your
+  countries.
 - **A vocabulary for every sector.** The skill taxonomy grows from 146 to
   over 250 skills: in-depth healthcare (nursing, triage, ICU, emergency care,
   theatre, midwifery, physiotherapy, pharmacy…), law (litigation, civil,
