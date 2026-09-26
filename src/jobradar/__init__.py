@@ -14,5 +14,5 @@ The package is organised in layers, each of which can be used on its own:
 ``jobradar.web``         The local dashboard (FastAPI + a single-page UI).
 """
 
-__version__ = "1.3.0"
+__version__ = "1.4.0"
 __all__ = ["__version__"]

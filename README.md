@@ -65,25 +65,33 @@ The details, including every linter rule and every warning: **[docs/CV_TAILORING
 
 ## Install
 
-Requires Python 3.10 or newer.
+Requires Python 3.10 or newer, on Linux, macOS or Windows.
 
 ```bash
-git clone https://github.com/inigo99/jobradar.git
-cd jobradar
-python -m venv .venv && source .venv/bin/activate    # Windows: .venv\Scripts\activate
-pip install -e ".[all]"
-playwright install chromium   # optional: the HTML templates' own typography in the PDF
-scrapling install             # only if you enable LinkedIn, InfoJobs, Tecnoempleo or Indeed
+pipx install "jobradar[all]"     # or: pip install "jobradar[all]"
+playwright install chromium      # optional: the HTML templates' own typography in the PDF
+scrapling install                # only if you enable LinkedIn, InfoJobs, Tecnoempleo or Indeed
 ```
 
 Or only what you need:
 
 ```bash
-pip install -e .                # everything, including PDF CVs from the built-in writer
-pip install -e ".[pdf]"         # + PDFs printed from the HTML templates (headless Chromium)
-pip install -e ".[parse]"       # + importing a PDF or DOCX CV
-pip install -e ".[excel]"       # + .xlsx export
+pip install jobradar                # everything, including PDF CVs from the built-in writer
+pip install "jobradar[pdf]"         # + PDFs printed from the HTML templates (headless Chromium)
+pip install "jobradar[parse]"       # + importing a PDF or DOCX CV
+pip install "jobradar[excel]"       # + .xlsx export
 ```
+
+**With Docker** instead — nothing else to install, browsers included:
+
+```bash
+git clone https://github.com/inigo99/jobradar.git && cd jobradar
+docker compose up -d                # then open http://localhost:8000
+```
+
+Your data stays in a Docker volume, the dashboard is published on your own machine only, and keys go in a `.env` file next to `docker-compose.yml` (see `.env.example`). Run the CLI inside it with `docker compose exec jobradar jobradar search`.
+
+**From source**, to change the code: clone the repository and `pip install -e ".[all,dev]"`.
 
 Without Playwright the CV is still a PDF, laid out more plainly by a built-in writer. With it, run `playwright install chromium` again after upgrading Playwright; if its browser build is missing, any other installed Chromium is used, or the one in `JOBRADAR_CHROMIUM_PATH`.
 

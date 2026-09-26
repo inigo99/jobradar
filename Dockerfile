@@ -1,39 +1,35 @@
-FROM python:3.11-slim-bookworm
+# JobRadar's dashboard in a container. Your data lives in the /data volume.
+#
+#   docker compose up -d        # then open http://localhost:8000
+#
+# The image includes Chromium for the HTML-template PDFs and the browsers the
+# restricted sources use, so it is large (about 2 GB). The README has the
+# details.
+FROM python:3.12-slim-bookworm
 
-# Critical environment variables for Python and JobRadar
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
     JOBRADAR_HOME=/data \
-    PORT=8000
+    PLAYWRIGHT_BROWSERS_PATH=/opt/browsers
 
 WORKDIR /app
+COPY pyproject.toml README.md LICENSE ./
+COPY src ./src
+RUN pip install ".[all]" \
+    && playwright install --with-deps chromium \
+    && scrapling install \
+    && useradd --create-home --uid 1000 jobradar \
+    && mkdir -p /data && chown jobradar /data \
+    && chmod -R a+rX /opt/browsers \
+    && rm -rf /app/src /root/.cache
 
-# Install base system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy the source code
-COPY . .
-
-# Install JobRadar and all its optional dependencies (PDF, Excel, CV parsing)
-# Also force the installation of scrapling for restricted sources
-RUN pip install --no-cache-dir -e .[pdf,parse,excel] scrapling
-
-# Install browser dependencies:
-# 1. Playwright (for rendering CVs as PDF)
-# 2. Scrapling (for evading anti-bot measures on InfoJobs, LinkedIn, etc.)
-RUN playwright install --with-deps chromium && \
-    scrapling install
-
-# Create the directory where the database and generated documents will reside
-RUN mkdir -p /data
-
-EXPOSE 8000
-
-# Ensure that the data persists across container restarts
+USER jobradar
 VOLUME ["/data"]
-
-# Run the dashboard listening on all interfaces so it's accessible from outside the container
+EXPOSE 8000
+HEALTHCHECK --interval=1m --timeout=5s --start-period=20s \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/', timeout=4)"
+# Listening on every interface inside the container; compose publishes the
+# port on the host's loopback only.
 CMD ["jobradar", "serve", "--host", "0.0.0.0", "--port", "8000"]

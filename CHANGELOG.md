@@ -6,8 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+## 1.4.0 — 2026-09-26
+
 ### Added
 
+- **`pip install jobradar`**: the package is published on PyPI when a version
+  is tagged, and tested on Linux, Windows and macOS.
+- **Docker**: `docker compose up -d` runs the dashboard with its data in a
+  volume, as a non-root user, on the host's loopback only.
 - **The dashboard in Spanish.** Every screen, message, alert, filter reason,
   linter finding and error is shown in English or Spanish — the browser's
   language by default, or the one chosen under Settings → Interface language.
