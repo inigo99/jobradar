@@ -673,9 +673,9 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     checks.append(_pdf_browser_check())
 
     checks.append((
-        "Scrapling browsers (LinkedIn / InfoJobs / Tecnoempleo)",
+        "Scrapling browsers (LinkedIn / InfoJobs / Tecnoempleo / Indeed)",
         _scrapling_browsers_installed(),
-        "run 'scrapling install' — only needed if you enable one of those three sources",
+        "run 'scrapling install' — only needed if you enable one of those sources",
     ))
 
     llm = build_client(settings.llm)
