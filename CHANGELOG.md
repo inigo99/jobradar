@@ -8,6 +8,11 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- **The dashboard in Spanish.** Every screen, message, alert, filter reason,
+  linter finding and error is shown in English or Spanish — the browser's
+  language by default, or the one chosen under Settings → Interface language.
+  What you or an employer wrote (your CV, notes, ads, emails) is never
+  translated.
 - **A vocabulary for every sector.** The skill taxonomy grows from 146 to
   over 250 skills: in-depth healthcare (nursing, triage, ICU, emergency care,
   theatre, midwifery, physiotherapy, pharmacy…), law (litigation, civil,

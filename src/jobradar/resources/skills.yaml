@@ -111,7 +111,7 @@ b2b_sales: {label: B2B sales, group: sales, aliases: ["b2b sales", "ventas b2b",
 customer_success: {label: Customer success, group: sales, aliases: ["customer success", "atencion al cliente", "customer support", "soporte al cliente"]}
 project_management: {label: Project management, group: process, aliases: ["project management", "gestion de proyectos", pmp, "jira", "planificacion"]}
 finance: {label: Finance / accounting, group: business, aliases: [accounting, contabilidad, "financial analysis", "analisis financiero", erp, sap]}
-hr: {label: HR / recruiting, group: business, aliases: ["human resources", "recursos humanos", recruiting, "talent acquisition"]}
+hr: {label: HR / recruiting, group: business, aliases: ["human resources", "recursos humanos", "talent acquisition", "hr generalist", "hr business partner"]}
 legal: {label: Legal / compliance, group: business, aliases: [compliance, gdpr, rgpd, "legal", "normativa"]}
 supply_chain: {label: Supply chain / logistics, group: operations, aliases: ["supply chain", logistics, logistica, "cadena de suministro"]}
 teaching: {label: Teaching / training, group: business, aliases: [teaching, formacion, "training delivery", mentoring]}

@@ -67,6 +67,7 @@ step with its own error: a mail server that is down never fails a search.
 | `sources/*` | models, config, textutils | pipeline, documents, storage |
 | `pipeline/*`, `insights` | everything above, `llm` | documents, web |
 | `profile/*`, `documents/*`, `lint/*`, `mail/*` | everything above | web |
+| `i18n` | taxonomy | everything else |
 | `web`, `cli` | everything | — |
 
 The rule that matters: **a source never touches the database and never decides
@@ -149,6 +150,7 @@ taxonomy every time the profile is loaded or saved
 | Add a CV template | An HTML file in `documents/templates/`; keep it one column, real text, nothing in the margins |
 | Cover a new field of work | Keys in `resources/skills.yaml`; a family with its bands in `resources/families.yaml` |
 | Support another country | An entry in `resources/countries.yaml` |
+| Translate a new message | Browser text: `web/static/dashboard-i18n-es.js`. Server text: `resources/i18n/es.yaml`, applied at the API boundary by `web/localize.py` (stored text stays English, so a language switch never needs a migration) |
 | Change what a model is asked | `llm/prompts.py` — every prompt is a plain function returning `(system, user)`, so they can be diffed and tested |
 
 ## Two things deliberately not stored

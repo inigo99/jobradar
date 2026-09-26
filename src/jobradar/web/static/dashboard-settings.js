@@ -12,86 +12,87 @@ function settingsBody() {
 
   body.append(
     el("fieldset", {},
-      el("legend", {}, "You"),
+      el("legend", {}, t("You")),
+      el("label", {}, t("Interface language")),
+      selectFrom("s_uilang", settings.ui_language || "auto",
+        [["auto", t("Automatic (browser)")], ["en", "English"], ["es", "Español"]]),
       el("div", { className: "two" },
-        el("div", {}, el("label", {}, "Full name"), input("s_name", settings.full_name)),
-        el("div", {}, el("label", {}, "Email"), input("s_email", settings.email)),
+        el("div", {}, el("label", {}, t("Full name")), input("s_name", settings.full_name)),
+        el("div", {}, el("label", {}, t("Email")), input("s_email", settings.email)),
       ),
       el("div", { className: "two" },
-        el("div", {}, el("label", {}, "Country"), countrySelectFor("s_country", settings.country)),
-        el("div", {}, el("label", {}, "Document language fallback"),
+        el("div", {}, el("label", {}, t("Country")), countrySelectFor("s_country", settings.country)),
+        el("div", {}, el("label", {}, t("Document language fallback")),
           selectFrom("s_language", settings.default_language,
-            [["en","English"],["es","Spanish"],["fr","French"],["de","German"],["pt","Portuguese"],["it","Italian"]])),
+            [["en", t("English")],["es", t("Spanish")],["fr", t("French")],["de", t("German")],["pt", t("Portuguese")],["it", t("Italian")]])),
       ),
-      el("label", {}, "CV template"),
+      el("label", {}, t("CV template")),
       selectFrom("s_template", settings.cv_template,
-        [["classic","Classic"],["compact","Compact"],["modern","Modern"]]),
-      el("label", {}, "CV PDF"),
+        [["classic", t("Classic")],["compact", t("Compact")],["modern", t("Modern")]]),
+      el("label", {}, t("CV PDF")),
       selectFrom("s_pdfengine", settings.cv_pdf_engine,
-        [["auto", "Print the template with Chromium (built-in writer if it is missing)"],
-         ["builtin", "Always the built-in writer (plainer, needs no browser)"]]),
-      el("label", {}, "Phrases you never use (one per line)"),
+        [["auto", t("Print the template with Chromium (built-in writer if it is missing)")],
+         ["builtin", t("Always the built-in writer (plainer, needs no browser)")]]),
+      el("label", {}, t("Phrases you never use (one per line)")),
       el("p", { className: "hint" },
-        "Letters, emails and form answers that contain one are flagged, on top of the usual " +
-        "template phrases (\"team player\", \"to whom it may concern\"…)."),
+        t("Letters, emails and form answers that contain one are flagged, on top of the usual template phrases (\"team player\", \"to whom it may concern\"…).")),
       el("textarea", { id: "s_banned", value: (settings.banned_phrases || []).join("\n") }),
     ),
 
     el("fieldset", {},
-      el("legend", {}, "What you're looking for"),
-      el("label", {}, "Job titles"),
+      el("legend", {}, t("What you're looking for")),
+      el("label", {}, t("Job titles")),
       el("textarea", { id: "s_titles", value: settings.search.titles.join("\n") }),
-      el("label", {}, "Extra keywords"),
+      el("label", {}, t("Extra keywords")),
       el("textarea", { id: "s_keywords", value: settings.search.keywords.join("\n") }),
     ),
 
     el("fieldset", {},
-      el("legend", {}, "Filters"),
-      el("label", {}, "Acceptable ways of working"),
+      el("legend", {}, t("Filters")),
+      el("label", {}, t("Acceptable ways of working")),
       el("div", { className: "row" },
         ...["remote", "hybrid", "onsite"].map(mode =>
           el("label", { className: "row", style: "margin:0 14px 0 0;font-weight:400" },
             el("input", { type: "checkbox", className: "s_mode", value: mode,
-                          checked: f.work_modes.includes(mode) }), " " + mode))),
-      el("label", {}, "Areas where hybrid or on-site is fine"),
+                          checked: f.work_modes.includes(mode) }), " " + workModeLabel(mode)))),
+      el("label", {}, t("Areas where hybrid or on-site is fine")),
       input("s_areas", f.local_areas.join(", ")),
       el("div", { className: "two" },
-        el("div", {}, el("label", {}, "Minimum salary"),
+        el("div", {}, el("label", {}, t("Minimum salary")),
           el("input", { id: "s_minsal", type: "number", value: f.min_salary ?? "" })),
-        el("div", {}, el("label", {}, "Currency"), input("s_currency", f.salary_currency)),
+        el("div", {}, el("label", {}, t("Currency")), input("s_currency", f.salary_currency)),
       ),
       el("div", { className: "two" },
-        el("div", {}, el("label", {}, "Max years of experience asked for"),
+        el("div", {}, el("label", {}, t("Max years of experience asked for")),
           el("input", { id: "s_maxyears", type: "number", value: f.max_years_experience ?? "",
-                        placeholder: profile ? `empty = from your CV (${profile.years})` : "empty = from your CV" })),
-        el("div", {}, el("label", {}, "Ads from the last N days"),
+                        placeholder: profile ? t("empty = from your CV ({years})", { years: profile.years })
+                                             : t("empty = from your CV") })),
+        el("div", {}, el("label", {}, t("Ads from the last N days")),
           el("input", { id: "s_age", type: "number", value: f.max_age_days })),
       ),
       el("div", { className: "row", style: "margin-top:6px" },
         el("input", { type: "checkbox", id: "s_profileyears", checked: f.use_profile_years }),
-        el("label", { style: "margin:0" }, "Take the ceiling from my CV's own dates, so it rises on its own")),
+        el("label", { style: "margin:0" }, t("Take the ceiling from my CV's own dates, so it rises on its own"))),
       el("div", { className: "two" },
-        el("div", {}, el("label", {}, "Years margin — how far past mine still counts as \u201cjust short\u201d"),
+        el("div", {}, el("label", {}, t("Years margin — how far past mine still counts as \u201cjust short\u201d")),
           el("input", { id: "s_yearsmargin", type: "number", step: "0.5", value: f.years_margin })),
-        el("div", {}, el("label", {}, "Applications a week you are aiming for"),
+        el("div", {}, el("label", {}, t("Applications a week you are aiming for")),
           el("input", { id: "s_goal", type: "number", value: settings.weekly_goal })),
       ),
       el("p", { className: "hint" },
-        "An ad that states no minimum is never filtered on years \u2014 most state none. " +
-        "Everything rejected here is kept under \u201cFiltered out\u201d, with the ones you " +
-        "miss by a hair separated from the ones far out of reach."),
-      el("label", {}, "Excluded keywords"), input("s_exclude", f.excluded_keywords.join(", ")),
-      el("label", {}, "Excluded companies"), input("s_excludeco", f.excluded_companies.join(", ")),
+        t("An ad that states no minimum is never filtered on years \u2014 most state none. Everything rejected here is kept under \u201cFiltered out\u201d, with the ones you miss by a hair separated from the ones far out of reach.")),
+      el("label", {}, t("Excluded keywords")), input("s_exclude", f.excluded_keywords.join(", ")),
+      el("label", {}, t("Excluded companies")), input("s_excludeco", f.excluded_companies.join(", ")),
       el("div", { className: "row", style: "margin-top:10px" },
         el("input", { type: "checkbox", id: "s_intl", checked: f.allow_international_remote }),
-        el("label", { style: "margin:0" }, "Include international remote when the ad allows it")),
+        el("label", { style: "margin:0" }, t("Include international remote when the ad allows it"))),
       el("div", { className: "row", style: "margin-top:6px" },
         el("input", { type: "checkbox", id: "s_published", checked: f.require_published_salary }),
-        el("label", { style: "margin:0" }, "Published salaries only")),
+        el("label", { style: "margin:0" }, t("Published salaries only"))),
     ),
 
     el("fieldset", {},
-      el("legend", {}, "Where to search"),
+      el("legend", {}, t("Where to search")),
       ...STATE.sources.map(source => {
         const enabled = settings.sources.enabled.length
           ? settings.sources.enabled.includes(source.id) : source.default_enabled;
@@ -101,27 +102,26 @@ function settingsBody() {
             el("div", {}, el("b", {}, source.name), " ",
               el("span", { className: "tier " + source.tos_tier }, source.tos_tier)),
             source.required_env.length
-              ? el("div", { className: "hint" }, "Needs " + source.required_env.join(", ")) : null,
+              ? el("div", { className: "hint" }, t("Needs {names}", { names: source.required_env.join(", ") })) : null,
             source.tos_note ? el("div", { className: "hint" }, source.tos_note) : null),
           el("label", { className: "row", style: "margin:0;font-weight:400;white-space:nowrap" },
             el("input", { type: "checkbox", className: "s_weekly", value: source.id,
                           checked: settings.sources.weekly.includes(source.id) }), " weekly"));
       }),
       el("div", { className: "two" },
-        el("div", {}, el("label", {}, "Weekly sources run on"),
+        el("div", {}, el("label", {}, t("Weekly sources run on")),
           selectFrom("s_weeklyday", String(settings.sources.weekly_day),
-            ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+            [t("Monday"), t("Tuesday"), t("Wednesday"), t("Thursday"), t("Friday"), t("Saturday"), t("Sunday")]
               .map((day, index) => [String(index), day]))),
         el("p", { className: "hint", style: "align-self:end" },
-          "A weekly source is only searched on that day: worth it for boards whose ads stay " +
-          "up for weeks and rarely change."),
+          t("A weekly source is only searched on that day: worth it for boards whose ads stay up for weeks and rarely change.")),
       ),
-      el("label", {}, "Companies to watch"),
+      el("label", {}, t("Companies to watch")),
       el("textarea", { id: "s_domains", value: settings.sources.company_domains.join("\n") }),
       el("div", { className: "two" },
-        el("div", {}, el("label", {}, "Seconds between requests"),
+        el("div", {}, el("label", {}, t("Seconds between requests")),
           el("input", { id: "s_delay", type: "number", step: "0.5", value: settings.sources.request_delay })),
-        el("div", {}, el("label", {}, "Results per source per run"),
+        el("div", {}, el("label", {}, t("Results per source per run")),
           el("input", { id: "s_limit", type: "number", value: settings.sources.max_results_per_source })),
       ),
     ),
@@ -129,42 +129,39 @@ function settingsBody() {
     familiesFieldset(),
 
     el("fieldset", {},
-      el("legend", {}, "Replies in your email"),
+      el("legend", {}, t("Replies in your email")),
       el("p", { className: "hint" },
         STATE.mail_configured
-          ? "Your mail server is configured. JobRadar reads it without changing anything: " +
-            "nothing is marked as read, moved or answered."
-          : "Set JOBRADAR_IMAP_HOST, JOBRADAR_IMAP_USER and JOBRADAR_IMAP_PASSWORD (an app " +
-            "password) in your .env file first; see .env.example."),
+          ? t("Your mail server is configured. JobRadar reads it without changing anything: nothing is marked as read, moved or answered.")
+          : t("Set JOBRADAR_IMAP_HOST, JOBRADAR_IMAP_USER and JOBRADAR_IMAP_PASSWORD (an app password) in your .env file first; see .env.example.")),
       el("div", { className: "row", style: "margin-top:6px" },
         el("input", { type: "checkbox", id: "s_mail", checked: settings.mail.enabled }),
         el("label", { style: "margin:0" },
-          "Read replies to my applications (rejections, next steps, interview times)")),
+          t("Read replies to my applications (rejections, next steps, interview times)"))),
       el("div", { className: "row", style: "margin-top:6px" },
         el("input", { type: "checkbox", id: "s_mailsearch", checked: settings.mail.check_after_search }),
-        el("label", { style: "margin:0" }, "Also check after every search")),
-      el("label", {}, "First check looks back this many days"),
+        el("label", { style: "margin:0" }, t("Also check after every search"))),
+      el("label", {}, t("First check looks back this many days")),
       el("input", { id: "s_maildays", type: "number", min: "1", max: "365", value: settings.mail.days_back }),
     ),
 
     el("fieldset", {},
-      el("legend", {}, "Language model (optional)"),
+      el("legend", {}, t("Language model (optional)")),
       el("p", { className: "hint" },
-        "Everything works without one. A model reads each ad properly and writes the summary " +
-        "and letters; keys are read from your .env file and never stored in the database."),
+        t("Everything works without one. A model reads each ad properly and writes the summary and letters; keys are read from your .env file and never stored in the database.")),
       el("div", { className: "two" },
-        el("div", {}, el("label", {}, "Provider"),
+        el("div", {}, el("label", {}, t("Provider")),
           selectFrom("s_provider", settings.llm.provider,
-            [["none","None — rules only"],["anthropic","Anthropic"],["openai","OpenAI"],
-             ["gemini","Google Gemini (GEMINI_API_KEY)"],
-             ["openai-compatible","OpenAI-compatible endpoint"],["ollama","Ollama (local)"]])),
-        el("div", {}, el("label", {}, "Model"),
-          input("s_model", settings.llm.model, "blank = provider default, e.g. gemini-3.5-flash")),
+            [["none", t("None — rules only")],["anthropic", t("Anthropic")],["openai", t("OpenAI")],
+             ["gemini", t("Google Gemini (GEMINI_API_KEY)")],
+             ["openai-compatible", t("OpenAI-compatible endpoint")],["ollama", t("Ollama (local)")]])),
+        el("div", {}, el("label", {}, t("Model")),
+          input("s_model", settings.llm.model, t("blank = provider default, e.g. gemini-3.5-flash"))),
       ),
       el("div", { className: "two" },
-        el("div", {}, el("label", {}, "Base URL (compatible endpoints only)"),
+        el("div", {}, el("label", {}, t("Base URL (compatible endpoints only)")),
           input("s_baseurl", settings.llm.base_url)),
-        el("div", {}, el("label", {}, "Max model calls per run"),
+        el("div", {}, el("label", {}, t("Max model calls per run")),
           el("input", { id: "s_calls", type: "number", value: settings.llm.max_calls_per_run })),
       ),
     ),
@@ -172,14 +169,14 @@ function settingsBody() {
 
   if (profile) {
     body.append(el("fieldset", {},
-      el("legend", {}, "Your profile"),
+      el("legend", {}, t("Your profile")),
       el("p", { className: "hint" },
-        `${profile.full_name} · ${profile.years} years of experience · ` +
-        `red-flag check ${profile.lint.score}/100`),
+        t("{name} · {years} years of experience · red-flag check {score}/100",
+          { name: profile.full_name, years: profile.years, score: profile.lint.score })),
       lintBlock(profile.lint),
-      el("label", {}, "Replace the profile with a new CV"),
+      el("label", {}, t("Replace the profile with a new CV")),
       el("p", { className: "hint" },
-        "Skills you added or deleted by hand, tuned ceilings and the CV per job family are kept."),
+        t("Skills you added or deleted by hand, tuned ceilings and the CV per job family are kept.")),
       el("input", { type: "file", id: "s_cv", accept: ".pdf,.docx,.txt,.md,.html" }),
     ), skillsFieldset(profile), variantsFieldset(profile));
   }
@@ -196,10 +193,10 @@ let DELETED_SKILLS = [];
 
 function groupRow(group) {
   const row = el("div", { className: "group-row", "data-key": group.key || "" },
-    el("input", { className: "g_label", value: group.label, placeholder: "Group, e.g. Tools" }),
+    el("input", { className: "g_label", value: group.label, placeholder: t("Group, e.g. Tools") }),
     el("input", { className: "g_items", value: (group.items || []).join(", "),
-                  placeholder: "Skills, comma separated" }));
-  row.append(button("Remove", async () => row.remove()));
+                  placeholder: t("Skills, comma separated") }));
+  row.append(button(t("Remove"), async () => row.remove()));
   return row;
 }
 
@@ -207,19 +204,19 @@ function skillRow(skill) {
   const isNew = !skill.key;
   const row = el("div", { className: "skill-row", "data-key": skill.key || "" },
     isNew || skill.custom
-      ? el("input", { className: "k_name", value: skill.label || "", placeholder: "Skill name" })
+      ? el("input", { className: "k_name", value: skill.label || "", placeholder: t("Skill name") })
       : el("span", { className: "k_label" }, skill.label),
     el("input", { type: "number", step: "0.1", min: "0", max: "1", className: "ev",
-                  value: skill.evidence, title: "Evidence: 1 shown in an achievement, 0.5 listed" }),
+                  value: skill.evidence, title: t("Evidence: 1 shown in an achievement, 0.5 listed") }),
     el("input", { type: "number", step: "0.1", min: "0", max: "1", className: "ce",
-                  value: skill.ceiling, title: "Ceiling: how far a tailored CV may push it" }),
-    button("Delete", async () => {
+                  value: skill.ceiling, title: t("Ceiling: how far a tailored CV may push it") }),
+    button(t("Delete"), async () => {
       if (skill.key) DELETED_SKILLS.push(skill.key);
       row.remove();
     }));
   if (isNew || skill.custom) {
     row.append(el("input", { className: "k_aliases", value: (skill.aliases || []).join(", "),
-                             placeholder: "Other names in ads (optional), comma separated" }));
+                             placeholder: t("Other names in ads (optional), comma separated") }));
   }
   return row;
 }
@@ -229,25 +226,19 @@ function skillsFieldset(profile) {
   const groups = el("div", { id: "s_groups" }, ...profile.skill_groups.map(groupRow));
   const table = el("div", { id: "s_skills" }, ...profile.skills.map(skillRow));
   return el("fieldset", {},
-    el("legend", {}, "Your skills"),
+    el("legend", {}, t("Your skills")),
     el("p", { className: "hint" },
-      "Imported from your CV. Add, edit or delete them here; a skill you delete is not read " +
-      "back from the CV on the next import."),
-    el("label", {}, "Listed on your CV"),
+      t("Imported from your CV. Add, edit or delete them here; a skill you delete is not read back from the CV on the next import.")),
+    el("label", {}, t("Listed on your CV")),
     groups,
-    button("Add a group", async () => groups.append(groupRow({ key: "", label: "", items: [] }))),
-    el("label", {}, "Evidence and ceiling per skill"),
+    button(t("Add a group"), async () => groups.append(groupRow({ key: "", label: "", items: [] }))),
+    el("label", {}, t("Evidence and ceiling per skill")),
     el("p", { className: "hint" },
-      "Evidence is how strongly your CV proves a skill today: 1 when an achievement shows it, " +
-      "0.5 when it is only listed. The ceiling is how far a tailored CV may push it — how well " +
-      "you could defend it in an interview. A skill with zero evidence can never be raised, " +
-      "which is what stops any generated document from inventing experience. Typing a skill " +
-      "into a group above is enough to add it; add it here to set its numbers or give it " +
-      "other names."),
+      t("Evidence is how strongly your CV proves a skill today: 1 when an achievement shows it, 0.5 when it is only listed. The ceiling is how far a tailored CV may push it — how well you could defend it in an interview. A skill with zero evidence can never be raised, which is what stops any generated document from inventing experience. Typing a skill into a group above is enough to add it; add it here to set its numbers or give it other names.")),
     el("div", { className: "skill-row skill-head" },
-      el("b", {}, "Skill"), el("b", {}, "Evidence"), el("b", {}, "Ceiling"), el("span")),
+      el("b", {}, t("Skill")), el("b", {}, t("Evidence")), el("b", {}, t("Ceiling")), el("span")),
     table,
-    button("Add a skill", async () => table.append(skillRow({ key: "", label: "", evidence: 0.5,
+    button(t("Add a skill"), async () => table.append(skillRow({ key: "", label: "", evidence: 0.5,
                                                               ceiling: 0.9, aliases: [] }))),
   );
 }
@@ -291,24 +282,24 @@ function variantForm(profile, family) {
     : variant.hidden_bullets.includes(id) ? "hide" : "";
   const groupChoice = key => variant.skill_groups.includes(key) ? "lead"
     : variant.hidden_skill_groups.includes(key) ? "hide" : "";
-  const choices = [["", "As ranked"], ["lead", "Put first"], ["hide", "Leave out"]];
+  const choices = [["", t("As ranked")], ["lead", t("Put first")], ["hide", t("Leave out")]];
   return el("div", { id: "s_variant", "data-family": family },
-    el("label", {}, "Headline for this family"),
+    el("label", {}, t("Headline for this family")),
     el("input", { id: "s_v_headline", value: variant.headline,
-                  placeholder: "empty = the ad's own title, e.g. \"Registered nurse\"" }),
-    el("label", {}, "Achievements"),
+                  placeholder: t("empty = the ad's own title, e.g. \"Registered nurse\"") }),
+    el("label", {}, t("Achievements")),
     ...profile.experience.map(experience => el("div", {},
       el("div", { className: "hint" }, `${experience.title} — ${experience.organization}`),
       ...experience.bullets.map(bullet => el("div", { className: "variant-row" },
         choiceSelect("v_bullet", bullet.id, bulletChoice(bullet.id), choices),
         el("span", {}, bullet.text))))),
-    el("label", {}, "Skill groups"),
+    el("label", {}, t("Skill groups")),
     ...profile.skill_groups.map(group => el("div", { className: "variant-row" },
       choiceSelect("v_group", group.key, groupChoice(group.key), choices),
       el("span", {}, `${group.label}: ${group.items.join(", ")}`))),
-    el("label", {}, "Extra skills to name under \"Also\" (at most four, comma separated)"),
+    el("label", {}, t("Extra skills to name under \"Also\" (at most four, comma separated)")),
     el("input", { id: "s_v_extra", value: variant.extra_skills.join(", "),
-                  placeholder: "Only skills your profile proves are printed" }),
+                  placeholder: t("Only skills your profile proves are printed") }),
   );
 }
 
@@ -342,12 +333,10 @@ function variantsFieldset(profile) {
     holder.replaceChildren(variantForm(profile, picker.value));
   });
   return el("fieldset", {},
-    el("legend", {}, "CV per job family"),
+    el("legend", {}, t("CV per job family")),
     el("p", { className: "hint" },
-      "Shape every CV sent to one family of jobs: a fixed headline, which achievements lead or " +
-      "are left out, and which skill groups come first. This only selects and orders what your " +
-      "profile already holds — it cannot add anything to it."),
-    el("label", {}, "Family"), picker, holder);
+      t("Shape every CV sent to one family of jobs: a fixed headline, which achievements lead or are left out, and which skill groups come first. This only selects and orders what your profile already holds — it cannot add anything to it.")),
+    el("label", {}, t("Family")), picker, holder);
 }
 
 /* --------------------------------------------------------------------------
@@ -359,15 +348,15 @@ function familyRow(family) {
   const row = el("div", { className: "family-row", "data-key": family.key,
                           "data-custom": family.custom ? "1" : "" },
     el("input", { type: "checkbox", className: "f_enabled", checked: family.enabled,
-                  disabled: family.key === "general", title: "Use this family" }),
-    el("input", { className: "f_label", value: family.label, placeholder: "Name" }),
+                  disabled: family.key === "general", title: t("Use this family") }),
+    el("input", { className: "f_label", value: family.label, placeholder: t("Name") }),
     el("input", { type: "number", className: "f_priority", step: "0.05", min: "0", max: "3",
-                  value: family.priority, title: "Priority: 1 neutral, above favours, below demotes" }),
+                  value: family.priority, title: t("Priority: 1 neutral, above favours, below demotes") }),
     el("input", { className: "f_keywords", value: family.keywords.join(", "),
-                  placeholder: "Title keywords, comma separated; end with * for a prefix" }),
+                  placeholder: t("Title keywords, comma separated; end with * for a prefix") }),
   );
   if (family.custom) {
-    row.append(button("Remove", () => row.remove()));
+    row.append(button(t("Remove"), () => row.remove()));
   }
   return row;
 }
@@ -375,15 +364,13 @@ function familyRow(family) {
 function familiesFieldset() {
   const rows = el("div", { id: "s_families" }, ...STATE.families.map(familyRow));
   return el("fieldset", {},
-    el("legend", {}, "Job families"),
+    el("legend", {}, t("Job families")),
     el("p", { className: "hint" },
-      "Every job is sorted into a family by the words in its title. A priority above 1 moves " +
-      "that family up the board, below 1 moves it down; it never changes the match score. " +
-      "Families also set the starting salary band for ads that publish none."),
+      t("Every job is sorted into a family by the words in its title. A priority above 1 moves that family up the board, below 1 moves it down; it never changes the match score. Families also set the starting salary band for ads that publish none.")),
     el("div", { className: "family-row family-head" },
-      el("b", {}, "On"), el("b", {}, "Family"), el("b", {}, "Priority"), el("b", {}, "Keywords")),
+      el("b", {}, t("On")), el("b", {}, t("Family")), el("b", {}, t("Priority")), el("b", {}, t("Keywords"))),
     rows,
-    button("Add a family", () => rows.append(familyRow({
+    button(t("Add a family"), () => rows.append(familyRow({
       key: "custom_" + Date.now().toString(36), label: "", keywords: [], priority: 1,
       enabled: true, custom: true,
     }))),
@@ -417,7 +404,8 @@ function collectFamilies() {
 }
 
 function countrySelectFor(id, current) {
-  const entries = Object.entries(STATE.countries).sort((a, b) => a[1].localeCompare(b[1]));
+  const entries = Object.entries(STATE.countries).map(([code, name]) => [code, countryName(code, name)])
+    .sort((a, b) => a[1].localeCompare(b[1], LANG));
   return selectFrom(id, current, entries);
 }
 
@@ -432,6 +420,7 @@ async function saveSettings() {
   settings.default_language = value("s_language");
   settings.cv_template = value("s_template");
   settings.cv_pdf_engine = value("s_pdfengine") || "auto";
+  settings.ui_language = value("s_uilang") || "auto";
   settings.banned_phrases = value("s_banned").split("\n").map(s => s.trim()).filter(Boolean);
   settings.search.titles = list("s_titles");
   settings.search.keywords = list("s_keywords");
@@ -480,12 +469,12 @@ async function saveSettings() {
     const form = new FormData();
     form.append("cv_file", picker.files[0]);
     const result = await api("/api/profile/reimport", { method: "POST", body: form });
-    if (result.notes.length) alert("New CV imported. Worth checking:\n\n• " + result.notes.join("\n• "));
+    if (result.notes.length) alert(t("New CV imported. Worth checking:") + "\n\n• " + result.notes.join("\n• "));
   }
   $("#settings").close();
   await refresh();
   toast(saved.restored
-    ? `Settings saved. ${saved.restored} ad${saved.restored === 1 ? "" : "s"} set aside for years ` +
-      "now within reach, back on the board."
-    : "Settings saved");
+    ? tn(saved.restored, "Settings saved. {n} ad set aside for years is now within reach, back on the board.",
+         "Settings saved. {n} ads set aside for years are now within reach, back on the board.")
+    : t("Settings saved"));
 }

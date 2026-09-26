@@ -20,47 +20,47 @@
   <h1>JobRadar</h1>
   <span class="badge" id="job-count">—</span>
   <div class="spacer"></div>
-  <button id="btn-add-job" title="Add a job you found elsewhere">+ Job</button>
-  <button id="btn-search" class="primary">Search now</button>
-  <button id="btn-sweep">Check closed ads</button>
-  <button id="btn-mail" hidden>Check email</button>
-  <button id="btn-settings">Settings</button>
+  <button id="btn-add-job" data-i18n-title="Add a job you found elsewhere" data-i18n>+ Job</button>
+  <button id="btn-search" class="primary" data-i18n>Search now</button>
+  <button id="btn-sweep" data-i18n>Check closed ads</button>
+  <button id="btn-mail" hidden data-i18n>Check email</button>
+  <button id="btn-settings" data-i18n>Settings</button>
 </header>
 
 <main>
   <div class="tabs" id="tabs" role="tablist"></div>
   <div class="toolbar" id="toolbar">
-    <div class="filters" role="search" aria-label="Filter the board">
-      <label class="fld wide">Search
-        <input type="search" id="f_text" placeholder="Company, title, place or skill…"></label>
-      <label class="fld">Work mode
+    <div class="filters" role="search" data-i18n-aria-label="Filter the board">
+      <label class="fld wide"><span data-i18n>Search</span>
+        <input type="search" id="f_text" data-i18n-placeholder="Company, title, place or skill…"></label>
+      <label class="fld"><span data-i18n>Work mode</span>
         <select id="f_mode">
-          <option value="">Any</option><option value="remote">Remote</option>
-          <option value="hybrid">Hybrid</option><option value="onsite">On-site</option>
-          <option value="unknown">Not stated</option>
+          <option value="" data-i18n>Any</option><option value="remote" data-i18n>Remote</option>
+          <option value="hybrid" data-i18n>Hybrid</option><option value="onsite" data-i18n>On-site</option>
+          <option value="unknown" data-i18n>Not stated</option>
         </select></label>
-      <label class="fld">Where
+      <label class="fld"><span data-i18n>Where</span>
         <select id="f_where">
-          <option value="">Anywhere</option><option value="local">My areas</option>
-          <option value="home">My country</option><option value="abroad">Abroad</option>
-          <option value="unknown">Not stated</option>
+          <option value="" data-i18n>Anywhere</option><option value="local" data-i18n>My areas</option>
+          <option value="home" data-i18n>My country</option><option value="abroad" data-i18n>Abroad</option>
+          <option value="unknown" data-i18n>Not stated</option>
         </select></label>
-      <label class="fld">Family <select id="f_family"><option value="">All families</option></select></label>
-      <label class="fld">Source <select id="f_source"><option value="">All sources</option></select></label>
-      <label class="fld">Language <select id="f_language"><option value="">Any language</option></select></label>
-      <label class="fld range"><span class="fld-head">Salary (midpoint)
+      <label class="fld"><span data-i18n>Family</span> <select id="f_family"><option value="">All families</option></select></label>
+      <label class="fld"><span data-i18n>Source</span> <select id="f_source"><option value="">All sources</option></select></label>
+      <label class="fld"><span data-i18n>Language</span> <select id="f_language"><option value="">Any language</option></select></label>
+      <label class="fld range"><span class="fld-head"><span data-i18n>Salary (midpoint)</span>
         <span class="hint" id="f_salary_value">any</span></span>
         <input type="range" id="f_salary" min="0" max="100000" step="1000" value="0"></label>
-      <label class="fld range"><span class="fld-head">Match
+      <label class="fld range"><span class="fld-head"><span data-i18n>Match</span>
         <span class="hint" id="f_score_value">any</span></span>
         <input type="range" id="f_score" min="0" max="100" step="5" value="0"></label>
-      <button type="button" class="ghost" id="f_clear">Clear filters</button>
+      <button type="button" class="ghost" id="f_clear" data-i18n>Clear filters</button>
     </div>
-    <select id="sort" style="max-width:200px" aria-label="Sort the board">
-      <option value="focus">Focus — what to apply to now</option>
-      <option value="score">Best match first</option>
-      <option value="date">Newest first</option>
-      <option value="salary">Highest salary first</option>
+    <select id="sort" style="max-width:200px" data-i18n-aria-label="Sort the board">
+      <option value="focus" data-i18n>Focus — what to apply to now</option>
+      <option value="score" data-i18n>Best match first</option>
+      <option value="date" data-i18n>Newest first</option>
+      <option value="salary" data-i18n>Highest salary first</option>
     </select>
     <span id="f_count" class="hint" aria-live="polite"></span>
     <span id="run-note" class="hint"></span>
@@ -74,15 +74,15 @@
 <dialog id="wizard">
   <form method="dialog" id="wizard-form">
     <div class="dialog-head">
-      <h2 id="wizard-title" style="margin:0">Welcome to JobRadar</h2>
+      <h2 id="wizard-title" style="margin:0" data-i18n>Welcome to JobRadar</h2>
       <p class="steps" id="wizard-steps"></p>
     </div>
     <div class="dialog-body" id="wizard-body"></div>
     <div class="dialog-foot">
       <span class="hint" id="wizard-note"></span>
       <span class="spacer"></span>
-      <button type="button" class="ghost" id="wizard-back">Back</button>
-      <button type="button" class="primary" id="wizard-next">Continue</button>
+      <button type="button" class="ghost" id="wizard-back" data-i18n>Back</button>
+      <button type="button" class="primary" id="wizard-next" data-i18n>Continue</button>
     </div>
   </form>
 </dialog>
@@ -91,15 +91,17 @@
 <!-- Settings                                                            -->
 <!-- ------------------------------------------------------------------ -->
 <dialog id="settings">
-  <div class="dialog-head"><h2 style="margin:0">Settings</h2></div>
+  <div class="dialog-head"><h2 style="margin:0" data-i18n>Settings</h2></div>
   <div class="dialog-body" id="settings-body"></div>
   <div class="dialog-foot">
     <span class="spacer"></span>
-    <button class="ghost" id="settings-close">Close</button>
-    <button class="primary" id="settings-save">Save</button>
+    <button class="ghost" id="settings-close" data-i18n>Close</button>
+    <button class="primary" id="settings-save" data-i18n>Save</button>
   </div>
 </dialog>
 
+<script src="/static/dashboard-i18n.js?v={{ version }}"></script>
+<script src="/static/dashboard-i18n-es.js?v={{ version }}"></script>
 <script src="/static/dashboard-core.js?v={{ version }}"></script>
 <script src="/static/dashboard-filters.js?v={{ version }}"></script>
 <script src="/static/dashboard-board.js?v={{ version }}"></script>

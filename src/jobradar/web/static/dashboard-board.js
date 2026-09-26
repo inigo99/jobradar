@@ -15,16 +15,24 @@ const PANELS = {
   insights: () => renderInsights(),
 };
 
+/* [key, title (a function, so it follows the interface language), predicate] */
 const TABS = [
-  ["today",     "Today",     j => j.status === "active" && !j.closed],
-  ["active",    "Active",    j => j.status === "active" && !j.closed],
-  ["applied",   "Applied",   j => j.status === "applied" && j.stage !== "rejected"],
-  ["rejected",  "Rejected",  j => j.status === "applied" && j.stage === "rejected"],
-  ["discarded", "Discarded", j => j.status === "discarded"],
-  ["closed",    "Closed ads", j => j.closed && j.status === "active"],
-  ["filtered",  "Filtered out", () => false],
-  ["insights",  "Insights", () => false],
+  ["today",     () => t("Today"),        j => j.status === "active" && !j.closed],
+  ["active",    () => t("Active"),       j => j.status === "active" && !j.closed],
+  ["applied",   () => t("Applied"),      j => j.status === "applied" && j.stage !== "rejected"],
+  ["rejected",  () => t("Rejected"),     j => j.status === "applied" && j.stage === "rejected"],
+  ["discarded", () => t("Discarded"),    j => j.status === "discarded"],
+  ["closed",    () => t("Closed ads"),   j => j.closed && j.status === "active"],
+  ["filtered",  () => t("Filtered out"), () => false],
+  ["insights",  () => t("Insights"),     () => false],
 ];
+
+/* Filter categories as the server names them (pipeline.filters.category). */
+const categoryLabel = code => ({
+  duplicate: t("duplicate"), salary: t("salary"), experience: t("experience"),
+  "work mode": t("work mode"), geography: t("geography"), keywords: t("keywords"),
+  freshness: t("freshness"), other: t("other"),
+}[code] || code);
 
 function tabCount(key, predicate) {
   if (key === "filtered") return (STATE.filtered || []).length;
@@ -37,7 +45,7 @@ function render() {
   const tabs = $("#tabs");
   tabs.innerHTML = "";
   for (const [key, title, predicate] of TABS) {
-    const node = el("button", { role: "tab" }, `${title} (${tabCount(key, predicate)})`);
+    const node = el("button", { role: "tab" }, `${title()} (${tabCount(key, predicate)})`);
     node.setAttribute("aria-selected", key === TAB);
     node.onclick = () => { TAB = key; render(); };
     tabs.append(node);
@@ -45,11 +53,12 @@ function render() {
 
   const board = $("#board");
   board.innerHTML = "";
-  $("#job-count").textContent = `${STATE.jobs.length} jobs tracked`;
+  $("#job-count").textContent = tn(STATE.jobs.length, "{n} job tracked", "{n} jobs tracked");
   $("#btn-mail").hidden = !(STATE.settings.mail && STATE.settings.mail.enabled);
   const last = STATE.runs[0];
   $("#run-note").textContent = last
-    ? `Last run: ${last.kept} kept of ${last.fetched} fetched, ${last.new} new.` : "";
+    ? t("Last run: {kept} kept of {fetched} fetched, {new} new.",
+        { kept: last.kept, fetched: last.fetched, new: last.new }) : "";
 
   const isPanel = Object.prototype.hasOwnProperty.call(PANELS, TAB);
   $("#toolbar").hidden = isPanel;
@@ -57,13 +66,14 @@ function render() {
   if ($("#selection-bar")) $("#selection-bar").hidden = isPanel || !SELECTED.size;
   if (isPanel) { board.append(PANELS[TAB]()); return; }
 
-  const predicate = TABS.find(t => t[0] === TAB)[2];
+  const predicate = TABS.find(tab => tab[0] === TAB)[2];
   refreshFilterOptions();
   applyPendingFilters();
   const inTab = STATE.jobs.filter(predicate);
   let jobs = inTab.filter(passesBoardFilters);
   $("#f_count").textContent = filtersActive()
-    ? `${jobs.length} of ${inTab.length} shown` : `${inTab.length} in this tab`;
+    ? t("{n} of {total} shown", { n: jobs.length, total: inTab.length })
+    : t("{n} in this tab", { n: inTab.length });
   const sort = $("#sort").value;
   jobs.sort((a, b) =>
     sort === "date" ? String(b.posted_at || "").localeCompare(String(a.posted_at || "")) :
@@ -77,10 +87,10 @@ function render() {
   }
   if (!jobs.length) {
     board.append(inTab.length
-      ? el("div", { className: "empty" }, "No job in this tab matches the filters. ",
-           button("Clear filters", async () => clearFilters()))
-      : el("div", { className: "empty" }, STATE.jobs.length ? "Nothing in this tab." :
-           "No jobs yet. Press \u201cSearch now\u201d to run the first search."));
+      ? el("div", { className: "empty" }, t("No job in this tab matches the filters."), " ",
+           button(t("Clear filters"), async () => clearFilters()))
+      : el("div", { className: "empty" }, STATE.jobs.length ? t("Nothing in this tab.") :
+           t("No jobs yet. Press \u201cSearch now\u201d to run the first search.")));
   } else {
     jobs.forEach(job => board.append(jobCard(job)));
   }
@@ -116,17 +126,15 @@ function renderToday() {
     .slice(0, queueSize());
 
   panel.append(
-    el("h2", {}, "Today"),
+    el("h2", {}, t("Today")),
     el("p", { className: "lede" },
-      "The short queue, in focus order: the match score less what is already known to go " +
-      "nowhere \u2014 ads that have aged past the point of a reply, and titles pitched above " +
-      "your years. Every job says why it sits where it does."),
+      t("The short queue, in focus order: the match score less what is already known to go nowhere \u2014 ads that have aged past the point of a reply, and titles pitched above your years. Every job says why it sits where it does.")),
     el("div", { className: "goal" }, el("i", { style: `width:${Math.min(100, 100 * done / Math.max(1, goal))}%` })),
-    el("p", { className: "hint" }, `${done} of ${goal} applications this week. Change the goal in Settings.`),
+    el("p", { className: "hint" }, t("{done} of {goal} applications this week. Change the goal in Settings.", { done, goal })),
   );
 
   if (!queue.length) {
-    panel.append(el("div", { className: "empty" }, "Nothing active. Run a search."));
+    panel.append(el("div", { className: "empty" }, t("Nothing active. Run a search.")));
     return panel;
   }
   queue.forEach(job => panel.append(jobCard(job)));
@@ -142,15 +150,12 @@ function renderFiltered() {
   const tally = STATE.filtered_tally || { by_category: [], by_shape: [] };
 
   panel.append(
-    el("h2", {}, "Filtered out"),
+    el("h2", {}, t("Filtered out")),
     el("p", { className: "lede" },
-      "Nothing is thrown away. A filter one notch too strict is invisible while its victims " +
-      "vanish, and \u201cthe board is empty\u201d looks exactly like \u201cthere were no jobs today\u201d. " +
-      "These ads were rejected by your current settings \u2014 read them, and change the setting " +
-      "or put one back."));
+      t("Nothing is thrown away. A filter one notch too strict is invisible while its victims vanish, and \u201cthe board is empty\u201d looks exactly like \u201cthere were no jobs today\u201d. These ads were rejected by your current settings \u2014 read them, and change the setting or put one back.")));
 
   if (!entries.length) {
-    panel.append(el("div", { className: "empty" }, "Nothing has been filtered out yet."));
+    panel.append(el("div", { className: "empty" }, t("Nothing has been filtered out yet.")));
     return panel;
   }
 
@@ -159,20 +164,22 @@ function renderFiltered() {
     ...(tally.by_category || []).map(([name, n]) =>
       el("div", { className: "tile" },
         el("b", {}, String(n)),
-        el("span", {}, `${name} \u00b7 ${Math.round(100 * n / total)}% of what was rejected`)))));
+        el("span", {}, t("{category} \u00b7 {share}% of what was rejected",
+                         { category: categoryLabel(name), share: Math.round(100 * n / total) }))))));
 
   const worst = (tally.by_category || [])[0];
   if (worst && worst[1] / total >= 0.4) {
     panel.append(el("p", { className: "lede" },
-      el("b", {}, worst[0]), ` is rejecting ${Math.round(100 * worst[1] / total)}% of everything that gets this far. `,
-      "If that is not what you meant, that is the setting to change \u2014 not the others."));
+      el("b", {}, categoryLabel(worst[0])), " ",
+      t("is rejecting {share}% of everything that gets this far. If that is not what you meant, that is the setting to change \u2014 not the others.",
+        { share: Math.round(100 * worst[1] / total) })));
   }
 
   const shapes = tally.by_shape || [];
   if (shapes.length) {
     const top = shapes[0][1] || 1;
     panel.append(
-      el("p", { className: "lede" }, "The commonest reasons, with the numbers blanked so they group:"),
+      el("p", { className: "lede" }, t("The commonest reasons, with the numbers blanked so they group:")),
       el("ul", { className: "bars" },
         ...shapes.map(([text, n]) => el("li", {},
           el("span", { className: "n" }, String(n)),
@@ -185,10 +192,9 @@ function renderFiltered() {
   if (shortTable) panel.append(shortTable);
   const listed = entries.filter(entry => !near.includes(entry) && !far.includes(entry));
   if (far.length) {
-    const one = far.length === 1;
     panel.append(el("p", { className: "hint" },
-      `${far.length} ad${one ? " asks" : "s ask"} for well over your years and ` +
-      `${one ? "is" : "are"} not listed one by one; they are counted above.`));
+      tn(far.length, "{n} ad asks for well over your years and is not listed one by one; it is counted above.",
+         "{n} ads ask for well over your years and are not listed one by one; they are counted above.")));
   }
 
   const rows = listed.map(entry => el("tr", {},
@@ -197,14 +203,14 @@ function renderFiltered() {
     el("td", {}, entry.reason),
     el("td", {}, entry.source || ""),
     el("td", {},
-      entry.url ? el("a", { href: entry.url, target: "_blank", rel: "noopener" }, "Open") : null,
+      entry.url ? el("a", { href: entry.url, target: "_blank", rel: "noopener" }, t("Open")) : null,
       " ",
-      button("Put back", () => putBack(entry)))));
+      button(t("Put back"), () => putBack(entry)))));
 
   if (rows.length) {
-    panel.append(el("h3", {}, "Everything else"), el("table", { className: "ftable" },
+    panel.append(el("h3", {}, t("Everything else")), el("table", { className: "ftable" },
       el("thead", {}, el("tr", {},
-        ...["Company", "Title", "Why it was rejected", "Source", ""].map(h => el("th", {}, h)))),
+        ...[t("Company"), t("Title"), t("Why it was rejected"), t("Source"), ""].map(h => el("th", {}, h)))),
       el("tbody", {}, ...rows)));
   }
   return panel;
@@ -212,7 +218,7 @@ function renderFiltered() {
 
 async function putBack(entry) {
   await api(`/api/filtered/${encodeURIComponent(entry.id)}/restore`, { method: "POST" });
-  toast("Back on the board. The filter that rejected it is still on.");
+  toast(t("Back on the board. The filter that rejected it is still on."));
   await refresh();
 }
 
@@ -235,35 +241,33 @@ function experienceSplit(entries) {
 
 function filteredSalary(entry) {
   if (!entry.salary_min) return "\u2014";
-  const fmt = value => new Intl.NumberFormat(undefined, { style: "currency",
+  const fmt = value => new Intl.NumberFormat(localeTag(), { style: "currency",
     currency: entry.salary_currency || "EUR", maximumFractionDigits: 0 }).format(value);
   const range = entry.salary_max && entry.salary_max !== entry.salary_min
     ? `${fmt(entry.salary_min)}\u2013${fmt(entry.salary_max)}` : fmt(entry.salary_min);
-  return entry.salary_origin === "estimated" ? `${range} (est.)` : range;
+  return entry.salary_origin === "estimated" ? t("{range} (est.)", { range }) : range;
 }
 
 function justShortTable(near) {
   if (!near.length) return null;
   const held = STATE.experience.held, margin = STATE.experience.margin;
   return el("div", {},
-    el("h3", {}, `Just short on years (${near.length})`),
+    el("h3", {}, t("Just short on years ({n})", { n: near.length })),
     el("p", { className: "lede" },
-      `Your CV adds up to ${held} years and these ask for more, but within your margin of ` +
-      `${margin} year${margin === 1 ? "" : "s"}. A form would filter you out; a direct email ` +
-      "that names the gap often does not. Nothing here is deleted: raise your years or the " +
-      "margin in Settings (or let time pass — the years come from your CV) and they return " +
-      "to the board on their own."),
+      t("Your CV adds up to {held} years and these ask for more, but within your margin of {margin} year(s). A form would filter you out; a direct email that names the gap often does not. Nothing here is deleted: raise your years or the margin in Settings (or let time pass — the years come from your CV) and they return to the board on their own.",
+        { held, margin })),
     el("table", { className: "ftable" },
       el("thead", {}, el("tr", {},
-        ...["Company", "Title", "Asks for", "Short by", "Family", "Salary", ""].map(h => el("th", {}, h)))),
+        ...[t("Company"), t("Title"), t("Asks for"), t("Short by"), t("Family"), t("Salary"), ""]
+          .map(h => el("th", {}, h)))),
       el("tbody", {}, ...near.map(entry => el("tr", {},
         el("td", {}, el("b", {}, entry.company || "\u2014")),
         el("td", {}, entry.title || "\u2014"),
-        el("td", {}, `${entry.min_years} years`),
+        el("td", {}, t("{n} years", { n: entry.min_years })),
         el("td", {}, `${Math.round((entry.min_years - held) * 10) / 10}`),
         el("td", {}, entry.family_label || ""),
         el("td", {}, filteredSalary(entry)),
         el("td", {},
-          entry.url ? el("a", { href: entry.url, target: "_blank", rel: "noopener" }, "Open") : null,
-          " ", button("Put back", () => putBack(entry))))))));
+          entry.url ? el("a", { href: entry.url, target: "_blank", rel: "noopener" }, t("Open")) : null,
+          " ", button(t("Put back"), () => putBack(entry))))))));
 }

@@ -122,7 +122,7 @@ jobradar serve
 
 ![Answering an application form's questions](docs/images/form-answers.png)
 
-**Settings** covers your details, target titles, every filter, which sources run (and which only weekly), job families and their priority, the mailbox check, the language model, phrases you never use, **your skills** with their evidence and ceiling, and the **CV for each job family**.
+**Settings** covers your details, target titles, every filter, which sources run (and which only weekly), job families and their priority, the mailbox check, the interface language (English or Spanish), the language model, phrases you never use, **your skills** with their evidence and ceiling, and the **CV for each job family**.
 
 ![Settings: your skills](docs/images/settings.png)
 
