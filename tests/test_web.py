@@ -35,6 +35,9 @@ def test_restricted_sources_are_off_by_default(client):
     assert sources["linkedin"]["default_enabled"] is False
     assert sources["linkedin"]["tos_note"]
     assert sources["remoteok"]["default_enabled"] is True
+    # The page ticks what the search runs by default: credentials sources too
+    # (skipped until their key is set), so saving Settings does not turn them off.
+    assert sources["jooble"]["default_enabled"] is True
 
 
 def test_onboarding_creates_a_profile(client):

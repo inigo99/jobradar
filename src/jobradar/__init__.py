@@ -1,3 +1,7 @@
+# JobRadar — Copyright (C) 2026 Íñigo Fernández Barrill and JobRadar contributors.
+# Licensed under the GNU Affero General Public License v3.0 only; see LICENSE.
+# This program comes with ABSOLUTELY NO WARRANTY.
+
 """JobRadar — a self-hosted job radar with honest CV tailoring.
 
 The package is organised in layers, each of which can be used on its own:
@@ -14,5 +18,5 @@ The package is organised in layers, each of which can be used on its own:
 ``jobradar.web``         The local dashboard (FastAPI + a single-page UI).
 """
 
-__version__ = "1.4.2"
+__version__ = "1.5.0"
 __all__ = ["__version__"]

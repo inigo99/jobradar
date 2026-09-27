@@ -8,6 +8,7 @@ module directly, which is what makes adding a board a one-file change.
 from __future__ import annotations
 
 import logging
+import os
 from datetime import date
 from pathlib import Path
 
@@ -18,6 +19,7 @@ from .arbeitnow import ArbeitnowSource
 from .arbeitsagentur import ArbeitsagenturSource
 from .ats import CompanyBoardsSource
 from .base import Fetcher, JobSource, SearchQuery
+from .eures import EuresSource
 from .himalayas import HimalayasSource
 from .jooble import JoobleSource
 from .manfred import ManfredSource
@@ -25,6 +27,7 @@ from .optional.indeed import IndeedSource
 from .optional.infojobs import InfoJobsSource
 from .optional.linkedin import LinkedInGuestSource
 from .optional.tecnoempleo import TecnoempleoSource
+from .portals import PortalsSource
 from .remoteok import RemoteOKSource
 from .weworkremotely import WeWorkRemotelySource
 
@@ -39,7 +42,9 @@ REGISTRY: tuple[type[JobSource], ...] = (
     ArbeitnowSource,
     ManfredSource,
     ArbeitsagenturSource,
+    EuresSource,
     CompanyBoardsSource,
+    PortalsSource,
     # tos_tier == "credentials": on as soon as the user supplies a free key.
     AdzunaSource,
     JoobleSource,
@@ -63,7 +68,12 @@ def available() -> list[dict]:
             "tos_tier": cls.tos_tier,
             "tos_note": cls.tos_note,
             "required_env": list(cls.required_env),
-            "default_enabled": cls.tos_tier == "open",
+            "key_url": cls.key_url,
+            # Whether every credential is set — never the values themselves.
+            "configured": all(os.environ.get(name) for name in cls.required_env),
+            # What resolve_enabled() runs when the user has not chosen: everything but
+            # the restricted tier (a credentials source without its key is skipped).
+            "default_enabled": cls.tos_tier != "restricted",
         }
         for cls in REGISTRY
     ]
@@ -123,6 +133,10 @@ def build_sources(settings: Settings, cache_dir: Path | None = None,
         if cls is CompanyBoardsSource:
             options["company_domains"] = settings.sources.company_domains
             if not options["company_domains"]:
+                continue
+        if cls is PortalsSource:
+            options["portals"] = settings.sources.active_portals()
+            if not options["portals"]:
                 continue
         instance = cls(fetcher, options)
         if cls.required_env and not instance.credentials_present():

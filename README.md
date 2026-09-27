@@ -174,9 +174,11 @@ The full reference — every filter, job families, how salaries are estimated, t
 |---|---|---|
 | RemoteOK, We Work Remotely, Himalayas, Arbeitnow | open | Public APIs and feeds |
 | Manfred (Spain) | open | Publishes salary, remote share and each skill's required level |
+| EURES (EU public employment services) | open | About 3 million offers from every EU/EEA public employment service, Spain's regions included; every sector |
+| Your portals | open | Any board you list in Settings: a search page with `{query}`, a feed, or a page of offers. [docs/PORTALS.md](https://github.com/inigo99/jobradar/blob/master/docs/PORTALS.md) lists tested ones by country and region |
 | Bundesagentur für Arbeit (Germany) | open | The public employment service: every sector. Runs only when Germany is one of your countries |
 | Company career boards | open | Greenhouse, Lever, Ashby, Workable, Recruitee, SmartRecruiters, Personio — detected from a domain |
-| Adzuna, Jooble | credentials | Free keys; many countries |
+| Adzuna, Jooble | credentials | Every sector, many countries (Spain included). Free keys: paste them in Settings → Where to search, which links to the sign-up page |
 | LinkedIn, InfoJobs, Tecnoempleo, Indeed | restricted | Off by default; fetched through a real browser ([Scrapling](https://github.com/D4Vinci/Scrapling)) |
 
 **Open** sources run by default, **credentials** ones once their key is set, and **restricted** ones — pages built for people, whose terms may not allow automated access — only if you switch them on by name. That decision is yours, under the site's terms and your jurisdiction. Every source is fetched politely: one request per second per host, an hour of caching, backoff on 429 and an honest user agent; open and credentials sources also honour `robots.txt`. Any source can be set to run once a week. Details, and how to add a source in one file: **[docs/SOURCES.md](https://github.com/inigo99/jobradar/blob/master/docs/SOURCES.md)**.
@@ -256,4 +258,6 @@ src/jobradar/
 
 New sources, skills and job families for under-covered fields, salary bands, CV templates and linter rules are welcome — see **[CONTRIBUTING.md](https://github.com/inigo99/jobradar/blob/master/CONTRIBUTING.md)**. The test suite is fully offline: `pytest` needs no network and no keys. The full history is in **[CHANGELOG.md](https://github.com/inigo99/jobradar/blob/master/CHANGELOG.md)**.
 
-MIT — see [LICENSE](https://github.com/inigo99/jobradar/blob/master/LICENSE). Found a security problem? See [SECURITY.md](https://github.com/inigo99/jobradar/blob/master/SECURITY.md).
+Copyright (C) 2026 Íñigo Fernández Barrill and JobRadar contributors.
+
+[AGPL-3.0](https://github.com/inigo99/jobradar/blob/master/LICENSE) Use it, change it and share it freely; if you distribute a modified version, or let other people use one over a network, you must offer them its source code under the same license. Found a security problem? See [SECURITY.md](https://github.com/inigo99/jobradar/blob/master/SECURITY.md).

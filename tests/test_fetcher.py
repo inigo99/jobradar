@@ -56,6 +56,24 @@ def test_get_plain_http_returns_body(fetcher):
 
 
 @respx.mock
+def test_the_query_already_in_an_address_is_kept(fetcher):
+    # A portal's search address carries its own query; it used to be dropped.
+    route = respx.get("https://example.test/rss").mock(return_value=httpx.Response(200, text="ok"))
+    assert fetcher.get("https://example.test/rss?l=p&c=140") == "ok"
+    assert route.calls.last.request.url.params == httpx.QueryParams("l=p&c=140")
+    fetcher.get("https://example.test/rss?l=p", params={"c": "141"}, use_cache=False)
+    assert route.calls.last.request.url.params == httpx.QueryParams("l=p&c=141")
+
+
+@respx.mock
+def test_a_charset_declared_only_in_the_page_is_honoured(fetcher):
+    body = '<meta charset="ISO-8859-1"><h1>Operador/a de Produção</h1>'.encode("latin-1")
+    respx.get("https://example.test/ad").mock(
+        return_value=httpx.Response(200, content=body, headers={"content-type": "text/html"}))
+    assert "Produção" in fetcher.get("https://example.test/ad")
+
+
+@respx.mock
 def test_get_plain_http_4xx_returns_none(fetcher):
     respx.get("https://example.test/jobs").mock(return_value=httpx.Response(404))
     assert fetcher.get("https://example.test/jobs") is None

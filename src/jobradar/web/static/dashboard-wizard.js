@@ -124,9 +124,7 @@ function sourceRow(source) {
     el("div", {},
       el("div", {}, el("b", {}, source.name), " ",
         el("span", { className: "tier " + source.tos_tier }, tierLabel(source.tos_tier))),
-      source.required_env.length
-        ? el("div", { className: "hint" }, t("Needs: {names} in your .env", { names: source.required_env.join(", ") }))
-        : null,
+      source.required_env.length ? keysForm(source) : null,
       source.tos_note ? el("div", { className: "hint" }, source.tos_note) : null,
     ));
 }

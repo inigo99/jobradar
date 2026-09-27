@@ -1,0 +1,28 @@
+name: Something else is broken
+description: The dashboard, the CV, the letters, the mailbox, installing…
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen
+      placeholder: "1. jobradar demo --profile nurse  2. open the dashboard  3. …"
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `jobradar doctor`
+      description: Remove anything personal. Never paste API keys.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: JobRadar version and how you installed it
+      placeholder: "1.4.2, Docker on macOS"
+    validations:
+      required: true

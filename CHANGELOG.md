@@ -6,6 +6,53 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+## 1.5.0 — 2026-09-27
+
+### Changed
+
+- **License: AGPL-3.0** (was MIT). JobRadar stays free to use, change and
+  share; a modified version that is distributed or offered to others over a
+  network must publish its source under the same license. Releases 1.4.0
+  to 1.4.2, published under MIT, were withdrawn: JobRadar is distributed
+  only under AGPL-3.0. The Settings dialog links to the source code.
+
+### Added
+
+- **EURES**: the European Commission's job portal as an open source — about
+  three million offers from the public employment services of the EU/EEA,
+  Spain's regional services included, in every sector.
+- **Your portals**: list the job boards you use under Settings → Job portals
+  you use — a search page with `{query}`, an RSS/Atom feed, or a page of
+  offers — and JobRadar reads them: feed items, schema.org `JobPosting`
+  markup, or the links matching your job titles. Each portal can be switched
+  off without deleting it. **docs/PORTALS.md** lists tested portals for
+  Spain's regions, Spanish boards and other EU countries, ready to paste.
+- **Adzuna and Jooble keys from the dashboard.** Settings → Where to search
+  links to each sign-up page and takes the key there; it is saved to `.env`
+  in the data folder (owner-readable only) and never sent back to the page.
+  These two sources cover every sector, so they matter most outside tech.
+- **Issue templates** for a job board that stopped working, a field or
+  country that is not covered, and other bugs.
+
+### Fixed
+
+- **robots.txt wildcards were ignored.** Python's parser matches rules as
+  plain prefixes, so a rule such as `Disallow: *motsCles=*` never matched;
+  JobRadar now follows RFC 9309 (wildcards, `$`, longest rule wins).
+- **Saving Settings switched Adzuna and Jooble off.** The page ticked only the
+  open sources by default, while the search also runs the credentials ones;
+  pressing Save then stored them as disabled. They are now ticked like the
+  search runs them, and saving a key ticks its source.
+- The source tiers and "weekly" in Settings are translated.
+- **An address's own query was dropped.** A page fetched with a query string
+  already in its address (`…?l=p&c=140`) was requested without it. No
+  built-in source was affected (they pass their parameters separately), but
+  every search page and feed under Your portals was.
+- **Accents garbled on older sites.** A page that declares ISO-8859-1 only in
+  its `<meta>` or `<?xml?>` tag, not in its HTTP headers, was read as UTF-8;
+  and ad text now decodes every HTML entity (`&ntilde;`, `&oacute;`…) instead
+  of a handful.
+
 ## 1.4.2 — 2026-09-27
 
 ### Fixed

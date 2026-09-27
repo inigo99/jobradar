@@ -17,12 +17,13 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from .errors import ConfigError, StorageError, describe_os_error
 from .models import WorkMode
@@ -70,6 +71,12 @@ class Paths(BaseModel):
     @property
     def exports_dir(self) -> Path:
         return self.home / "exports"
+
+    @property
+    def env_file(self) -> Path:
+        """Keys saved from the dashboard: ``NAME=value`` lines, readable by the
+        owner only. Kept with the rest of the user's data, never in the database."""
+        return self.home / ".env"
 
     @property
     def uploads_dir(self) -> Path:
@@ -187,6 +194,18 @@ class FamilyOverride(BaseModel):
     bands: dict[str, list[int]] | None = None
 
 
+class Portal(BaseModel):
+    """A job board the user reads, listed in Settings (``sources/portals.py``)."""
+
+    #: A search page with ``{query}`` where the search words go, a feed, or a
+    #: page of offers.
+    url: str
+    #: What the user calls it; the host name when left empty.
+    name: str = ""
+    #: Off keeps it listed without reading it.
+    enabled: bool = True
+
+
 class SourceSettings(BaseModel):
     """Which adapters run, and how politely."""
 
@@ -202,13 +221,28 @@ class SourceSettings(BaseModel):
     #: Extra company domains or ATS board slugs to crawl, e.g.
     #: ``["stripe.com", "greenhouse:airbnb", "lever:netflix"]``.
     company_domains: list[str] = Field(default_factory=list)
+    #: Job boards the user reads (``sources/portals.py``); docs/PORTALS.md
+    #: lists tested ones.
+    portals: list[Portal] = Field(default_factory=list)
+
+    @field_validator("portals", mode="before")
+    @classmethod
+    def _portal_entries(cls, value: Any) -> Any:
+        """A bare address is a portal too: settings files and older saves."""
+        if isinstance(value, list):
+            return [{"url": item} if isinstance(item, str) else item for item in value]
+        return value
+
+    def active_portals(self) -> list[str]:
+        """The addresses of the portals switched on."""
+        return [p.url.strip() for p in self.portals if p.enabled and p.url.strip()]
     #: Seconds between two requests to the same host.
     request_delay: float = 1.0
     #: How many results to pull per source per run.
     max_results_per_source: int = 100
     timeout: float = 20.0
     user_agent: str = (
-        "JobRadar/1.0 (+https://github.com/your-username/jobradar) "
+        "JobRadar/1.0 (+https://github.com/inigo99/jobradar) "
         "personal job-search assistant"
     )
     #: Honour ``robots.txt`` before fetching a listing page. Leave this on.
@@ -495,6 +529,52 @@ def country_info(code: str) -> dict:
 
 def currency_for(code: str) -> str:
     return country_info(code).get("currency", "EUR")
+
+
+#: What a key saved from the dashboard may be called: an environment variable.
+ENV_NAME = re.compile(r"[A-Z][A-Z0-9_]*\Z")
+
+
+def save_env_values(path: str | Path, values: dict[str, str]) -> None:
+    """Write ``values`` into the ``.env`` at ``path`` and into this process.
+
+    Other lines in the file are kept. An empty value removes the key. The file
+    is made readable by its owner only, since it holds credentials.
+    """
+    for name, value in values.items():
+        if not ENV_NAME.match(name):
+            raise ConfigError(f"{name!r} is not a valid setting name.")
+        if any(ch in value for ch in "\r\n\"'"):
+            raise ConfigError(f"The value for {name} contains characters a key never has.",
+                              hint="Paste the key alone, without quotes or line breaks.")
+    file = Path(path)
+    try:
+        lines = file.read_text(encoding="utf-8").splitlines() if file.is_file() else []
+    except (OSError, UnicodeDecodeError) as exc:
+        raise StorageError(f"Cannot read {file}: {exc}.") from exc
+    pending = {name: value.strip() for name, value in values.items()}
+    kept: list[str] = []
+    for line in lines:
+        name = line.partition("=")[0].strip()
+        if name in pending:
+            value = pending.pop(name)
+            if value:
+                kept.append(f"{name}={value}")
+        else:
+            kept.append(line)
+    kept += [f"{name}={value}" for name, value in pending.items() if value]
+    try:
+        file.parent.mkdir(parents=True, exist_ok=True)
+        file.write_text("\n".join(kept) + "\n", encoding="utf-8")
+        file.chmod(0o600)
+    except OSError as exc:
+        raise StorageError(f"Cannot save the keys to {file}: {describe_os_error(exc)}.",
+                           hint="Point --home (or JOBRADAR_HOME) at a folder you can write to.") from exc
+    for name, value in values.items():
+        if value.strip():
+            os.environ[name] = value.strip()
+        else:
+            os.environ.pop(name, None)
 
 
 def load_dotenv(path: str | Path = ".env") -> None:

@@ -28,6 +28,7 @@ class JoobleSource(JobSource):
     homepage = "https://jooble.org"
     tos_tier = "credentials"
     required_env = ("JOOBLE_API_KEY",)
+    key_url = "https://jooble.org/api/about"
 
     def search(self, query: SearchQuery) -> list[Job]:
         if not self.credentials_present():

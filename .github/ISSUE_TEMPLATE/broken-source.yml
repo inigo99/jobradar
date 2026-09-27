@@ -1,0 +1,40 @@
+name: A job board stopped working
+description: A source returns nothing, errors, or misses fields it used to read.
+title: "[source] "
+labels: [source]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Job boards change their pages without notice, so this is the most
+        common problem. `jobradar doctor` and the run history in the dashboard
+        (Insights) usually show the reason — an HTTP 403/405, a challenge page,
+        a missing browser.
+  - type: dropdown
+    id: source
+    attributes:
+      label: Which source?
+      options: [LinkedIn, InfoJobs, Tecnoempleo, Indeed, Manfred, Adzuna, Jooble, Bundesagentur für Arbeit, Arbeitnow, Himalayas, RemoteOK, We Work Remotely, Company career boards, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens
+      description: Nothing found, an error, wrong salary or location…
+      placeholder: "Since 27 September InfoJobs returns 0 jobs; the run history says HTTP 405."
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Output of `jobradar -v search` (the lines about this source)
+      description: Remove anything personal. Never paste API keys.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: JobRadar version (`jobradar --version`) and how you installed it
+      placeholder: "1.4.2, pipx on Windows 11"
+    validations:
+      required: true

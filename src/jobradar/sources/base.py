@@ -26,12 +26,13 @@ plain HTTP, which is faster and needs nothing extra.
 
 from __future__ import annotations
 
+import codecs
 import hashlib
 import json
 import logging
 import os
+import re
 import time
-import urllib.robotparser
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -43,6 +44,7 @@ import httpx
 
 from ..config import SourceSettings
 from ..models import Job, WorkMode
+from .robots import RobotRules
 
 log = logging.getLogger(__name__)
 
@@ -91,6 +93,29 @@ class SearchQuery:
 # ---------------------------------------------------------------------------
 
 
+_DECLARED_CHARSET = re.compile(rb"""(?:charset|encoding)\s*=\s*["']?([A-Za-z0-9_-]+)""", re.I)
+
+
+def sniff_encoding(content: bytes) -> str:
+    """The charset of a body whose HTTP headers named none.
+
+    Older Spanish and Portuguese sites send ``text/html`` alone and declare
+    ISO-8859-1 only in a ``<meta>`` or ``<?xml?>`` tag; reading them as UTF-8
+    turns every accent into a replacement character.
+    """
+    declared = _DECLARED_CHARSET.search(content[:4096])
+    if declared:
+        try:
+            return codecs.lookup(declared.group(1).decode("ascii")).name
+        except LookupError:
+            pass
+    try:
+        content.decode("utf-8")
+        return "utf-8"
+    except UnicodeDecodeError:
+        return "cp1252"
+
+
 class Fetcher:
     """Rate-limited, cached, robots-aware HTTP client shared by all sources.
 
@@ -118,7 +143,7 @@ class Fetcher:
                             cache_dir, exc)
                 self.cache_dir = None
         self._last_request: dict[str, float] = {}
-        self._robots: dict[str, urllib.robotparser.RobotFileParser | None] = {}
+        self._robots: dict[str, RobotRules | None] = {}
         #: Browser executable Scrapling launches, once one has been found to
         #: work; ``None`` until then, meaning "Playwright's own build".
         self._browser_executable: str | None = None
@@ -132,6 +157,7 @@ class Fetcher:
             timeout=settings.timeout,
             follow_redirects=True,
             headers={"User-Agent": settings.user_agent, "Accept-Language": "en,es;q=0.8"},
+            default_encoding=sniff_encoding,
         )
 
     # -- internals ---------------------------------------------------------
@@ -149,18 +175,13 @@ class Fetcher:
         parsed = urlparse(url)
         origin = f"{parsed.scheme}://{parsed.netloc}"
         if origin not in self._robots:
-            parser = urllib.robotparser.RobotFileParser()
-            parser.set_url(f"{origin}/robots.txt")
             try:
                 response = self._client.get(f"{origin}/robots.txt")
-                if response.status_code == 200:
-                    parser.parse(response.text.splitlines())
-                else:  # no robots.txt at all == everything allowed
-                    parser.parse([])
             except httpx.HTTPError:
                 self._robots[origin] = None
                 return True
-            self._robots[origin] = parser
+            # No robots.txt at all (or an error page) means everything is allowed.
+            self._robots[origin] = RobotRules(response.text if response.status_code == 200 else "")
         rules = self._robots[origin]
         if rules is None:
             return True
@@ -326,7 +347,9 @@ class Fetcher:
         return nothing, and they only run when the user switched them on by
         name after reading their terms note.
         """
-        full = str(httpx.URL(url, params=params or {}))
+        # Merge, not replace: httpx.URL(url, params=...) drops the query already
+        # in ``url``, which is how a portal's own search address arrives.
+        full = str(httpx.URL(url).copy_merge_params(params)) if params else url
         cache_path = self._cache_path(full) if use_cache else None
         cached = self._read_cache(cache_path)
         if cached is not None:
@@ -419,6 +442,8 @@ class JobSource(ABC):
     tos_note: str = ""
     #: Environment variables this source needs, if any.
     required_env: tuple[str, ...] = ()
+    #: Where to get those credentials: shown next to the key fields in Settings.
+    key_url: str = ""
     #: True when the source itself can tell remote from on-site reliably.
     supports_remote_filter: bool = False
 
@@ -469,7 +494,7 @@ class JobSource(ABC):
     @property
     def default_enabled(self) -> bool:
         """Restricted sources are never on unless the user says so."""
-        return self.tos_tier == "open"
+        return self.tos_tier != "restricted"
 
     def get(self, url: str, **kwargs: Any) -> str | None:
         """Fetch ``url`` through the shared :class:`Fetcher`.

@@ -31,21 +31,57 @@ and Indeed. Manfred is `open`: it serves its offers as public JSON.
 
 For nurses, teachers, lawyers, tradespeople and most of the jobs that are not
 in tech, a country's public employment service is often the fullest board.
-JobRadar ships one:
+Public-sector job offers are also information the law lets anyone reuse (in
+Spain, Ley 37/2007; in the EU, the Commission's reuse decision), which is why
+these adapters are `open`.
 
+- **EURES** (`eures`, `open`): the European Commission's job portal, around
+  three million vacancies fed by the public employment services of the EU,
+  Norway, Iceland, Liechtenstein and Switzerland — Spain's regional services
+  included. One JSON request per search term to the API behind the portal's
+  own search (no key; documented by the community at
+  [rorar/eures-api-documentation](https://github.com/rorar/eures-api-documentation)),
+  restricted to your countries and your age limit. The ad is kept in the
+  language it was written in, not the portal's machine translation.
 - **Bundesagentur für Arbeit** (`arbeitsagentur`, Germany, `open`): the JSON
   API behind the agency's own search, with its public client id, documented
   at [jobsuche.api.bund.dev](https://jobsuche.api.bund.dev). It runs only
   when `DE` is one of your countries. Search results carry no text, so each
-  ad's text is fetched later, one request per ad, and only for ads that
-  survived the filters. The ads are in German, and the skill vocabulary is
-  English and Spanish, so expect fewer skill matches than for Spanish or
-  English ads.
+  ad's text is fetched later, one request per new ad. The ads are in German,
+  and the skill vocabulary is English and Spanish, so expect fewer skill
+  matches than for Spanish or English ads.
+SEPE / Empléate (Spain) has no public search, and most Spanish regional
+services publish on EURES; France Travail's official API needs an application
+registered with it — a `credentials` adapter for it would be welcome.
+Regional and national boards are not built in: users add the ones they read
+as **their portals** (below), from the tested list in [PORTALS.md](PORTALS.md).
 
-Others were looked at and left out because they offer nothing to build on:
-SEPE / Empléate (Spain) and EURES (EU) have no public search API, and France
-Travail's official API needs an application registered with it — a
-`credentials` adapter for it would be welcome.
+## Your portals
+
+Nobody can ship an adapter for every regional service, college or trade
+board, so users list the ones they read under **Settings → Job portals you
+use** (`sources.portals`); each can be switched off without deleting it.
+[PORTALS.md](PORTALS.md) lists tested ones by country and region. An address
+can be:
+
+- a search page, with `{query}` where the search words go
+  (`https://example.org/jobs?q={query}`), fetched once per search term;
+- an RSS or Atom feed;
+- any page that lists offers.
+
+`sources/portals.py` reads, in order of reliability: the feed's items; the
+offers the page marks up for search engines (schema.org `JobPosting` in
+JSON-LD, which most job boards publish because Google for Jobs reads it); and,
+failing both, the links whose text matches one of the user's job titles
+(first five letters of each word, so "enfermera" finds "Enfermero/a"). An
+ad's text comes from its own page, again from its `JobPosting` markup when it
+has one. Search words are sent without accents (older sites decode them in
+their own charset), session parameters are dropped from ad addresses so an ad
+keeps one id, and a link that wraps a whole result card is titled by the
+heading inside it. Plain HTTP only, and `robots.txt` is honoured — wildcards
+included (`Fetcher` uses `sources/robots.py`, since Python's own parser
+ignores them): a page that blocks automated readers or builds its list with
+JavaScript yields nothing, and the run history says so.
 
 ## Being a good citizen
 

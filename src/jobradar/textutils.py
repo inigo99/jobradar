@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from datetime import date, datetime, timedelta, timezone
+from html import unescape
 
 from .models import RemoteScope, Salary, SalaryOrigin, WorkMode
 
@@ -21,11 +22,6 @@ _TAG = re.compile(r"<[^>]+>")
 _WS = re.compile(r"[ \t\xa0]+")
 _BLANKS = re.compile(r"\n{3,}")
 
-_ENTITIES = {
-    "&nbsp;": " ", "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"',
-    "&#39;": "'", "&rsquo;": "’", "&ndash;": "–", "&mdash;": "—", "&euro;": "€",
-}
-
 
 def strip_html(html: str) -> str:
     """Turn an HTML fragment into readable plain text.
@@ -35,14 +31,15 @@ def strip_html(html: str) -> str:
     """
     if not html:
         return ""
-    text = re.sub(r"(?is)<(script|style)[^>]*>.*?</\1>", " ", str(html))
+    text = str(html).replace("\r\n", "\n").replace("\r", "\n")
+    text = re.sub(r"(?is)<(script|style)[^>]*>.*?</\1>", " ", text)
+    text = re.sub(r"(?s)<!--.*?-->", " ", text)
     text = re.sub(r"(?i)<(br|/p|/li|/div|/h[1-6])[^>]*>", "\n", text)
     text = re.sub(r"(?i)<li[^>]*>", "• ", text)
     text = _TAG.sub(" ", text)
-    for entity, char in _ENTITIES.items():
-        text = text.replace(entity, char)
-    text = re.sub(r"&#(\d+);", lambda m: chr(int(m.group(1))), text)
-    text = _WS.sub(" ", text)
+    text = _WS.sub(" ", unescape(text))  # every named entity (&ntilde;…), not a few
+    text = re.sub(r"(?m)^ +| +$", "", text)
+    text = re.sub(r"(?m)^[• ]+$", "", text)  # bullets of empty <li>s, as in menus
     return _BLANKS.sub("\n\n", text).strip()
 
 
@@ -51,6 +48,30 @@ def normalise(value: str) -> str:
     decomposed = unicodedata.normalize("NFKD", str(value or ""))
     stripped = "".join(c for c in decomposed if not unicodedata.combining(c))
     return re.sub(r"[^a-z0-9]+", " ", stripped.lower()).strip()
+
+
+#: Words too common in job titles to say anything about which job it is.
+_TITLE_NOISE = frozenset({"de", "del", "la", "el", "en", "y", "a", "o", "para", "con", "por",
+                          "the", "of", "and", "for", "in", "at", "to", "senior", "junior"})
+
+
+def title_matches(title: str, terms: list[str]) -> bool:
+    """Whether ``title`` looks like one of the searched ``terms``.
+
+    For boards that return everything and leave the matching to us. Every
+    significant word of a term must start a word of the title, compared on
+    its first five letters, so gendered and plural forms still match:
+    "enfermera" finds "Enfermero/a", "camarero" finds "Camarero-a". No terms
+    means no filter.
+    """
+    if not terms:
+        return True
+    words = normalise(title).split()
+    for term in terms:
+        wanted = [w[:5] for w in normalise(term).split() if w not in _TITLE_NOISE]
+        if wanted and all(any(word.startswith(stem) for word in words) for stem in wanted):
+            return True
+    return False
 
 
 #: Phrases that mean the real employer is hidden behind an intermediary.

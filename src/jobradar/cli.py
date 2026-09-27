@@ -795,6 +795,8 @@ def main(argv: list[str] | None = None) -> int:
     load_dotenv()
     parser = build_parser()
     args = parser.parse_args(argv)
+    # Keys saved from the dashboard live in the data folder.
+    load_dotenv(Paths.resolve(getattr(args, "home", None)).env_file)
     logging.basicConfig(
         level=logging.INFO if args.verbose else logging.WARNING,
         format="%(levelname)s %(name)s: %(message)s",

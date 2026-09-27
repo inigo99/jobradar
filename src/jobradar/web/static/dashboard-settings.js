@@ -100,13 +100,12 @@ function settingsBody() {
           el("input", { type: "checkbox", className: "s_source", value: source.id, checked: enabled }),
           el("div", { style: "flex:1" },
             el("div", {}, el("b", {}, source.name), " ",
-              el("span", { className: "tier " + source.tos_tier }, source.tos_tier)),
-            source.required_env.length
-              ? el("div", { className: "hint" }, t("Needs {names}", { names: source.required_env.join(", ") })) : null,
+              el("span", { className: "tier " + source.tos_tier }, tierLabel(source.tos_tier))),
+            source.required_env.length ? keysForm(source) : null,
             source.tos_note ? el("div", { className: "hint" }, source.tos_note) : null),
           el("label", { className: "row", style: "margin:0;font-weight:400;white-space:nowrap" },
             el("input", { type: "checkbox", className: "s_weekly", value: source.id,
-                          checked: settings.sources.weekly.includes(source.id) }), " weekly"));
+                          checked: settings.sources.weekly.includes(source.id) }), " ", t("weekly")));
       }),
       el("div", { className: "two" },
         el("div", {}, el("label", {}, t("Weekly sources run on")),
@@ -118,6 +117,8 @@ function settingsBody() {
       ),
       el("label", {}, t("Companies to watch")),
       el("textarea", { id: "s_domains", value: settings.sources.company_domains.join("\n") }),
+      el("label", {}, t("Job portals you use")),
+      portalsEditor(settings.sources.portals || []),
       el("div", { className: "two" },
         el("div", {}, el("label", {}, t("Seconds between requests")),
           el("input", { id: "s_delay", type: "number", step: "0.5", value: settings.sources.request_delay })),
@@ -443,6 +444,7 @@ async function saveSettings() {
   settings.sources.enabled = [...document.querySelectorAll(".s_source:checked")].map(n => n.value);
   settings.sources.disabled = [...document.querySelectorAll(".s_source:not(:checked)")].map(n => n.value);
   settings.sources.company_domains = list("s_domains");
+  settings.sources.portals = collectPortals();
   settings.sources.weekly = [...document.querySelectorAll(".s_weekly:checked")].map(n => n.value);
   settings.sources.weekly_day = Number(value("s_weeklyday") || 0);
   settings.families = collectFamilies();
@@ -477,4 +479,96 @@ async function saveSettings() {
     ? tn(saved.restored, "Settings saved. {n} ad set aside for years is now within reach, back on the board.",
          "Settings saved. {n} ads set aside for years are now within reach, back on the board.")
     : t("Settings saved"));
+}
+
+/* A source that needs a free key (Adzuna, Jooble): where to get it, and fields
+   to paste it. The key goes to the data folder's .env; the page is only ever
+   told whether it is set, never the key itself. */
+function keysForm(source) {
+  const status = el("div", { className: "hint" },
+    source.configured ? t("Key saved \u2014 this source runs.")
+                      : t("Needs a free key: without it this source is skipped."));
+  const fields = source.required_env.map(name =>
+    el("input", { type: "password", autocomplete: "off", "data-env": name,
+                  placeholder: source.configured ? t("{name} (saved)", { name })
+                                                 : name }));
+  const save = button(t("Save key"), async () => {
+    const values = {};
+    fields.forEach(field => { if (field.value.trim()) values[field.dataset.env] = field.value.trim(); });
+    if (!Object.keys(values).length) { toast(t("Paste the key first.")); return; }
+    try {
+      const saved = await api(`/api/credentials/${source.id}`,
+                              { method: "PUT", body: JSON.stringify({ values }) });
+      source.configured = saved.configured;
+      // A key is saved to be used: tick the source (Settings and the wizard).
+      document.querySelectorAll(`.s_source[value="${source.id}"], .source-box[value="${source.id}"]`)
+        .forEach(box => { box.checked = true; });
+      fields.forEach(field => { field.value = ""; });
+      status.textContent = saved.configured ? t("Key saved \u2014 this source runs.")
+                                            : t("Saved. It still needs the other field.");
+      toast(t("Key saved."));
+    } catch (error) { toast(error.message, 6000); }
+  });
+  return el("div", { className: "keys" },
+    status,
+    source.key_url ? el("div", { className: "hint" },
+      el("a", { href: source.key_url, target: "_blank", rel: "noopener" }, t("Get a free key")),
+      " ", t("(sign up, create an app, copy the values here)")) : null,
+    el("div", { className: "row", style: "gap:6px;flex-wrap:wrap" }, ...fields, save));
+}
+
+/* The job portals the user reads: each can be switched off, renamed, edited
+   or deleted. New ones are pasted into the box below the list, one per line,
+   optionally preceded by a name — the format docs/PORTALS.md uses. */
+function portalRow(portal) {
+  const row = el("div", { className: "portal row", style: "gap:6px;margin:4px 0;flex-wrap:wrap" },
+    el("input", { type: "checkbox", className: "p_on", checked: portal.enabled !== false,
+                  title: t("Search this portal") }),
+    el("input", { className: "p_name", value: portal.name || "", placeholder: t("Name"),
+                  style: "width:12em" }),
+    el("input", { className: "p_url", value: portal.url || "", style: "flex:1;min-width:16em" }));
+  const remove = el("button", { className: "ghost", type: "button" }, t("Delete"));
+  remove.onclick = () => row.remove();
+  row.append(remove);
+  return row;
+}
+
+/* "Lanbide (País Vasco) https://…" -> {name, url}; a bare address has no name. */
+function parsePortalLine(line) {
+  const match = line.match(/https?:\/\/\S+/);
+  if (!match) return null;
+  // Copied from Markdown: drop the backticks and quotes around it.
+  const url = match[0].replace(/[`'"),.;]+$/, "");
+  const name = line.replace(match[0], "").replace(/[`'"]/g, "")
+    .replace(/[\s:|\-–—]+$/, "").replace(/^[\s\-*•|]+/, "").trim();
+  return { url, name, enabled: true };
+}
+
+function portalsEditor(portals) {
+  const rows = el("div", { id: "s_portals" }, ...portals.map(portalRow));
+  const paste = el("textarea", { id: "s_portals_new", rows: 3,
+                                 placeholder: "https://example.org/jobs?q={query}" });
+  const add = el("button", { type: "button" }, t("Add"));
+  add.onclick = () => {
+    const found = paste.value.split("\n").map(parsePortalLine).filter(Boolean);
+    if (!found.length) { toast(t("Paste at least one address starting with http:// or https://.")); return; }
+    found.forEach(portal => rows.append(portalRow(portal)));
+    paste.value = "";
+    toast(tn(found.length, "Added 1 portal \u2014 save to keep it.", "Added {n} portals \u2014 save to keep them."));
+  };
+  return el("div", {},
+    rows,
+    el("p", { className: "hint" },
+      t("Add one or more, one per line: a search page with {query} where the search words go, an RSS feed, or a page that lists offers. A name before the address is optional. The guide lists tested portals by country and region: "),
+      el("a", { href: "https://github.com/inigo99/jobradar/blob/master/docs/PORTALS.md",
+                target: "_blank", rel: "noopener" }, "docs/PORTALS.md")),
+    paste, add);
+}
+
+function collectPortals() {
+  return [...document.querySelectorAll("#s_portals .portal")].map(row => ({
+    url: row.querySelector(".p_url").value.trim(),
+    name: row.querySelector(".p_name").value.trim(),
+    enabled: row.querySelector(".p_on").checked,
+  })).filter(portal => portal.url);
 }

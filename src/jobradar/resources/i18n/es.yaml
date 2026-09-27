@@ -321,7 +321,25 @@ exact:
   LinkedIn's User Agreement restricts automated access, including scraping of public pages. Enabling this adapter is your decision and your responsibility; keep the request delay high and the volume comparable to browsing by hand.: El acuerdo de usuario de LinkedIn restringe el acceso automático, incluida la extracción de páginas públicas. Activar esta fuente es decisión y responsabilidad tuya; mantén una pausa alta entre peticiones y un volumen parecido al de buscar a mano.
   Tecnoempleo's terms restrict automated collection. Enabling this adapter is your decision and your responsibility; keep the volume low.: Las condiciones de Tecnoempleo restringen la recogida automática. Activar esta fuente es decisión y responsabilidad tuya; mantén un volumen bajo.
   Public JSON API behind the agency's own job search, with a public client id; documented by the community at jobsuche.api.bund.dev, not by the agency.: API JSON pública que usa el buscador de la propia agencia, con un identificador de cliente público; documentada por la comunidad en jobsuche.api.bund.dev, no por la agencia.
+  # Keys saved from Settings.
+  Paste the key alone, without quotes or line breaks.: Pega solo la clave, sin comillas ni saltos de línea.
+  Public JSON API behind the European Commission's job search, no key; documented by the community, not by the Commission.: API JSON pública del buscador de empleo de la Comisión Europea, sin clave; documentada por la comunidad, no por la Comisión.
+  "The pages you list under Settings → Job portals you use. robots.txt is honoured; whether a site allows automated reading is in its own terms.": "Las páginas que indicas en Configuración → Portales de empleo que usas. Se respeta robots.txt; si un sitio permite la lectura automática lo dicen sus propias condiciones."
 patterns:
+- en: 'Could not read {url}: it did not answer, or its robots.txt does not allow automated readers.'
+  es: 'No se pudo leer {url}: no respondió o su robots.txt no permite lectores automáticos.'
+- en: 'Nothing recognisable on {url}: no feed, no JobPosting markup and no link matching your job titles. The page may build its list with JavaScript.'
+  es: 'Nada reconocible en {url}: ni feed, ni marcado JobPosting, ni enlaces que coincidan con tus puestos. Puede que la página cree su lista con JavaScript.'
+- en: There is no source {source} that takes keys.
+  es: No hay ninguna fuente {source} que use claves.
+- en: '{name} does not use {names}.'
+  es: '{name} no usa {names}.'
+- en: '{name} is not a valid setting name.'
+  es: '{name} no es un nombre de ajuste válido.'
+- en: The value for {name} contains characters a key never has.
+  es: El valor de {name} contiene caracteres que una clave nunca tiene.
+- en: 'Cannot save the keys to {file}: {reason}.'
+  es: 'No se pueden guardar las claves en {file}: {reason}.'
 - en: you prioritise {family} (x{factor})
   es: das prioridad a {family} (x{factor})
 - en: you deprioritise {family} (x{factor})
