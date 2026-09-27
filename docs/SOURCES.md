@@ -43,10 +43,12 @@ these adapters are `open`.
   [rorar/eures-api-documentation](https://github.com/rorar/eures-api-documentation)),
   restricted to your countries and your age limit. The ad is kept in the
   language it was written in, not the portal's machine translation.
-- **Bundesagentur für Arbeit** (`arbeitsagentur`, Germany, `open`): the JSON
-  API behind the agency's own search, with its public client id, documented
-  at [jobsuche.api.bund.dev](https://jobsuche.api.bund.dev). It runs only
-  when `DE` is one of your countries. Search results carry no text, so each
+- **Bundesagentur für Arbeit** (`arbeitsagentur`, Germany, `open`, **off
+  until you switch it on**): the JSON API behind the agency's own search,
+  with its public client id, documented at
+  [jobsuche.api.bund.dev](https://jobsuche.api.bund.dev). Like the national
+  boards in [PORTALS.md](PORTALS.md), it is for the people who look there;
+  once on, it runs only when `DE` is one of your countries. Search results carry no text, so each
   ad's text is fetched later, one request per new ad. The ads are in German,
   and the skill vocabulary is English and Spanish, so expect fewer skill
   matches than for Spanish or English ads.

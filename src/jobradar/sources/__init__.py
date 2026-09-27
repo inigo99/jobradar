@@ -18,7 +18,7 @@ from .adzuna import AdzunaSource
 from .arbeitnow import ArbeitnowSource
 from .arbeitsagentur import ArbeitsagenturSource
 from .ats import CompanyBoardsSource
-from .base import Fetcher, JobSource, SearchQuery
+from .base import Fetcher, JobSource, SearchQuery, on_by_default
 from .eures import EuresSource
 from .himalayas import HimalayasSource
 from .jooble import JoobleSource
@@ -73,7 +73,7 @@ def available() -> list[dict]:
             "configured": all(os.environ.get(name) for name in cls.required_env),
             # What resolve_enabled() runs when the user has not chosen: everything but
             # the restricted tier (a credentials source without its key is skipped).
-            "default_enabled": cls.tos_tier != "restricted",
+            "default_enabled": on_by_default(cls),
         }
         for cls in REGISTRY
     ]
@@ -82,9 +82,9 @@ def available() -> list[dict]:
 def resolve_enabled(settings: SourceSettings) -> list[str]:
     """Work out which source ids should run.
 
-    An empty ``enabled`` list means "the safe defaults". Restricted sources are
-    only ever included when named explicitly, and being named in ``disabled``
-    always wins.
+    An empty ``enabled`` list means "the safe defaults". Restricted and opt-in
+    sources are only ever included when named explicitly, and being named in
+    ``disabled`` always wins.
     """
     if settings.enabled:
         unknown = [sid for sid in settings.enabled if sid not in BY_ID]
@@ -93,7 +93,7 @@ def resolve_enabled(settings: SourceSettings) -> list[str]:
                         "(see 'jobradar sources' for the valid ids).", ", ".join(unknown))
         chosen = [sid for sid in settings.enabled if sid in BY_ID]
     else:
-        chosen = [cls.id for cls in REGISTRY if cls.tos_tier != "restricted"]
+        chosen = [cls.id for cls in REGISTRY if on_by_default(cls)]
     return [sid for sid in chosen if sid not in settings.disabled]
 
 

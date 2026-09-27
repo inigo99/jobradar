@@ -1,7 +1,7 @@
 # Job portals to add
 
-JobRadar ships with a few general sources (EURES, the German employment
-agency, remote-work boards). Everything more local — a region's employment
+JobRadar ships with a few general sources (EURES and the remote-work
+boards). Everything more local — a region's employment
 service, a country's public-sector jobs, a national board — you add yourself
 under **Settings → Job portals you use**, where each one can be switched off,
 edited or deleted without losing it.
@@ -92,6 +92,14 @@ France Travail — infirmier https://candidat.francetravail.fr/offres/emploi/inf
 ```text
 Cercolavoro (ultime offerte) https://www.cercolavoro.com/rss/offerte+lavoro+rss.jsp
 ```
+
+## Germany
+
+The Bundesagentur für Arbeit, Germany's public employment service, has every
+sector. JobRadar reads it through the agency's own search API, which gives
+cleaner offers (title, employer, date and full text) than its web pages, so
+it is built in rather than pasted: switch on **Bundesagentur für Arbeit**
+under **Settings → Sources**, and add `DE` to your countries.
 
 ## Everywhere else in Europe
 

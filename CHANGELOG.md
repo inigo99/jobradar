@@ -14,6 +14,9 @@ All notable changes to this project are documented here. The format follows
   being read, jobs kept) and a "Show N new jobs" button that adds them to the
   board without moving what you are reading. Reloading the page keeps
   following the run.
+- The Bundesagentur für Arbeit (Germany) is off until switched on in
+  Settings → Sources, like the national boards listed in `docs/PORTALS.md`;
+  installs that already chose their sources keep their choice.
 
 ### Added
 

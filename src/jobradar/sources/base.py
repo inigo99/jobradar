@@ -425,6 +425,11 @@ class Fetcher:
 # ---------------------------------------------------------------------------
 
 
+def on_by_default(source: type[JobSource]) -> bool:
+    """Does ``source`` run when the user has not chosen sources themselves?"""
+    return source.tos_tier != "restricted" and not source.opt_in
+
+
 class JobSource(ABC):
     """Base class for every job source.
 
@@ -446,6 +451,9 @@ class JobSource(ABC):
     key_url: str = ""
     #: True when the source itself can tell remote from on-site reliably.
     supports_remote_filter: bool = False
+    #: A national board only some users need: off until switched on in
+    #: Settings, like the portals in docs/PORTALS.md are added by hand.
+    opt_in: bool = False
 
     def __init__(self, fetcher: Fetcher, options: dict | None = None):
         self.fetcher = fetcher
@@ -493,8 +501,8 @@ class JobSource(ABC):
 
     @property
     def default_enabled(self) -> bool:
-        """Restricted sources are never on unless the user says so."""
-        return self.tos_tier != "restricted"
+        """Restricted and opt-in sources are never on unless the user says so."""
+        return on_by_default(type(self))
 
     def get(self, url: str, **kwargs: Any) -> str | None:
         """Fetch ``url`` through the shared :class:`Fetcher`.
