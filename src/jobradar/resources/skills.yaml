@@ -108,13 +108,14 @@ content_marketing: {label: Content marketing, group: marketing, aliases: ["conte
 paid_media: {label: Paid media, group: marketing, aliases: ["google ads", "meta ads", "paid media", ppc, "performance marketing"]}
 crm: {label: CRM, group: sales, aliases: [salesforce, hubspot, crm, "pipedrive"]}
 b2b_sales: {label: B2B sales, group: sales, aliases: ["b2b sales", "ventas b2b", "account executive", "business development"]}
-customer_success: {label: Customer success, group: sales, aliases: ["customer success", "atencion al cliente", "customer support", "soporte al cliente"]}
+customer_success: {label: Customer success, group: sales, aliases: ["customer success", "customer success manager", "account management", "customer retention"]}
+customer_service: {label: Customer service, group: retail, aliases: ["customer service", "customer support", "soporte al cliente", "atencion al cliente", "atención al cliente", "servicio al cliente", "atencion al publico", "atención al público", "orientacion al cliente", "orientación al cliente", "orientado al cliente", "orientada al cliente", "guest relations", "guest service", "atencion al huesped", "atención al huésped", quejas, reclamaciones, "complaint handling", "atenció al client", "atenció al públic"]}
 project_management: {label: Project management, group: process, aliases: ["project management", "gestion de proyectos", pmp, "jira", "planificacion"]}
 finance: {label: Finance / accounting, group: business, aliases: [accounting, contabilidad, "financial analysis", "analisis financiero", erp, sap]}
 hr: {label: HR / recruiting, group: business, aliases: ["human resources", "recursos humanos", "talent acquisition", "hr generalist", "hr business partner", "recursos humans", rrhh, "rr.hh", "rr hh", "people operations", "people and culture", "people & culture", "hr operations", "capital humà", "gestió de persones", "gestión de personas"]}
 legal: {label: Legal / compliance, group: business, aliases: [compliance, gdpr, rgpd, "legal", "normativa"]}
 supply_chain: {label: Supply chain / logistics, group: operations, aliases: ["supply chain", logistics, logistica, "cadena de suministro"]}
-teaching: {label: Teaching / training, group: business, aliases: [teaching, formacion, "training delivery", mentoring]}
+teaching: {label: Teaching / training, group: business, aliases: [teaching, "impartir formacion", "impartir formación", formador, formadora, docencia, "training delivery", mentoring]}
 healthcare: {label: Healthcare domain, group: domain, aliases: [clinical, sanitario, healthcare, "historia clinica"]}
 
 # --- Office, administration and business tools ------------------------------
@@ -177,7 +178,7 @@ communication: {label: Communication, group: soft, aliases: [communication, comu
 teamwork: {label: Teamwork, group: soft, aliases: [teamwork, "trabajo en equipo", collaboration, colaboracion]}
 problem_solving: {label: Problem solving, group: soft, aliases: ["problem solving", "resolucion de problemas", "analytical thinking", "pensamiento analitico"]}
 autonomy: {label: Autonomy, group: soft, aliases: [autonomy, autonomia, "self-starter", "trabajo autonomo"]}
-customer_focus: {label: Customer focus, group: soft, aliases: ["customer focused", "orientacion al cliente", "client facing"]}
+customer_focus: {label: Customer focus, group: soft, aliases: ["customer focused", "customer-centric", "client facing"]}
 
 # --- Languages --------------------------------------------------------------
 english: {label: English, group: language, aliases: [english, ingles, inglés, "b2 english", "c1 english", anglès, angles]}
@@ -185,6 +186,9 @@ spanish: {label: Spanish, group: language, aliases: [spanish, espanol, español,
 french: {label: French, group: language, aliases: [french, frances, francés]}
 german: {label: German, group: language, aliases: [german, aleman, alemán, deutsch]}
 portuguese: {label: Portuguese, group: language, aliases: [portuguese, portugues, português]}
+italian: {label: Italian, group: language, aliases: [italian, italiano, "lingua italiana", italià]}
+basque: {label: Basque, group: language, aliases: [basque, euskera, euskara, "perfil linguistico de euskera", "perfil lingüístico de euskera"]}
+dutch: {label: Dutch, group: language, aliases: [dutch, neerlandes, neerlandés, holandes, holandés, nederlands]}
 catalan: {label: Catalan, group: language, aliases: [catalan, catalán, català, "valencià", "nivell c de català", "nivel c de catalán"]}
 
 # ---------------------------------------------------------------------------
@@ -278,7 +282,9 @@ wine_service: {label: Wine service, group: hospitality, aliases: [sommelier, sum
 event_planning: {label: Event planning, group: hospitality, aliases: ["event planning", "event management", "organización de eventos", "gestión de eventos", catering, banquetes]}
 tour_guiding: {label: Tour guiding, group: hospitality, aliases: ["tour guide", "guía turístico", "guía turística", "guía oficial de turismo", "tour leader"]}
 revenue_management: {label: Revenue management, group: hospitality, aliases: ["revenue management", "revenue manager", "yield management", "gestión de ingresos hoteleros"]}
-hotel_pms: {label: Hotel PMS, group: hospitality, aliases: ["opera pms", "hotel pms", mews, cloudbeds, "sistema de reservas hotelero"]}
+hotel_pms: {label: Hotel PMS, group: hospitality, aliases: ["opera pms", "hotel pms", mews, cloudbeds, "sistema de reservas hotelero", "programas de gestion hotelera", "programas de gestión hotelera", "software de gestion hotelera", "software de gestión hotelera"]}
+reservations: {label: Reservations / OTAs, group: hospitality, aliases: ["reservations agent", "gestionar reservas", "gestion de reservas", "gestión de reservas", "agente de reservas", "departamento de reservas", "booking.com", expedia, hostelworld, agoda, "channel manager", extranet, extranets, "online travel agencies", otas]}
+night_audit: {label: Night audit, group: hospitality, aliases: ["night audit", "night auditor", "auditoria nocturna", "auditoría nocturna", "auditor nocturno", "auditora nocturna", "recepcionista de noche", "recepcionista nocturno", "recepcionista nocturna", "turno de noche en recepcion", "turno de noche en recepción"]}
 
 # --- Retail, sales and customer contact -----------------------------------------
 retail_sales: {label: Retail sales, group: retail, aliases: ["retail sales", "venta al público", "atención en tienda", "shop floor", "dependiente de tienda", "dependienta"]}
@@ -392,6 +398,7 @@ _learning_difficulty:
     call_centre: fast
     switchboard: fast
     hotel_pms: fast
+    reservations: fast
     document_management: fast
     diary_management: fast
     route_planning: fast

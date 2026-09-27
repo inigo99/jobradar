@@ -33,6 +33,7 @@ search:
 filters:
   work_modes: [remote]           # remote | hybrid | onsite
   local_areas: [Valencia]        # hybrid/on-site accepted here regardless
+  local_only: false              # true: on-site/hybrid only in those areas
   home_country: ES
   eligible_countries: []         # extra countries you may be employed in
   allow_international_remote: true
@@ -112,6 +113,14 @@ That is `work_modes: [remote]` plus `local_areas: [Valencia]`. A hybrid or
 on-site job whose location matches one of your areas is kept even though the
 mode is not in your list.
 
+**Only in your areas.** `local_only: true` turns the areas into a limit: an
+on-site or hybrid job elsewhere is dropped even inside your own country, and so
+is one whose mode the ad does not state (public-employment ads rarely say, and
+are almost always on-site). A job whose location names only the country is kept
+with a warning. Remote jobs are unaffected. EURES then searches only your areas'
+regions; without the switch it searches them first and the rest of the country
+after, so a country-wide best match does not bury them.
+
 **Geography.** For on-site and hybrid roles the office must be in one of your
 areas or in an eligible country. For remote roles the question is what the ad's
 restriction allows:
@@ -152,7 +161,9 @@ nothing, so a floor that dropped them would drop most of the market.
 `java` does not exclude "JavaScript", and `Alan` does not exclude "Talan". End
 an entry with `*` to match a prefix (`practic*` matches "prácticas" and
 "practicante"). `local_areas` follow the same rule and are read from the job's
-location only.
+location only. Boards that give only a province (EURES) are matched at that
+grain: `Pamplona` also keeps a job in "Navarra". The towns and provinces known
+for this are in `resources/regions.yaml` (Spain for now; a country is one block).
 
 **Old jobs.** `prune_after_days` closes jobs published longer ago than that
 which you have not touched (applied, discarded, annotated), before each search

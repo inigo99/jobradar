@@ -125,6 +125,10 @@ class Filters(BaseModel):
     #: ``work_modes`` list is remote-only. This is how "remote anywhere, but
     #: I'd also take an office job in my own city" is expressed.
     local_areas: list[str] = Field(default_factory=list)
+    #: Only in those areas: an on-site or hybrid job (or one whose mode the ad
+    #: does not state) elsewhere is dropped, even inside ``home_country``.
+    #: Remote jobs are unaffected.
+    local_only: bool = False
 
     # --- Where the candidate may legally live -----------------------------
     #: ISO-3166 alpha-2 code of the country the user works from.

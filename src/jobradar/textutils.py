@@ -372,7 +372,8 @@ def detect_remote_scope(text: str) -> tuple[RemoteScope, list[str]]:
     blob = fold(text)
     if any(hint in blob for hint in _WORLDWIDE):
         return RemoteScope.WORLDWIDE, []
-    regions = [name for name, hints in _REGIONS.items() if any(h in blob for h in hints)]
+    regions = [name for name, hints in _REGIONS.items()
+               if any(re.search(rf"\b{re.escape(h)}\b", blob) for h in hints)]
     lock = _COUNTRY_LOCK.search(blob)
     if lock and not regions and _EUROPE_IN_LOCK.search(lock.group(0)):
         regions = ["EU"]
@@ -409,7 +410,9 @@ _YEARS_PATTERNS = tuple(re.compile(p) for p in (
     rf"(\d{{1,2}})\s*{_YEARS_UNIT}\s+(?:of\s+)?(?:professional\s+|relevant\s+|hands-on\s+|total\s+|proven\s+)?"
     r"(?:experience|experiencia|d'experience|erfahrung)",
     r"(\d{1,2})\s*anos\s+de\s+experiencia",
-    r"experiencia\s+minima[^0-9]{0,20}(\d{1,2})",
+    # The unit is optional here ("experiencia minima: 2"), so months are ruled
+    # out explicitly: "experiencia minima de 6 meses" is half a year, not six.
+    r"experiencia\s+minima[^0-9]{0,20}(\d{1,2})(?!\d|\s*(?:mes|month|semana|week|dia|day))",
 ))
 
 

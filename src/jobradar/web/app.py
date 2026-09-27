@@ -88,9 +88,10 @@ from ..pipeline.salary import ExchangeRates
 from ..pipeline.scoring import score_job
 from ..profile import import_profile
 from ..profile.vocabulary import SkillEdit, apply_skill_edits, carry_over
+from ..regions import in_areas
 from ..sources import available as available_sources
 from ..storage import Database
-from ..textutils import contains_phrase, slugify
+from ..textutils import slugify
 from . import localize
 from .api import (
     AnswerLimitPayload,
@@ -157,7 +158,7 @@ def where_for(job: Job, filters: Filters | None) -> str:
     if filters is None:
         return "unknown"
     location = job.location or ""
-    if any(contains_phrase(location, area) for area in filters.local_areas):
+    if in_areas(location, filters.local_areas):
         return "local"
     country = (job.country or "").upper()
     if not country:

@@ -25,3 +25,15 @@ def test_java_is_not_javascript():
 
 def test_label_falls_back_for_unknown_keys():
     assert label_for("some_new_thing") == "Some New Thing"
+
+
+def test_hospitality_and_language_vocabulary():
+    found = find_skills("Italiano nativo. Gestioné extranets de Booking.com y la auditoría "
+                        "nocturna; atención al cliente y quejas de huéspedes. Euskera B2.")
+    assert {"italian", "reservations", "night_audit", "customer_service", "basque"} <= set(found)
+    assert "customer_success" not in found
+
+
+def test_an_education_heading_is_not_teaching():
+    assert "teaching" not in find_skills("FORMACIÓN\nGrado en Derecho")
+    assert "teaching" in find_skills("Experiencia como formador de equipos")
