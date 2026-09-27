@@ -5,9 +5,11 @@ write a report of what came back.
     python benchmarks/run.py --regions madrid --profiles abogacia enfermeria
     python benchmarks/run.py --sources linkedin infojobs indeed   # add restricted ones
 
-Each profile searches its own titles (``profiles.yaml``) with "only in my
-areas" on, on-site and hybrid, ads up to 30 days old. The sources are EURES
-and the portals listed for the region below, plus any ``--sources`` you add.
+Each profile searches as docs/STARTER_CONFIGS.md suggests (``profiles.yaml``
+holds the same titles, areas and work modes), with "only in my areas" on and
+ads up to 30 days old. The sources are EURES, the Sistema Nacional de Empleo
+and Infoempleo's pages for the profile's areas in the region, plus any
+``--sources`` you add.
 
 This hits real job boards, politely and slowly (one request every two
 seconds per host, at most 30 offers per source, an hour of cache shared
@@ -43,25 +45,24 @@ HERE = Path(__file__).resolve().parent
 SNE = ("https://www.sistemanacionalempleo.es/OfertaDifusionWEB/busquedaOfertas.do"
        "?modo=continuar&palabraBusqueda={query}&botonNavegacion=Enviar")
 
-#: Where to search, and which portals cover it (docs/PORTALS.md).
+INFOEMPLEO = "https://www.infoempleo.com/trabajo/area-de-empresa_{area}/en_{province}/"
+
+#: Where to search: the town for "only in my areas" and the province as
+#: Infoempleo writes it. Each profile reads the Sistema Nacional de Empleo and
+#: the Infoempleo pages of its own areas there, as docs/STARTER_CONFIGS.md
+#: suggests.
 REGIONS: dict[str, dict] = {
-    "navarra": {
-        "area": "Pamplona",
-        "portals": [
-            ("Sistema Nacional de Empleo", SNE),
-            ("Infoempleo Navarra", "https://www.infoempleo.com/trabajo/en_navarra/"),
-            ("Servicio Navarro de Empleo",
-             "https://administracionelectronica.navarra.es/EmpleoIntermediacion/listadodeofertas"),
-        ],
-    },
-    "madrid": {
-        "area": "Madrid",
-        "portals": [
-            ("Sistema Nacional de Empleo", SNE),
-            ("Infoempleo Madrid", "https://www.infoempleo.com/trabajo/en_madrid/"),
-        ],
-    },
+    "navarra": {"area": "Pamplona", "infoempleo": "navarra"},
+    "madrid": {"area": "Madrid", "infoempleo": "madrid"},
 }
+
+
+def portals_for(spec: dict, region: dict) -> list[Portal]:
+    portals = [Portal(name="Sistema Nacional de Empleo", url=SNE)]
+    for area in spec.get("areas", []):
+        url = INFOEMPLEO.format(area=area, province=region["infoempleo"])
+        portals.append(Portal(name=f"Infoempleo {area} ({region['infoempleo']})", url=url))
+    return portals
 
 
 def settings_for(spec: dict, region: dict, extra_sources: list[str]) -> Settings:
@@ -69,13 +70,13 @@ def settings_for(spec: dict, region: dict, extra_sources: list[str]) -> Settings
     settings.search.titles = list(spec["titles"])
     settings.search.languages = ["es"]
     filters = settings.filters
-    filters.work_modes = [WorkMode.ONSITE, WorkMode.HYBRID]
+    filters.work_modes = [WorkMode(mode) for mode in spec.get("work_modes", ["onsite", "hybrid"])]
     filters.local_areas = [region["area"]]
     filters.local_only = True
     filters.home_country = "ES"
     filters.max_age_days = 30
     settings.sources.enabled = ["eures", "portals", *extra_sources]
-    settings.sources.portals = [Portal(name=name, url=url) for name, url in region["portals"]]
+    settings.sources.portals = portals_for(spec, region)
     # Gentler than the defaults: two full runs back to back got the Sistema
     # Nacional de Empleo to refuse this machine for a while.
     settings.sources.request_delay = 2.0

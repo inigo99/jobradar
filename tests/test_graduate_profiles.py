@@ -23,8 +23,10 @@ from jobradar.pipeline.enrich import enrich_job
 from jobradar.pipeline.filters import apply_filters
 from jobradar.pipeline.scoring import score_job
 from jobradar.profile import import_profile
+from jobradar.textutils import title_matches
 
-BENCHMARKS = Path(__file__).resolve().parent.parent / "benchmarks"
+ROOT = Path(__file__).resolve().parent.parent
+BENCHMARKS = ROOT / "benchmarks"
 PROFILES = yaml.safe_load((BENCHMARKS / "profiles.yaml").read_text(encoding="utf-8"))
 
 
@@ -74,3 +76,27 @@ def test_a_typical_junior_ad_is_sorted_scored_and_kept(graduate):
     assert score.tailored >= spec["min_score"], f"{key}: {score.tailored} (gaps {score.gaps})"
     years = profile.years_of_experience() if hasattr(profile, "years_of_experience") else 0
     assert apply_filters(job, Filters(), profile_years=years).keep, key
+
+
+@pytest.mark.parametrize("key", sorted(PROFILES))
+def test_the_titles_find_real_ads_and_not_their_lookalikes(key):
+    """The titles a profile searches must find the real ads of its profession.
+
+    This is what made a search find nothing: "abogado junior" and "asesor
+    jurídico" did not find "Técnico/a jurídico/a Junior".
+    """
+    spec = PROFILES[key]
+    missed = [title for title in spec["real_titles"] if not title_matches(title, spec["titles"])]
+    assert not missed, f"{key}: {spec['titles']} do not find {missed}"
+    wrong = [title for title in spec["not_titles"] if title_matches(title, spec["titles"])]
+    assert not wrong, f"{key}: {spec['titles']} also find {wrong}"
+
+
+@pytest.mark.parametrize("guide", ["STARTER_CONFIGS.md", "STARTER_CONFIGS.es.md"])
+def test_the_starter_guide_suggests_what_the_profiles_test(guide):
+    # Lines wrap inside the backticks; compare with single spaces.
+    text = " ".join((ROOT / "docs" / guide).read_text(encoding="utf-8").split())
+    for key, spec in PROFILES.items():
+        assert f"`{', '.join(spec['titles'])}`" in text, f"{guide}: titles of {key}"
+        for area in spec["areas"]:
+            assert f"`{area}`" in text, f"{guide}: area {area} of {key}"

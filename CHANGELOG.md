@@ -16,8 +16,10 @@ All notable changes to this project are documented here. The format follows
 - **Graduate profiles** ([benchmarks/](benchmarks/README.md)): nineteen sample
   CVs of recent graduates, from law and nursing to electrician and cook. The
   test suite checks each is read whole and that a typical junior ad for it is
-  sorted, scored and kept; `benchmarks/run.py` searches for real with them,
-  region by region, and writes a report.
+  sorted, scored and kept, that the titles each one searches find real ads of
+  the profession and not their lookalikes, and that the starter guide
+  suggests the same; `benchmarks/run.py` searches for real with the starter
+  configuration of each, region by region, and writes a report.
 - **Starter configurations** for nineteen professions, in English and Spanish
   ([docs/STARTER_CONFIGS.md](docs/STARTER_CONFIGS.md),
   [docs/STARTER_CONFIGS.es.md](docs/STARTER_CONFIGS.es.md)): titles as ads

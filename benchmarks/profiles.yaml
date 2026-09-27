@@ -2,7 +2,14 @@
 #
 # Each CV in profiles/ is fictitious: a recent graduate with training, and at
 # most an internship. For each one:
-#   titles   what the person would search for (short, as ads write them)
+#   titles   what the person would search for, as ads write them — the same
+#            as docs/STARTER_CONFIGS.md suggests (a test keeps them in step)
+#   areas    Infoempleo areas for the profession; run.py reads their page in
+#            each region it searches
+#   work_modes  as the guide suggests
+#   real_titles  titles of real ads for the profession, seen on public boards
+#            in September 2026: the titles above must find every one
+#   not_titles   real titles, or site links, the titles must not find
 #   family   the job family a typical ad for them belongs to
 #   skills   skills the CV must be read as proving (the offline tests check it)
 #   ad       a typical junior ad, which the tests score against the CV
@@ -13,7 +20,15 @@
 
 ingenieria:
   label: Ingeniería industrial
-  titles: [ingeniero industrial, ingeniero de procesos, ingeniero de calidad, ingeniero junior]
+  titles: [ingeniero industrial, ingeniero de procesos, ingeniero de calidad, técnico de calidad, ingeniero de producción]
+  areas: [ingenieria-y-produccion, calidad-id-prl-y-medio-ambiente]
+  work_modes: [onsite, hybrid]
+  real_titles:
+    - "Técnico de Calidad (H/M/X)"
+    - "Técnico/a de calidad - sector automoción"
+    - "TÉCNICO DE CALIDAD (METAL)"
+  not_titles:
+    - "Operario/a Mecanizado CNC"
   family: engineering
   skills: [technical_drawing, quality_control, health_safety]
   ad:
@@ -28,6 +43,13 @@ ingenieria:
 higiene_dental:
   label: Higiene bucodental
   titles: [higienista dental, higienista bucodental, auxiliar de clínica dental]
+  areas: [sanidad-salud-y-servicios-sociales]
+  work_modes: [onsite]
+  real_titles:
+    - "HIGIENISTA DENTAL/AUXILIAR DE CLINICA DENTAL"
+    - "Higienista Bucodental en Münster, Alemania"
+  not_titles:
+    - "Auxiliar de Geriatría en residencia"
   family: healthcare
   skills: [dental_care, diagnostic_imaging, infection_control]
   ad:
@@ -41,7 +63,16 @@ higiene_dental:
 
 arquitectura:
   label: Arquitectura
-  titles: [arquitecto, arquitecto junior, delineante, técnico BIM]
+  titles: [arquitecto, arquitecta, delineante, proyectista, BIM]
+  areas: [construccion-e-inmobiliaria]
+  work_modes: [onsite, hybrid]
+  real_titles:
+    - "Arquitecto/a BIM"
+    - "Arquitecto/a o Arquitecto/a Técnico/a"
+    - "DELINEANTE / PROYECTISTA."
+    - "Delineador/a BIM (Revit MEP)"
+  not_titles:
+    - "Montador/a de Estructuras Metálica- Radial"
   family: construction_property
   skills: [bim, technical_drawing, building_architecture]
   ad:
@@ -54,7 +85,19 @@ arquitectura:
 
 abogacia:
   label: Abogacía
-  titles: [abogado, abogado junior, asesor jurídico, jurista]
+  titles: [abogado, jurídico, jurista, derecho, protección de datos, compliance, asistente jurídico]
+  areas: [legal]
+  work_modes: [onsite, hybrid, remote]
+  real_titles:
+    - "Técnico/a Jurídico Junior - Protección de Datos y Derecho Mercantil"
+    - "Técnico/a jurídico/a Junior"
+    - "Abogado/a Junior - Asesoría"
+    - "Especialista derecho Mercantil y Derecho Digital(H/M/X)"
+    - "Asistentes jurídico-legales"
+    - "Jurista departament legal(h/d)"
+  not_titles:
+    - "Política de Privacidad"
+    - "Legal (1)"
   family: legal
   skills: [contract_law, civil_law, data_protection, legal_research]
   ad:
@@ -68,6 +111,15 @@ abogacia:
 enfermeria:
   label: Enfermería
   titles: [enfermera, enfermero, enfermería]
+  areas: [sanidad-salud-y-servicios-sociales]
+  work_modes: [onsite]
+  real_titles:
+    - "ENFERMEROS CUIDADOS GENERALES"
+    - "ENFERMERO/A (COBEÑA)"
+    - "Enfermera/o en leganes"
+    - "Enfermero/a para Residencias y Centros de día"
+  not_titles:
+    - "Terapeuta Ocupacional"
   family: healthcare
   skills: [nursing, medication, triage, clinical_records]
   ad:
@@ -81,6 +133,14 @@ enfermeria:
 fisioterapia:
   label: Fisioterapia
   titles: [fisioterapeuta, fisioterapia]
+  areas: [sanidad-salud-y-servicios-sociales]
+  work_modes: [onsite]
+  real_titles:
+    - "Fisioterapeuta con formación en pilates"
+    - "FISIOTERAPEUTA RESIDENCIA USERA (INDEFINIDO)"
+    - "Fisioterapeuta para residencia Geriátrica"
+  not_titles:
+    - "Logopeda para Centro Geriátrico,"
   family: healthcare
   skills: [physiotherapy]
   ad:
@@ -93,7 +153,15 @@ fisioterapia:
 
 magisterio:
   label: Magisterio (primaria)
-  titles: [maestro de primaria, maestra, profesor de primaria, profesor de inglés]
+  titles: [maestro, maestra, profesor de primaria, profesor de inglés]
+  areas: [educacion-formacion]
+  work_modes: [onsite]
+  real_titles:
+    - "PROFESOR/A DE INGLÉS"
+    - "Profesor/a de inglés para academia"
+    - "PROFESOR DE INGLÉS BACHILLERATO"
+  not_titles:
+    - "Monitor/a de personas con discapacidad intelectual"
   family: education
   skills: [lesson_planning, classroom_management, primary_teaching]
   ad:
@@ -106,7 +174,15 @@ magisterio:
 
 psicologia:
   label: Psicología
-  titles: [psicólogo, psicóloga, psicólogo sanitario, técnico de selección]
+  titles: [psicólogo, psicóloga, psicólogo sanitario]
+  areas: [sanidad-salud-y-servicios-sociales, recursos-humanos]
+  work_modes: [onsite, hybrid]
+  real_titles:
+    - "Psicólogo/a  Clínico/a vía PIR  para CTA. Getafe"
+    - "PSICOLOGO/A CLINICO"
+    - "PSICÓLOGO/A RESIDENCIA DE MAYORES DE USERA (SUSTITUCIÓN VACACIONES)"
+  not_titles:
+    - "Terapeuta Ocupacional"
   family: healthcare
   skills: [psychology]
   ad:
@@ -119,7 +195,15 @@ psicologia:
 
 ade:
   label: Administración y dirección de empresas
-  titles: [analista financiero, controller, contable, técnico de administración]
+  titles: [analista financiero, contable, controller, administración, auxiliar contable]
+  areas: [banca-finanzas-y-seguros, administracion-de-empresas]
+  work_modes: [onsite, hybrid]
+  real_titles:
+    - "AUXILIAR CONTABLE CON O SIN EXPERIENCIA"
+    - "RESPONSABLE DE ADMINISTRACION"
+    - "Responsable Administración y Finanzas"
+  not_titles:
+    - "¿Has olvidado tu contraseña?"
   family: finance_accounting
   skills: [finance, financial_reporting, budgeting, excel]
   ad:
@@ -132,7 +216,15 @@ ade:
 
 marketing:
   label: Marketing
-  titles: [marketing digital, community manager, técnico de marketing, especialista SEO]
+  titles: [marketing, marketing digital, community manager, SEO, redes sociales]
+  areas: [marketing-publicidad-y-rrpp, digital]
+  work_modes: [onsite, hybrid, remote]
+  real_titles:
+    - "Community Manager PARCIAL (H/M)"
+    - "Marketing assistant EMEA temporal - inglés avanzado"
+    - "Hard Rock Hotel - Digital Marketing Manager"
+  not_titles:
+    - "Azafata de imagen y RRPP"
   family: marketing_communication
   skills: [social_media, seo, paid_media]
   ad:
@@ -144,7 +236,12 @@ marketing:
 
 trabajo_social:
   label: Trabajo social
-  titles: [trabajador social, trabajadora social, educador social]
+  titles: [trabajador social, trabajadora social, educador social, integrador social]
+  areas: [sanidad-salud-y-servicios-sociales]
+  work_modes: [onsite]
+  real_titles: []
+  not_titles:
+    - "Auxiliar de Geriatría en residencia"
   family: care_social
   skills: [social_work, mediation]
   ad:
@@ -157,7 +254,13 @@ trabajo_social:
 
 periodismo:
   label: Periodismo
-  titles: [periodista, redactor, community manager, técnico de comunicación]
+  titles: [periodista, redactor, redactora, comunicación, community manager]
+  areas: [medios-editorial-y-artes-graficas, marketing-publicidad-y-rrpp]
+  work_modes: [onsite, hybrid, remote]
+  real_titles:
+    - "Community Manager PARCIAL (H/M)"
+  not_titles:
+    - "Listado de ofertas por Comunidad Autónoma"
   family: marketing_communication
   skills: [journalism, social_media, video_editing]
   ad:
@@ -169,7 +272,14 @@ periodismo:
 
 tecnico_laboratorio:
   label: Técnico de laboratorio (FP)
-  titles: [técnico de laboratorio, analista de laboratorio, técnico de calidad]
+  titles: [técnico de laboratorio, analista de laboratorio, técnico de calidad, auxiliar de laboratorio]
+  areas: [calidad-id-prl-y-medio-ambiente]
+  work_modes: [onsite]
+  real_titles:
+    - "Técnico Senior Laboratorio: Control de Calidad"
+    - "Técnico/a de calidad"
+  not_titles:
+    - "tecnico laboral/AUXILIAR"
   family: science_research
   skills: [lab_techniques, quality_control, microbiology]
   ad:
@@ -182,7 +292,15 @@ tecnico_laboratorio:
 
 electricista:
   label: Electricista (FP)
-  titles: [electricista, oficial electricista, técnico electricista]
+  titles: [electricista, oficial electricista, electricidad, técnico electricista, mantenimiento eléctrico]
+  areas: [profesionales-artes-y-oficios]
+  work_modes: [onsite]
+  real_titles:
+    - "Oficial de 1ª electricidad"
+    - "Instalador electricista oficial 1ª o 2ª (dos puestos)"
+    - "ELECTRICISTA OFICIAL DE 1ª O 2ª"
+  not_titles:
+    - "Mecánico electrodomésticos gama blanca"
   family: manufacturing_trades
   skills: [electrical_work, industrial_automation]
   ad:
@@ -195,7 +313,15 @@ electricista:
 
 cocina:
   label: Cocina (FP)
-  titles: [cocinero, ayudante de cocina, jefe de partida]
+  titles: [cocinero, cocinera, ayudante de cocina, jefe de partida]
+  areas: [hosteleria-turismo]
+  work_modes: [onsite]
+  real_titles:
+    - "AYUDANTE COCINA- HOTELES 4 ESTRELLAS CIUDAD LINEAL-CHAMARTÍN"
+    - "Cocinero/a de plancha"
+    - "COCINERO/A CON DISCAPACIDAD"
+  not_titles:
+    - "Camarero/a"
   family: hospitality_tourism
   skills: [cooking, food_handling]
   ad:
@@ -207,7 +333,15 @@ cocina:
 
 administracion_finanzas:
   label: Administración y finanzas (FP)
-  titles: [administrativo, auxiliar administrativo, administrativo contable]
+  titles: [administrativo, auxiliar administrativo, administrativo contable, contable]
+  areas: [administrativos-y-secretariado]
+  work_modes: [onsite, hybrid]
+  real_titles:
+    - "ADMINISTRATIVO/A"
+    - "Auxiliar administrativo-a"
+    - "OFERTA 8032 ADMINISTRATIVO"
+  not_titles:
+    - "¿Has olvidado tu contraseña?"
   family: finance_accounting
   skills: [bookkeeping, accounting_software, tax]
   ad:
@@ -220,7 +354,14 @@ administracion_finanzas:
 
 quimica:
   label: Química
-  titles: [químico, técnico de laboratorio, analista de laboratorio, técnico de calidad]
+  titles: [químico, química, técnico de laboratorio, analista de laboratorio, técnico de calidad]
+  areas: [calidad-id-prl-y-medio-ambiente, ingenieria-y-produccion]
+  work_modes: [onsite]
+  real_titles:
+    - "Analista Químico/a | Farmacéutica | Turno Fijo de Tarde"
+    - "Técnico Senior Laboratorio: Control de Calidad"
+  not_titles:
+    - "tecnico laboral/AUXILIAR"
   family: science_research
   skills: [lab_techniques, quality_control, gmp]
   ad:
@@ -233,7 +374,12 @@ quimica:
 
 odontologia:
   label: Odontología
-  titles: [odontólogo, dentista, odontólogo general]
+  titles: [odontólogo, dentista, odontología]
+  areas: [sanidad-salud-y-servicios-sociales]
+  work_modes: [onsite]
+  real_titles: []
+  not_titles:
+    - "Óptico/a Optometrista"
   family: healthcare
   skills: [dental_care, diagnostic_imaging]
   ad:
@@ -245,7 +391,15 @@ odontologia:
 
 diseno:
   label: Diseño gráfico
-  titles: [diseñador gráfico, diseñadora gráfica, diseñador UX/UI, maquetador]
+  titles: [diseñador gráfico, diseñadora gráfica, diseño gráfico, maquetador, UX/UI]
+  areas: [medios-editorial-y-artes-graficas, digital]
+  work_modes: [onsite, hybrid, remote]
+  real_titles:
+    - "Diseñador/a Gráfico/a (h/m)"
+    - "Diseñador gráfico y Editor Video - Multinacional industrial"
+    - "Técnico/a de Producción Editorial y Maquetación"
+  not_titles:
+    - "Operario/a Offset"
   family: design_creative
   skills: [graphic_design, adobe_suite, ui_design]
   ad:

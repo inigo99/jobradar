@@ -7,17 +7,19 @@ primary teaching, psychology, social work, business, marketing, journalism,
 chemistry, industrial engineering, architecture, graphic design, and
 vocational trades (laboratory technician, electrician, cook, administration).
 
-`profiles.yaml` says, for each one, what the person would search for, which
-skills the CV proves, which job family a typical ad belongs to, and gives such
-an ad.
+`profiles.yaml` says, for each one, what the person would search for (the
+starter configuration from [docs/STARTER_CONFIGS.md](../docs/STARTER_CONFIGS.md)),
+real ad titles those searches must find and lookalikes they must not, which
+skills the CV proves, which job family a typical ad belongs to, and such an ad.
 
 ## Offline: the test suite
 
 `tests/test_graduate_profiles.py` imports every CV and checks that it is read
 whole (internships as positions, education, languages), that the skills of the
-field are recognised, that a graduate is not red-flagged for being new, and
-that a typical junior ad is sorted into the right family, scores well and
-passes the filters. It runs with `pytest`, with no network.
+field are recognised, that a graduate is not red-flagged for being new, that
+a typical junior ad is sorted into the right family, scores well and passes
+the filters, that the titles find the real ads of the profession, and that
+the starter guide still suggests the same titles and areas. It runs with `pytest`, with no network.
 
 When one of these fails after a change, the change has left a profession
 behind. When a profession is added, add its CV here and its entry in
@@ -31,9 +33,10 @@ python benchmarks/run.py --regions madrid --profiles abogacia enfermeria
 python benchmarks/run.py --sources linkedin infojobs indeed   # on a machine where they run
 ```
 
-Each profile searches its own titles, only in the region's area, on-site or
-hybrid, ads up to 30 days old, on EURES and the region's portals
-([docs/PORTALS.md](../docs/PORTALS.md)). The report
+Each profile searches as [docs/STARTER_CONFIGS.md](../docs/STARTER_CONFIGS.md)
+suggests — its titles, work modes and field — only in the region's area, ads
+up to 30 days old, on EURES, the Sistema Nacional de Empleo and Infoempleo's
+pages for its field in that province. The report
 (`reports/<date>-<regions>.md`, raw numbers in a `.json` next to it; the
 folder is git-ignored, reports are not committed) gives,
 per profile, how many offers were fetched and kept, how many of those match
