@@ -30,8 +30,9 @@ def rows(database: Database) -> list[dict]:
                 "status": application.status.value if application else "active",
                 "stage": (application.stage.value if application and application.stage else ""),
                 "applied_on": (application.applied_on.isoformat() if application and application.applied_on else ""),
-                "score_tailored": score.tailored if score else "",
-                "score_base": score.base if score else "",
+                # Blank, not 0, for an ad that could not be scored.
+                "score_tailored": score.tailored if score and score.scored else "",
+                "score_base": score.base if score and score.scored else "",
                 "company": job.company,
                 "title": job.title,
                 "location": job.location,

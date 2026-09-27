@@ -476,6 +476,13 @@ class MatchScore(BaseModel):
     strengths: list[str] = Field(default_factory=list)
     # Skill keys the tailored CV should promote into bullets or the summary.
     surfaced: list[str] = Field(default_factory=list)
+    # False when the ad names no requirement JobRadar recognises: then there is
+    # no match to report, which is not the same as a 0% match.
+    scored: bool = True
+
+    def label(self) -> str:
+        """"72%", or "—" for an ad that could not be scored."""
+        return f"{self.tailored:.0f}%" if self.scored else "—"
 
 
 class Application(BaseModel):

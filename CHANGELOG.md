@@ -6,6 +6,43 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+## 1.7.0 — 2026-09-27
+
+### Fixed
+
+- **Ads JobRadar cannot read no longer score 0%.** An ad naming no skill the
+  vocabulary knows (a Catalan ad, a field not covered yet) is "not scored":
+  shown as "—", placed mid-board with the reason, kept visible under the
+  match filter and included in the digest. A 0% buried good offers.
+- **EURES returned unrelated jobs.** Its search matches any word, so
+  "técnico de recursos humanos" also brought maintenance and lab
+  technicians. Only ads whose title matches the job searched are kept; ads
+  created before your age limit are skipped (EURES counts from the last
+  edit); and the result limit is shared between your job titles.
+- **CV import without a language model** now reads the usual Spanish layout
+  "Puesto — Empresa, Ciudad (03/2022 – actualidad)": month/year dates in
+  seven languages (03/2022, "marzo 2022", "sept. 2018", "Jan 2020",
+  "actualidad", "heute"…), the employer and the city apart, the university
+  after a degree containing "en", and skills without a trailing full stop.
+
+### Added
+
+- **Synonyms in job titles**, in Spanish, Catalan and English: "técnico de
+  recursos humanos" finds "Tècnic/a de RRHH" and "HR Business Partner";
+  "técnico de selección" finds "Recruiter"; "nóminas" finds "Payroll
+  Specialist"; "enfermera", "Registered Nurse".
+- **Catalan vocabulary**: HR, payroll, employment law, training and health
+  and safety terms, Catalan as a language, and Catalan job titles in the
+  job families (infermer, professor, comptable, advocat, cambrer…).
+- **HR demo**: `jobradar demo --profile hr`, an HR, recruitment and payroll
+  specialist in Madrid.
+- PORTALS.md: search the Sistema Nacional de Empleo with short titles.
+
+### Changed
+
+- Payroll ("nóminas", "administración de personal") is classified as Human
+  resources rather than Finance, as Spanish job ads use it.
+
 ## 1.6.0 — 2026-09-27
 
 ### Changed

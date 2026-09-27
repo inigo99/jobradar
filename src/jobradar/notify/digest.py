@@ -22,15 +22,17 @@ def build_digest(jobs: list[Job], scores: dict[str, MatchScore], limit: int = 15
     """Return ``(subject, body)`` for the new jobs worth telling the user about."""
     ranked = sorted(
         (job for job in jobs
-         if (score := scores.get(job.id)) is not None and score.tailored >= min_score),
-        key=lambda job: -scores[job.id].tailored,
+         # An ad that could not be scored is not a poor match: it is reported.
+         if (score := scores.get(job.id)) is not None
+         and (not score.scored or score.tailored >= min_score)),
+        key=lambda job: -(scores[job.id].tailored if scores[job.id].scored else min_score),
     )[:limit]
 
     subject = f"JobRadar: {len(ranked)} new job{'s' if len(ranked) != 1 else ''}"
     lines: list[str] = []
     for job in ranked:
         score = scores.get(job.id)
-        score_val = score.tailored if score else 0.0
+        shown = score.label() if score else "—"
         salary = ""
         job_salary = getattr(job, "salary", None)
 
@@ -43,7 +45,7 @@ def build_digest(jobs: list[Job], scores: dict[str, MatchScore], limit: int = 15
         alerts_text = f"\n        ⚠ {alerts[0]}" if alerts else ""
 
         lines.append(
-            f"{score_val:.0f}%  {job.company or 'unnamed'} — {job.title}\n"
+            f"{shown:>4}  {job.company or 'unnamed'} — {job.title}\n"
             f"        {job.location or 'unspecified'}{salary}\n"
             f"        {job.link}"
             f"{alerts_text}"

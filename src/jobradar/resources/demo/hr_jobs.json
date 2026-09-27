@@ -1,0 +1,119 @@
+[
+  {
+    "native_id": "h01",
+    "title": "Técnico/a de Recursos Humanos",
+    "company": "Logística Meseta S.L.",
+    "location": "Madrid",
+    "work_mode": "hybrid",
+    "posted_at": "2026-09-22",
+    "min_years_experience": 3,
+    "salary": {
+      "minimum": 30000,
+      "maximum": 36000,
+      "currency": "EUR",
+      "origin": "published",
+      "basis": "Publicado en la oferta."
+    },
+    "description": "Buscamos técnico/a de RRHH con al menos 3 años de experiencia en selección de personal y administración de personal. Gestión de nóminas con A3Nom, seguros sociales, contratos y convenio colectivo. Plan de acogida de nuevas incorporaciones. Excel avanzado. Modelo híbrido en Madrid.",
+    "source": "demo",
+    "url": "https://example.com/jobs/h01",
+    "language": "es",
+    "country": "ES"
+  },
+  {
+    "native_id": "h02",
+    "title": "Técnica/o de Nóminas",
+    "company": "Asesoría Laboral Retiro",
+    "location": "Madrid",
+    "work_mode": "onsite",
+    "posted_at": "2026-09-24",
+    "min_years_experience": 2,
+    "description": "Gestoría busca técnico/a de nóminas para una cartera de 40 empresas: confección de nóminas, seguros sociales en el Sistema RED, altas y bajas en la Seguridad Social, legislación laboral y convenios colectivos. Valorable A3Nom. Jornada completa presencial.",
+    "source": "demo",
+    "url": "https://example.com/jobs/h02",
+    "language": "es",
+    "country": "ES"
+  },
+  {
+    "native_id": "h03",
+    "title": "Tècnic/a de selecció",
+    "company": "Cooperativa Vallès",
+    "location": "Sant Cugat del Vallès",
+    "work_mode": "onsite",
+    "posted_at": "2026-09-23",
+    "min_years_experience": 2,
+    "description": "Busquem un/a tècnic/a de selecció per a l'equip de recursos humans: processos de selecció de principi a fi, entrevistes per competències i pla d'acollida. Català i castellà. Imprescindible experiència en selecció de personal.",
+    "source": "demo",
+    "url": "https://example.com/jobs/h03",
+    "language": "ca",
+    "country": "ES"
+  },
+  {
+    "native_id": "h04",
+    "title": "HR Business Partner Senior",
+    "company": "Iberia Retail Group",
+    "location": "Madrid",
+    "work_mode": "hybrid",
+    "posted_at": "2026-09-20",
+    "min_years_experience": 8,
+    "salary": {
+      "minimum": 50000,
+      "maximum": 60000,
+      "currency": "EUR",
+      "origin": "published",
+      "basis": "Publicado en la oferta."
+    },
+    "description": "Senior HR Business Partner with 8+ years of experience partnering with business leaders: talent acquisition strategy, compensation and benefits, employment law, learning and development plans. Fluent English required.",
+    "source": "demo",
+    "url": "https://example.com/jobs/h04",
+    "language": "en",
+    "country": "ES"
+  },
+  {
+    "native_id": "h05",
+    "title": "Técnico/a de Selección",
+    "company": "",
+    "location": "Madrid",
+    "work_mode": "onsite",
+    "posted_at": "2026-09-25",
+    "description": "Importante empresa del sector busca técnico/a de selección para procesos de reclutamiento de alto volumen. Entrevistas por competencias, cribado de candidatos y coordinación con los responsables de tienda. Incorporación inmediata.",
+    "source": "demo",
+    "url": "https://example.com/jobs/h05",
+    "language": "es",
+    "country": "ES"
+  },
+  {
+    "native_id": "h06",
+    "title": "HR Generalist",
+    "company": "Lisboa Tech Hub",
+    "location": "Lisbon",
+    "country": "PT",
+    "work_mode": "onsite",
+    "posted_at": "2026-09-21",
+    "min_years_experience": 3,
+    "salary": {
+      "minimum": 26000,
+      "maximum": 32000,
+      "currency": "EUR",
+      "origin": "published",
+      "basis": "Published in the ad."
+    },
+    "description": "HR Generalist for our Lisbon office: recruitment, onboarding, payroll administration with an external provider and employee relations. English required; Portuguese is a plus.",
+    "source": "demo",
+    "url": "https://example.com/jobs/h06",
+    "language": "en"
+  },
+  {
+    "native_id": "h07",
+    "title": "Responsable de Personas",
+    "company": "Hotel Costa Brava",
+    "location": "Girona",
+    "work_mode": "onsite",
+    "posted_at": "2026-09-19",
+    "description": "Busquem una persona per liderar l'equip i acompanyar les persones de l'hotel durant la temporada. Incorporació al maig.",
+    "source": "demo",
+    "url": "https://example.com/jobs/h07",
+    "language": "ca",
+    "country": "ES"
+  }
+]

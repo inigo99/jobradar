@@ -38,6 +38,12 @@ September 2026: 35 offers for "enfermera", each read with its full text):
 Sistema Nacional de Empleo (toda España) https://www.sistemanacionalempleo.es/OfertaDifusionWEB/busquedaOfertas.do?modo=continuar&palabraBusqueda={query}&botonNavegacion=Enviar
 ```
 
+Its search looks for the whole phrase, so short job titles find far more:
+"recursos humanos" finds 13 offers where "técnico de recursos humanos" finds
+one, and "nóminas" finds the payroll jobs. Put the short forms among your
+job titles (Settings → What to search) — JobRadar still matches the long ones
+against each offer's title, synonyms included.
+
 ### One region
 
 The Sistema Nacional de Empleo's search for a single autonomous community

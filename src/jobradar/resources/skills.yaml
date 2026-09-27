@@ -111,7 +111,7 @@ b2b_sales: {label: B2B sales, group: sales, aliases: ["b2b sales", "ventas b2b",
 customer_success: {label: Customer success, group: sales, aliases: ["customer success", "atencion al cliente", "customer support", "soporte al cliente"]}
 project_management: {label: Project management, group: process, aliases: ["project management", "gestion de proyectos", pmp, "jira", "planificacion"]}
 finance: {label: Finance / accounting, group: business, aliases: [accounting, contabilidad, "financial analysis", "analisis financiero", erp, sap]}
-hr: {label: HR / recruiting, group: business, aliases: ["human resources", "recursos humanos", "talent acquisition", "hr generalist", "hr business partner"]}
+hr: {label: HR / recruiting, group: business, aliases: ["human resources", "recursos humanos", "talent acquisition", "hr generalist", "hr business partner", "recursos humans", rrhh, "rr.hh", "rr hh", "people operations", "people and culture", "people & culture", "hr operations", "capital humà", "gestió de persones", "gestión de personas"]}
 legal: {label: Legal / compliance, group: business, aliases: [compliance, gdpr, rgpd, "legal", "normativa"]}
 supply_chain: {label: Supply chain / logistics, group: operations, aliases: ["supply chain", logistics, logistica, "cadena de suministro"]}
 teaching: {label: Teaching / training, group: business, aliases: [teaching, formacion, "training delivery", mentoring]}
@@ -122,13 +122,13 @@ excel: {label: Excel / spreadsheets, group: office, aliases: [excel, "microsoft 
 office_suite: {label: Office suite, group: office, aliases: ["microsoft office", "office 365", "microsoft 365", "paquete office", "microsoft word", "ms word", powerpoint, "microsoft outlook", "ms outlook", "google workspace"]}
 data_entry: {label: Data entry, group: office, aliases: ["data entry", "grabacion de datos", "grabación de datos", mecanografia, "typing"]}
 bookkeeping: {label: Bookkeeping, group: finance, aliases: [bookkeeping, "teneduria de libros", facturacion, facturación, invoicing, "accounts payable", "accounts receivable", "cuentas a pagar", "cuentas a cobrar"]}
-payroll: {label: Payroll, group: finance, aliases: [payroll, nominas, nóminas, "seguridad social", "social security contributions"]}
+payroll: {label: Payroll, group: finance, aliases: [payroll, nominas, nóminas, "seguridad social", "social security contributions", nòmines, "payroll processing", "payroll administration", "seguretat social"]}
 tax: {label: Tax, group: finance, aliases: [tax, fiscalidad, impuestos, "iva", "vat", "impuesto de sociedades", "irpf"]}
 auditing: {label: Auditing, group: finance, aliases: [audit, auditing, auditoria, auditoría]}
 accounting_software: {label: Accounting software, group: finance, aliases: [a3, a3con, sage, contaplus, quickbooks, xero, holded, "sap fi"]}
 contract_law: {label: Contract law, group: legal, aliases: ["contract law", contratos, "derecho mercantil", "commercial law", "contract drafting", "redaccion de contratos"]}
-employment_law: {label: Employment law, group: legal, aliases: ["employment law", "derecho laboral", "labour law", "relaciones laborales"]}
-recruitment: {label: Recruitment, group: hr, aliases: [recruitment, reclutamiento, "seleccion de personal", "selección de personal", headhunting, "entrevistas por competencias"]}
+employment_law: {label: Employment law, group: legal, aliases: ["employment law", "derecho laboral", "labour law", "relaciones laborales", "legislació laboral", "legislación laboral", "dret laboral", "relacions laborals", "employment legislation", "convenio colectivo", "conveni col·lectiu"]}
+recruitment: {label: Recruitment, group: hr, aliases: [recruitment, reclutamiento, "seleccion de personal", "selección de personal", headhunting, "entrevistas por competencias", "selecció de personal", "processos de selecció", "procesos de selección", reclutament, recruiting, recruiter, "adquisició de talent", "adquisición de talento", "talent acquisition", "candidate screening", "cribado de candidatos"]}
 
 # --- Healthcare and care ------------------------------------------------------
 patient_care: {label: Patient care, group: healthcare, aliases: ["patient care", "atencion al paciente", "atención al paciente", "cuidados de enfermeria", "cuidados de enfermería", "nursing care"]}
@@ -169,7 +169,7 @@ cnc_machining: {label: CNC machining, group: trades, aliases: [cnc, "control num
 maintenance: {label: Maintenance, group: trades, aliases: ["preventive maintenance", "mantenimiento preventivo", "mantenimiento correctivo", "industrial maintenance", "mantenimiento industrial"]}
 technical_drawing: {label: Technical drawing / CAD, group: trades, aliases: [autocad, "technical drawing", "dibujo tecnico", "dibujo técnico", solidworks, catia, "interpretacion de planos", "interpretación de planos", "blueprint reading"]}
 quality_control: {label: Quality control, group: operations, aliases: ["quality control", "control de calidad", "iso 9001", "quality assurance", "aseguramiento de la calidad", "lean manufacturing", "six sigma", "5s"]}
-health_safety: {label: Health and safety, group: operations, aliases: ["health and safety", "prevencion de riesgos laborales", "prevención de riesgos laborales", prl, "osha", "nebosh", "seguridad y salud"]}
+health_safety: {label: Health and safety, group: operations, aliases: ["health and safety", "prevencion de riesgos laborales", "prevención de riesgos laborales", prl, "osha", "nebosh", "seguridad y salud", "prevenció de riscos laborals"]}
 
 # --- Transferable skills ----------------------------------------------------
 leadership: {label: Leadership, group: soft, aliases: [leadership, liderazgo, "team lead", "managing a team", "gestion de equipos"]}
@@ -180,11 +180,12 @@ autonomy: {label: Autonomy, group: soft, aliases: [autonomy, autonomia, "self-st
 customer_focus: {label: Customer focus, group: soft, aliases: ["customer focused", "orientacion al cliente", "client facing"]}
 
 # --- Languages --------------------------------------------------------------
-english: {label: English, group: language, aliases: [english, ingles, inglés, "b2 english", "c1 english"]}
-spanish: {label: Spanish, group: language, aliases: [spanish, espanol, español, castellano]}
+english: {label: English, group: language, aliases: [english, ingles, inglés, "b2 english", "c1 english", anglès, angles]}
+spanish: {label: Spanish, group: language, aliases: [spanish, espanol, español, castellano, castellà]}
 french: {label: French, group: language, aliases: [french, frances, francés]}
 german: {label: German, group: language, aliases: [german, aleman, alemán, deutsch]}
 portuguese: {label: Portuguese, group: language, aliases: [portuguese, portugues, português]}
+catalan: {label: Catalan, group: language, aliases: [catalan, catalán, català, "valencià", "nivell c de català", "nivel c de catalán"]}
 
 # ---------------------------------------------------------------------------
 # Learning difficulty.
@@ -298,8 +299,8 @@ insurance: {label: Insurance, group: finance, aliases: ["insurance sector", "ins
 treasury: {label: Treasury, group: finance, aliases: [treasury, tesorería, "cash management", "gestión de cobros", "credit control"]}
 risk_management: {label: Risk management, group: finance, aliases: ["risk management", "gestión de riesgos", "análisis de riesgos", "credit risk", "riesgo de crédito"]}
 real_estate: {label: Real estate sales / letting, group: sales, aliases: ["real estate agent", "agente inmobiliario", "asesor inmobiliario", "estate agent", "letting agent", "gestión de alquileres"]}
-learning_development: {label: Learning and development, group: hr, aliases: ["learning and development", "formación interna", "planes de formación", "training needs analysis", "detección de necesidades formativas"]}
-onboarding: {label: Onboarding, group: hr, aliases: ["employee onboarding", "acogida de empleados", "incorporación de empleados", "plan de acogida"]}
+learning_development: {label: Learning and development, group: hr, aliases: ["learning and development", "formación interna", "planes de formación", "training needs analysis", "detección de necesidades formativas", "pla de formació", "plan de formación", "training plan", "formació interna"]}
+onboarding: {label: Onboarding, group: hr, aliases: ["employee onboarding", "acogida de empleados", "incorporación de empleados", "plan de acogida", onboarding, acollida, "pla d'acollida"]}
 
 # --- Logistics, transport and trade -------------------------------------------
 route_planning: {label: Route planning, group: logistics, aliases: ["route planning", "planificación de rutas", "gestión de rutas", "delivery routes"]}

@@ -55,22 +55,76 @@ _TITLE_NOISE = frozenset({"de", "del", "la", "el", "en", "y", "a", "o", "para", 
                           "the", "of", "and", "for", "in", "at", "to", "senior", "junior"})
 
 
+#: Ways the same job is named in Spanish, Catalan and English titles, compared
+#: after :func:`normalise`. A searched term containing one of them also
+#: matches titles that use another: "técnico de recursos humanos" finds
+#: "Tècnic/a de RRHH" and "HR Specialist". Grouped by meaning, not translated
+#: word for word; add a group when a field's titles need it.
+TITLE_SYNONYMS: tuple[tuple[str, ...], ...] = (
+    ("recursos humanos", "recursos humans", "rrhh", "rr hh", "human resources", "hr",
+     "people operations", "people partner"),
+    ("seleccion", "seleccio", "reclutamiento", "recruitment", "recruiter", "recruiting",
+     "talent acquisition"),
+    ("nominas", "nomines", "payroll"),
+    ("responsable", "jefe", "manager", "head of"),
+    ("administrativo", "administrativa", "administratiu", "administrative", "office assistant"),
+    ("enfermero", "enfermera", "infermer", "infermera", "nurse"),
+    ("profesor", "profesora", "professor", "docente", "teacher"),
+    ("abogado", "abogada", "advocat", "lawyer", "solicitor"),
+    ("contable", "comptable", "accountant", "bookkeeper"),
+    ("camarero", "camarera", "cambrer", "waiter", "waitress"),
+    ("cocinero", "cocinera", "cuiner", "cook", "chef"),
+    ("conductor", "conductora", "xofer", "driver"),
+    ("desarrollador", "programador", "developer", "programmer"),
+    ("comercial", "sales representative", "account executive"),
+)
+
+
+#: Words that say what level of job it is, not which job: "técnico de
+#: selección" is a "Recruiter" too. Dropped when the term has other words.
+_GENERIC_ROLE = frozenset({"tecnico", "tecnica", "tecnic", "tecnicos", "specialist",
+                           "technician", "especialista", "generalist", "officer"})
+
+
+def _variants(term: str) -> list[str]:
+    """``term`` and the same term with every combination of synonyms."""
+    variants = [f" {normalise(term)} "]
+    for group in TITLE_SYNONYMS:
+        expanded = []
+        for variant in variants:
+            expanded.append(variant)
+            phrase = next((p for p in group if f" {p} " in variant), None)
+            if phrase is not None:
+                expanded += [variant.replace(f" {phrase} ", f" {other} ") for other in group
+                             if other != phrase]
+        variants = expanded[:200]  # a term names a handful of groups, not dozens
+    return variants
+
+
+def _stems(variant: str) -> list[str]:
+    words = [w for w in variant.split() if w not in _TITLE_NOISE]
+    specific = [w for w in words if w not in _GENERIC_ROLE]
+    return [w[:5] for w in (specific or words)]
+
+
 def title_matches(title: str, terms: list[str]) -> bool:
     """Whether ``title`` looks like one of the searched ``terms``.
 
     For boards that return everything and leave the matching to us. Every
     significant word of a term must start a word of the title, compared on
     its first five letters, so gendered and plural forms still match:
-    "enfermera" finds "Enfermero/a", "camarero" finds "Camarero-a". No terms
-    means no filter.
+    "enfermera" finds "Enfermero/a", "camarero" finds "Camarero-a"; and the
+    names in :data:`TITLE_SYNONYMS` stand for each other, so "recursos
+    humanos" finds "RRHH" and "HR". No terms means no filter.
     """
     if not terms:
         return True
     words = normalise(title).split()
     for term in terms:
-        wanted = [w[:5] for w in normalise(term).split() if w not in _TITLE_NOISE]
-        if wanted and all(any(word.startswith(stem) for word in words) for stem in wanted):
-            return True
+        for variant in _variants(term):
+            wanted = _stems(variant)
+            if wanted and all(any(word.startswith(stem) for word in words) for stem in wanted):
+                return True
     return False
 
 

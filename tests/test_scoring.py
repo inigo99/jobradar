@@ -39,8 +39,25 @@ def test_tailored_score_beats_base_but_gaps_remain():
     assert "docker" in score.surfaced and "kubernetes" not in score.surfaced
 
 
-def test_job_without_requirements_scores_zero_rather_than_raising():
-    assert score_job(make_job(requirements=[]), build_profile()) == MatchScore()
+def test_job_without_requirements_is_not_scored_rather_than_zero():
+    score = score_job(make_job(requirements=[]), build_profile())
+    assert score == MatchScore(scored=False) and score.label() == "—"
+
+
+def test_an_unscored_ad_sits_mid_board_not_at_the_bottom():
+    from jobradar.pipeline.focus import UNSCORED_BASE, focus_for
+
+    focus, reason = focus_for(make_job(requirements=[]), MatchScore(scored=False))
+    assert focus >= UNSCORED_BASE * 0.25 and "not scored" in reason
+    assert focus_for(make_job(requirements=[]), MatchScore())[0] == 0  # a real 0% stays 0
+
+
+def test_the_digest_reports_unscored_ads_instead_of_dropping_them():
+    from jobradar.notify.digest import build_digest
+
+    job = make_job(requirements=[])
+    _subject, body = build_digest([job], {job.id: MatchScore(scored=False)}, min_score=60)
+    assert job.title in body and "—" in body
 
 
 def test_scoring_survives_null_evidence():
