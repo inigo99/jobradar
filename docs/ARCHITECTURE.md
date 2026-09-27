@@ -140,6 +140,7 @@ taxonomy every time the profile is loaded or saved
 | You want to | Change |
 |---|---|
 | Add a job board | One file in `sources/`, one line in `sources/__init__.py`. See [SOURCES.md](SOURCES.md) |
+| Read a board without writing an adapter | Nothing: users list it under Settings → Job portals you use (`sources/portals.py` reads feeds, JobPosting markup and matching links) |
 | Add a filter rule | A `_check_*` function in `pipeline/filters.py`, added to the tuple in `apply_filters`. Rejections are stored, so give yours a reason a person can argue with |
 | Change the triage order | `pipeline/focus.py`. It is computed at display time and stored nowhere, so it can never go stale |
 | Say how hard a skill is to pick up | The `_learning_difficulty` block in `resources/skills.yaml` |

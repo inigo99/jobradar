@@ -1,0 +1,291 @@
+"""EURES, the Navarre employment service and "your portals": what is asked and
+how the answers are read. A stub stands in for ``Fetcher``; nothing touches
+the network."""
+
+from __future__ import annotations
+
+from typing import Any, cast
+
+from jobradar.config import Settings
+from jobradar.sources import BY_ID, build_sources
+from jobradar.sources.base import SearchQuery
+from jobradar.sources.eures import SEARCH, EuresSource, publication_period
+from jobradar.sources.navarra import (
+    LISTING,
+    SEARCH_BOX,
+    NavarraSource,
+    hidden_fields,
+    in_navarre,
+    minimum_years,
+)
+from jobradar.sources.portals import PortalsSource, feed_items, job_postings
+from jobradar.textutils import title_matches
+
+
+class StubFetcher:
+    """Answers by URL prefix and records every call."""
+
+    def __init__(self, pages: dict[str, Any] | None = None, posts: dict[str, Any] | None = None):
+        self.pages = pages or {}
+        self.posts = posts or {}
+        self.calls: list[tuple[str, str, Any]] = []
+        self.problems: list[str] = []
+
+    def _answer(self, table: dict[str, Any], url: str) -> Any:
+        for prefix, body in table.items():
+            if url.startswith(prefix):
+                return body
+        return None
+
+    def get(self, url, **kwargs):
+        self.calls.append(("GET", url, kwargs.get("params")))
+        return self._answer(self.pages, url)
+
+    def post_json(self, url, payload, headers=None):
+        self.calls.append(("POST", url, payload))
+        return self._answer(self.posts, url)
+
+    def post_form(self, url, data, headers=None):
+        self.calls.append(("FORM", url, data))
+        answer = self._answer(self.posts, url)
+        return answer(data) if callable(answer) else answer
+
+    def _report_once(self, key, message):
+        self.problems.append(message)
+
+
+def test_title_matching_survives_gender_and_accents():
+    assert title_matches("Enfermero/a UCI", ["enfermera"])
+    assert title_matches("Profesor/a de inglés para academia", ["profesor de ingles"])
+    assert not title_matches("Técnico/a de turismo", ["enfermera"])
+    assert title_matches("Anything at all", [])
+
+
+def test_new_sources_are_registered_as_open():
+    for source_id in ("eures", "navarra", "portals"):
+        assert BY_ID[source_id].tos_tier == "open"
+
+
+# ---------------------------------------------------------------------------
+# EURES
+# ---------------------------------------------------------------------------
+
+EURES_ANSWER = {
+    "numberRecords": 2,
+    "jvs": [
+        {
+            "id": "MTAwMDEtMTAwMTEzOTMxMS1TIDE",
+            "title": "Nurse (machine translation)",
+            "description": "<p>translated</p>",
+            "creationDate": 1790400000000,
+            "locationMap": {"ES": ["ES220"]},
+            "employer": {"name": "Hospital Universitario de Navarra"},
+            "availableLanguages": ["es"],
+            "translations": {"es": {"title": "Enfermero/a de urgencias",
+                                    "description": "<p>Se busca enfermero/a. Salario 32.000 € brutos anuales.</p>"}},
+            "positionScheduleCodes": ["fulltime"],
+        },
+        {"title": "no id, skipped"},
+    ],
+}
+
+
+def test_eures_asks_by_country_age_and_language():
+    fetcher = StubFetcher(posts={SEARCH: EURES_ANSWER})
+    jobs = EuresSource(cast(Any, fetcher)).search(
+        SearchQuery(titles=["enfermera"], countries=["ES", "GR"], max_age_days=7,
+                    languages=["es", "en"]))
+    _, url, payload = fetcher.calls[0]
+    assert url == SEARCH
+    assert payload["locationCodes"] == ["es", "el"]  # Greece is "el" in NUTS
+    assert payload["publicationPeriod"] == "LAST_WEEK"
+    assert payload["requestLanguage"] == "es"
+    assert payload["keywords"] == [{"keyword": "enfermera", "specificSearchCode": "EVERYWHERE"}]
+    assert len(jobs) == 1
+
+
+def test_eures_reads_the_ad_in_its_own_language():
+    fetcher = StubFetcher(posts={SEARCH: EURES_ANSWER})
+    job = EuresSource(cast(Any, fetcher)).search(SearchQuery(titles=["nurse"], countries=["ES"]))[0]
+    assert job.title == "Enfermero/a de urgencias"
+    assert "Se busca enfermero/a." in job.description and "<p>" not in job.description
+    assert job.company == "Hospital Universitario de Navarra"
+    assert job.country == "ES" and job.language == "es"
+    assert job.url.startswith("https://europa.eu/eures/portal/jv-se/jv-details/MTAw")
+    assert job.posted_at is not None and job.posted_at.year == 2026
+
+
+def test_eures_skips_countries_it_does_not_cover():
+    fetcher = StubFetcher(posts={SEARCH: EURES_ANSWER})
+    assert EuresSource(cast(Any, fetcher)).search(SearchQuery(titles=["x"], countries=["US"])) == []
+    assert fetcher.calls == []
+
+
+def test_publication_period_never_narrower_than_the_filter():
+    assert publication_period(1) == "LAST_DAY"
+    assert publication_period(5) == "LAST_WEEK"
+    assert publication_period(20) == "LAST_MONTH"
+    assert publication_period(90) is None
+
+
+# ---------------------------------------------------------------------------
+# Navarra
+# ---------------------------------------------------------------------------
+
+def _offer(offer_id: str, title: str, place: str) -> str:
+    return f'''
+        <div class="miniresumen2">
+            <div class="clearfix"><span>15/2026/00{offer_id}</span></div>
+            <a id="x" href="https://administracionelectronica.navarra.es/EmpleoIntermediacion/empleo/{offer_id}"><h2 style="font-size:18px;">{title}</h2></a>
+            <span><span class="material-icons">home</span><span class="iconicos">{place}</span>
+            <span class="material-icons">groups</span><span class="iconicos"> 1</span>
+            <span class="material-icons">date_range</span><span class="iconicos">  25/09/2026 - 09/10/2026</span></span>
+        </div>'''
+
+
+LISTING_PAGE = (
+    '<form><input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="abc&amp;def" />'
+    '<input type="hidden" name="__EVENTVALIDATION" id="__EVENTVALIDATION" value="ev" />'
+    + _offer("18966", "Camarero-a", "Santesteban")
+    + _offer("18980", "Técnico/a de turismo", "Estella-Lizarra")
+    + "</form>"
+)
+SEARCH_PAGE = _offer("18501", "Enfermero/a residencia", "Pamplona")
+AD_PAGE = '''
+    <span id="MainContent_lTitulo">Camarero-a</span>
+    <span id="MainContent_Descripcion">- Atención al cliente<br><br> - Servicio de mesas</span>
+    <span id="MainContent_lexpminima">1 a 3 años de experiencia</span>
+    <span id="MainContent_LIdiomas">Euskera y castellano</span>
+    <span id="MainContent_Jlaboral">Parcial</span>
+    <span id="MainContent_lSalario">Convenio Hostelería de Navarra</span>
+'''
+
+
+def _navarra(query: SearchQuery) -> tuple[list, StubFetcher]:
+    fetcher = StubFetcher(pages={LISTING: LISTING_PAGE,
+                                 "https://administracionelectronica.navarra.es/EmpleoIntermediacion/empleo/": AD_PAGE},
+                          posts={LISTING: SEARCH_PAGE})
+    return NavarraSource(cast(Any, fetcher)).search(query), fetcher
+
+
+def test_navarra_runs_only_for_an_area_in_navarre():
+    assert in_navarre(["Iruña/Pamplona"]) and in_navarre(["Tudela"]) and not in_navarre(["Bilbao"])
+    jobs, fetcher = _navarra(SearchQuery(titles=["camarero"], countries=["ES"], local_areas=["Bilbao"]))
+    assert jobs == [] and fetcher.calls == []
+
+
+def test_navarra_keeps_matching_new_offers_and_uses_the_portal_search():
+    jobs, fetcher = _navarra(SearchQuery(titles=["camarero", "enfermera"], countries=["ES"],
+                                         local_areas=["Pamplona"]))
+    titles = {job.title for job in jobs}
+    assert titles == {"Camarero-a", "Enfermero/a residencia"}  # turismo does not match
+    form = next(data for kind, _, data in fetcher.calls if kind == "FORM")
+    assert form["__VIEWSTATE"] == "abc&def" and form["__EVENTVALIDATION"] == "ev"
+    assert form[SEARCH_BOX] in ("camarero", "enfermera")
+    waiter = next(job for job in jobs if job.title == "Camarero-a")
+    assert waiter.location == "Santesteban, Navarra" and waiter.country == "ES"
+    assert str(waiter.posted_at) == "2026-09-25"
+
+
+def test_navarra_reads_the_ad_page_and_the_experience_floor():
+    jobs, _ = _navarra(SearchQuery(titles=["camarero"], countries=["ES"], local_areas=["Pamplona"]))
+    waiter = next(job for job in jobs if job.title == "Camarero-a")
+    fetcher = StubFetcher(pages={"https://administracionelectronica.navarra.es/EmpleoIntermediacion/empleo/": AD_PAGE})
+    text = NavarraSource(cast(Any, fetcher)).fetch_description(waiter)
+    assert "Atención al cliente" in text and "Idiomas: Euskera y castellano" in text
+    assert "Salario: Convenio Hostelería de Navarra" in text
+    assert waiter.min_years_experience == 1  # "1 a 3 años": the floor, not 3
+    assert minimum_years("Sin experiencia") == 0
+
+
+def test_hidden_fields_are_read_whatever_the_attribute_order():
+    page = '<input value="x" name="__VIEWSTATE" type="hidden"/><input type="text" name="q" value="n"/>'
+    assert hidden_fields(page) == {"__VIEWSTATE": "x"}
+
+
+# ---------------------------------------------------------------------------
+# Your portals
+# ---------------------------------------------------------------------------
+
+FEED = '''<?xml version="1.0"?><rss><channel>
+  <item><title>Enfermero/a quirófano</title><link>https://board.example/o/1</link>
+        <description><![CDATA[<p>Hospital en Pamplona</p>]]></description>
+        <pubDate>Fri, 25 Sep 2026 10:00:00 +0000</pubDate></item>
+  <item><title>Contable</title><link>https://board.example/o/2</link></item>
+</channel></rss>'''
+
+JSON_LD_PAGE = '''<html><head><script type="application/ld+json">
+{"@context": "https://schema.org", "@graph": [{"@type": "JobPosting",
+  "title": "Enfermera de UCI", "url": "/ofertas/77",
+  "hiringOrganization": {"@type": "Organization", "name": "Clínica San Miguel"},
+  "jobLocation": {"@type": "Place", "address": {"addressLocality": "Pamplona",
+                  "addressRegion": "Navarra", "addressCountry": "ES"}},
+  "datePosted": "2026-09-20", "description": "<p>Turnos rotativos.</p>"},
+  {"@type": "JobPosting", "title": "Soldador", "url": "/ofertas/78"}]}
+</script></head><body></body></html>'''
+
+LINKS_PAGE = '''<html><body><nav><a href="/">Inicio</a><a href="/empresas">Empresas</a></nav>
+  <ul><li><a href="/oferta/5">Enfermero/a de residencia</a></li>
+      <li><a href="/oferta/6">Mozo/a de almacén</a></li></ul></body></html>'''
+
+
+def _portals(portals: list[str], pages: dict[str, str], titles: list[str]) -> tuple[list, StubFetcher]:
+    fetcher = StubFetcher(pages=pages)
+    source = PortalsSource(cast(Any, fetcher), {"portals": portals})
+    return source.search(SearchQuery(titles=titles, countries=["ES"])), fetcher
+
+
+def test_a_feed_gives_its_matching_items():
+    assert feed_items("<html></html>") is None
+    jobs, _ = _portals(["https://board.example/rss"], {"https://board.example/rss": FEED}, ["enfermera"])
+    assert [job.title for job in jobs] == ["Enfermero/a quirófano"]
+    assert jobs[0].url == "https://board.example/o/1" and "Hospital en Pamplona" in jobs[0].description
+    assert jobs[0].company == "board.example"
+
+
+def test_jobposting_markup_gives_complete_offers():
+    assert len(job_postings(JSON_LD_PAGE)) == 2
+    jobs, _ = _portals(["https://clinic.example/empleo"],
+                       {"https://clinic.example/empleo": JSON_LD_PAGE}, ["enfermera"])
+    assert len(jobs) == 1
+    job = jobs[0]
+    assert job.title == "Enfermera de UCI" and job.company == "Clínica San Miguel"
+    assert job.location == "Pamplona, Navarra" and job.country == "ES"
+    assert job.url == "https://clinic.example/ofertas/77"
+    assert str(job.posted_at) == "2026-09-20" and job.description == "Turnos rotativos."
+
+
+def test_without_markup_the_links_matching_your_titles_are_used():
+    jobs, _ = _portals(["https://jobs.example/lista"], {"https://jobs.example/lista": LINKS_PAGE},
+                       ["enfermera"])
+    assert [(job.title, job.url) for job in jobs] == [
+        ("Enfermero/a de residencia", "https://jobs.example/oferta/5")]
+
+
+def test_a_search_address_is_filled_in_once_per_term():
+    pages = {"https://jobs.example/buscar?q=": LINKS_PAGE}
+    _, fetcher = _portals(["https://jobs.example/buscar?q={query}"], pages,
+                          ["enfermera", "mozo almacen"])
+    asked = [url for kind, url, _ in fetcher.calls if kind == "GET"]
+    assert asked == ["https://jobs.example/buscar?q=enfermera",
+                     "https://jobs.example/buscar?q=mozo+almacen"]
+
+
+def test_an_unreadable_portal_is_reported_not_silent():
+    jobs, fetcher = _portals(["https://down.example/"], {}, ["enfermera"])
+    assert jobs == [] and fetcher.problems and "down.example" in fetcher.problems[0]
+    _, fetcher = _portals(["https://empty.example/"], {"https://empty.example/": "<html></html>"},
+                          ["enfermera"])
+    assert "Nothing recognisable" in fetcher.problems[0]
+
+
+def test_portals_only_run_when_some_are_listed(tmp_path):
+    settings = Settings()
+    sources, fetcher = build_sources(settings, tmp_path)
+    assert "portals" not in {s.id for s in sources}
+    fetcher.close()
+    settings.sources.portals = ["https://jobs.example/rss"]
+    sources, fetcher = build_sources(settings, tmp_path)
+    portals = next(s for s in sources if s.id == "portals")
+    assert portals.options["portals"] == ["https://jobs.example/rss"]
+    fetcher.close()

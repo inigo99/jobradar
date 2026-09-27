@@ -19,13 +19,16 @@ from .arbeitnow import ArbeitnowSource
 from .arbeitsagentur import ArbeitsagenturSource
 from .ats import CompanyBoardsSource
 from .base import Fetcher, JobSource, SearchQuery
+from .eures import EuresSource
 from .himalayas import HimalayasSource
 from .jooble import JoobleSource
 from .manfred import ManfredSource
+from .navarra import NavarraSource
 from .optional.indeed import IndeedSource
 from .optional.infojobs import InfoJobsSource
 from .optional.linkedin import LinkedInGuestSource
 from .optional.tecnoempleo import TecnoempleoSource
+from .portals import PortalsSource
 from .remoteok import RemoteOKSource
 from .weworkremotely import WeWorkRemotelySource
 
@@ -40,7 +43,10 @@ REGISTRY: tuple[type[JobSource], ...] = (
     ArbeitnowSource,
     ManfredSource,
     ArbeitsagenturSource,
+    EuresSource,
+    NavarraSource,
     CompanyBoardsSource,
+    PortalsSource,
     # tos_tier == "credentials": on as soon as the user supplies a free key.
     AdzunaSource,
     JoobleSource,
@@ -129,6 +135,10 @@ def build_sources(settings: Settings, cache_dir: Path | None = None,
         if cls is CompanyBoardsSource:
             options["company_domains"] = settings.sources.company_domains
             if not options["company_domains"]:
+                continue
+        if cls is PortalsSource:
+            options["portals"] = settings.sources.portals
+            if not options["portals"]:
                 continue
         instance = cls(fetcher, options)
         if cls.required_env and not instance.credentials_present():

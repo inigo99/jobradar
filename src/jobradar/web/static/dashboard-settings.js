@@ -117,6 +117,11 @@ function settingsBody() {
       ),
       el("label", {}, t("Companies to watch")),
       el("textarea", { id: "s_domains", value: settings.sources.company_domains.join("\n") }),
+      el("label", {}, t("Job portals you use")),
+      el("textarea", { id: "s_portals", value: (settings.sources.portals || []).join("\n"),
+                       placeholder: "https://example.org/jobs?q={query}" }),
+      el("p", { className: "hint" },
+        t("One address per line: a search page with {query} where the search words go, an RSS feed, or a page that lists offers. JobRadar reads the offers the page marks up for search engines, the feed's items, or the links whose text matches your job titles.")),
       el("div", { className: "two" },
         el("div", {}, el("label", {}, t("Seconds between requests")),
           el("input", { id: "s_delay", type: "number", step: "0.5", value: settings.sources.request_delay })),
@@ -442,6 +447,8 @@ async function saveSettings() {
   settings.sources.enabled = [...document.querySelectorAll(".s_source:checked")].map(n => n.value);
   settings.sources.disabled = [...document.querySelectorAll(".s_source:not(:checked)")].map(n => n.value);
   settings.sources.company_domains = list("s_domains");
+  // One per line only: an address can contain commas.
+  settings.sources.portals = value("s_portals").split("\n").map(s => s.trim()).filter(Boolean);
   settings.sources.weekly = [...document.querySelectorAll(".s_weekly:checked")].map(n => n.value);
   settings.sources.weekly_day = Number(value("s_weeklyday") || 0);
   settings.families = collectFamilies();

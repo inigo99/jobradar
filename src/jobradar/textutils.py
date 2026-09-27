@@ -53,6 +53,30 @@ def normalise(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", stripped.lower()).strip()
 
 
+#: Words too common in job titles to say anything about which job it is.
+_TITLE_NOISE = frozenset({"de", "del", "la", "el", "en", "y", "a", "o", "para", "con", "por",
+                          "the", "of", "and", "for", "in", "at", "to", "senior", "junior"})
+
+
+def title_matches(title: str, terms: list[str]) -> bool:
+    """Whether ``title`` looks like one of the searched ``terms``.
+
+    For boards that return everything and leave the matching to us. Every
+    significant word of a term must start a word of the title, compared on
+    its first five letters, so gendered and plural forms still match:
+    "enfermera" finds "Enfermero/a", "camarero" finds "Camarero-a". No terms
+    means no filter.
+    """
+    if not terms:
+        return True
+    words = normalise(title).split()
+    for term in terms:
+        wanted = [w[:5] for w in normalise(term).split() if w not in _TITLE_NOISE]
+        if wanted and all(any(word.startswith(stem) for word in words) for stem in wanted):
+            return True
+    return False
+
+
 #: Phrases that mean the real employer is hidden behind an intermediary.
 AGENCY_MARKERS = (
     "our client", "nuestro cliente", "cliente final", "on behalf of our client",

@@ -384,6 +384,30 @@ class Fetcher:
         except (httpx.HTTPError, json.JSONDecodeError):
             return None
 
+    def post_form(self, url: str, data: dict[str, str], *,
+                  headers: dict | None = None) -> str | None:
+        """POST an HTML form and return the page, or None.
+
+        For boards whose search or paging only works through a form post
+        (ASP.NET WebForms pages, for instance). The client keeps cookies, so a
+        GET of the page first and then this POST behave like one visitor.
+        ``robots.txt`` and the throttle apply as for :meth:`get`; nothing is
+        cached, since the same form can answer differently each time.
+        """
+        if not self._allowed(url):
+            log.warning("robots.txt disallows %s — skipping", url)
+            return None
+        self._throttle(url)
+        try:
+            response = self._client.post(url, data=data, headers=headers)
+        except httpx.HTTPError as exc:
+            log.debug("POST %s failed: %s", url, exc)
+            return None
+        if response.status_code >= 400:
+            log.debug("%s returned HTTP %s", url, response.status_code)
+            return None
+        return response.text
+
     def head_status(self, url: str) -> int | None:
         """Status code of ``url``, used by the closed-ad sweep."""
         self._throttle(url)

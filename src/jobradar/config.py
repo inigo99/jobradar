@@ -209,13 +209,17 @@ class SourceSettings(BaseModel):
     #: Extra company domains or ATS board slugs to crawl, e.g.
     #: ``["stripe.com", "greenhouse:airbnb", "lever:netflix"]``.
     company_domains: list[str] = Field(default_factory=list)
+    #: Job boards the user reads, one address each: a search page with
+    #: ``{query}`` where the search words go, a feed, or a page of offers.
+    #: Read by ``sources/portals.py``.
+    portals: list[str] = Field(default_factory=list)
     #: Seconds between two requests to the same host.
     request_delay: float = 1.0
     #: How many results to pull per source per run.
     max_results_per_source: int = 100
     timeout: float = 20.0
     user_agent: str = (
-        "JobRadar/1.0 (+https://github.com/your-username/jobradar) "
+        "JobRadar/1.0 (+https://github.com/inigo99/jobradar) "
         "personal job-search assistant"
     )
     #: Honour ``robots.txt`` before fetching a listing page. Leave this on.
