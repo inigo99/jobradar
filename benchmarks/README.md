@@ -34,7 +34,8 @@ python benchmarks/run.py --sources linkedin infojobs indeed   # on a machine whe
 Each profile searches its own titles, only in the region's area, on-site or
 hybrid, ads up to 30 days old, on EURES and the region's portals
 ([docs/PORTALS.md](../docs/PORTALS.md)). The report
-(`reports/<date>-<regions>.md`, raw numbers in a `.json` next to it) gives,
+(`reports/<date>-<regions>.md`, raw numbers in a `.json` next to it; the
+folder is git-ignored, reports are not committed) gives,
 per profile, how many offers were fetched and kept, how many of those match
 the profession by title and by family, the median score and the main reason
 the rest were dropped.
