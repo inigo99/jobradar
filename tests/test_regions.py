@@ -71,6 +71,9 @@ def test_the_place_an_ad_states_is_read_from_its_label():
     assert place_in(text) == ("Araba/Álava, País Vasco, Spain", "ES")
     assert place_in("Location: Pamplona, Spain") == ("Navarra, Spain", "ES")
     assert place_in("Despacho de Pamplona busca abogado en Madrid") is None  # no label
+    # Official lists put the article last, and some regions are not one province.
+    assert place_in("Provincia: RIOJA (LA) Descripción")[0] == "La Rioja, Spain"
+    assert place_in("Provincia: BALEARS (ILLES) Descripción")[0] == "Illes Balears, Spain"
 
     job = make_job(location="", country="", description="Provincia: NAVARRA. Recepcionista.")
     derive_fields(job)

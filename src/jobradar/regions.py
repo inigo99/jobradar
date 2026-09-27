@@ -122,24 +122,34 @@ _PLACE_LABEL = re.compile(
     re.I)
 
 
+#: "RIOJA (LA)", "PALMAS (LAS)", "BALEARS (ILLES)": how official lists sort a
+#: name by its first real word. Put back in reading order before matching.
+_TRAILING_ARTICLE = re.compile(r"([^\s()][^()]*?)\s*\((la|las|los|el|a|as|o|os|illes|les)\)", re.I)
+
+
 def place_in(text: str) -> tuple[str, str] | None:
     """``(location, country)`` from the place an ad states, when it names a
-    province or town this module knows; ``None`` otherwise.
+    province, a town or a region this module knows; ``None`` otherwise.
 
     Only the words right after a label are read: a Pamplona firm's ad for a job
     in Madrid mentions both, and the label says which one is the job.
     """
+    from .config import country_info  # local import: config imports this
+
     for label in _PLACE_LABEL.finditer(text or ""):
-        window = f" {normalise(label.group(1))} "
-        best: tuple[int, Province] | None = None
+        stated = _TRAILING_ARTICLE.sub(r"\2 \1", label.group(1))
+        window = f" {normalise(stated)} "
+        best: tuple[int, str, str] | None = None  # (position, location, country)
         for item in _provinces().values():
+            country = country_info(item.country).get("name", "")
             for name in (item.name, *item.name.split("/"), *item.places):
                 at = window.find(f" {normalise(name)} ")
                 if at >= 0 and (best is None or at < best[0]):
-                    best = (at, item)
+                    best = (at, location_for(item.code, country), item.country)
+            # A region that is not one province ("Illes Balears", "Canarias").
+            at = window.find(f" {normalise(item.region_name)} ") if item.region_name else -1
+            if at >= 0 and (best is None or at < best[0]):
+                best = (at, f"{item.region_name}, {country}", item.country)
         if best:
-            from .config import country_info  # local import: config imports this
-
-            item = best[1]
-            return location_for(item.code, country_info(item.country).get("name", "")), item.country
+            return best[1], best[2]
     return None

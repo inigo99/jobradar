@@ -217,7 +217,9 @@ class PortalsSource(JobSource):
     def _job(self, link: str, **fields: Any) -> Job:
         link = canonical(link)
         native = hashlib.sha1(link.encode()).hexdigest()[:16]
-        fields.setdefault("company", urlparse(link).netloc.removeprefix("www."))
+        if not fields.get("company"):
+            fields["company"] = urlparse(link).netloc.removeprefix("www.")
+            fields.setdefault("raw", {})["company_is_site"] = True
         return self.make_job(native, url=link, **fields)
 
     def _from_item(self, item: dict[str, str], page: str, terms: list[str]) -> Job | None:

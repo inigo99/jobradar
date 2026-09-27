@@ -60,7 +60,7 @@ healthcare:
   label: Healthcare
   keywords: [nurse, enfermer*, infermer*, doctor, médico*, physician, physiotherapist, fisioterapeuta,
              pharmacist, farmacéutic*, "care assistant", "auxiliar de enfermería", "tcae",
-             "técnico de laboratorio", "lab technician", dentist, dentista, "higienista",
+             "laboratorio clínico", "clinical laboratory", dentist, dentista, "higienista",
              psychologist, psicólog*, midwife, matron*, radiographer, "técnico de radiología",
              paramedic, "técnico en emergencias", "occupational therapist", "terapeuta ocupacional",
              optometrist, óptico*, veterinar*, "clinical", clínic*, hospital, "healthcare assistant"]

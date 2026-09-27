@@ -107,9 +107,20 @@ def title_tokens(title: str) -> set[str]:
     return useful or set(words)
 
 
+def employer(job: Job) -> str:
+    """Who is hiring, as far as telling vacancies apart goes.
+
+    A portal page names no employer, so its jobs carry the site's name as
+    their company ("sistemanacionalempleo.es"). That name is shared by every
+    offer on the site: taken as an employer, two "Enfermero/a" ads in two
+    provinces would be one job.
+    """
+    return "" if job.raw.get("company_is_site") else job.company or ""
+
+
 def job_key(job: Job) -> str:
     """Company + title, normalised. Two jobs with the same key are one job."""
-    return f"{company_key(job.company)}|{' '.join(sorted(title_tokens(job.title)))}"
+    return f"{company_key(employer(job))}|{' '.join(sorted(title_tokens(job.title)))}"
 
 
 def _url(job: Job) -> str:
@@ -134,9 +145,9 @@ def _informativeness(job: Job) -> tuple[int, int, int, int]:
 
 
 def _same_job(left: Job, right: Job) -> bool:
-    if not left.company or not right.company:
+    if not employer(left) or not employer(right):
         return False
-    if company_key(left.company) != company_key(right.company):
+    if company_key(employer(left)) != company_key(employer(right)):
         return False
     left_tokens, right_tokens = title_tokens(left.title), title_tokens(right.title)
     if not left_tokens or not right_tokens:
@@ -190,7 +201,7 @@ def deduplicate(jobs: list[Job]) -> list[Job]:
         # With no employer, or no title to tell it apart, the key says nothing
         # about which vacancy this is: two anonymous "Engineer" ads from two
         # agencies are not one job. Only the id and the URL can merge them.
-        if not job.company or not title_tokens(job.title):
+        if not employer(job) or not title_tokens(job.title):
             by_key[f"id:{job.id}"] = job
             continue
         key = job_key(job)
@@ -225,8 +236,9 @@ def split_known(jobs: list[Job], known: Iterable[Job]) -> tuple[list[Job], list[
         url = _url(job)
         if url:
             by_url.setdefault(url, job)
-        by_key.setdefault(job_key(job), job)
-        by_company.setdefault(company_key(job.company), []).append(job)
+        if employer(job):
+            by_key.setdefault(job_key(job), job)
+            by_company.setdefault(company_key(employer(job)), []).append(job)
 
     fresh: list[Job] = []
     duplicates: list[tuple[Job, Job]] = []
@@ -237,10 +249,10 @@ def split_known(jobs: list[Job], known: Iterable[Job]) -> tuple[list[Job], list[
             continue
         url = _url(job)
         twin = by_url.get(url) if url else None
-        twin = twin or by_key.get(job_key(job))
-        if twin is None and job.company:
+        twin = twin or (by_key.get(job_key(job)) if employer(job) else None)
+        if twin is None and employer(job):
             twin = next(
-                (other for other in by_company.get(company_key(job.company), [])
+                (other for other in by_company.get(company_key(employer(job)), [])
                  if _same_job(other, job)),
                 None,
             )

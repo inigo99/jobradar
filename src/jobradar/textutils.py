@@ -136,6 +136,17 @@ AGENCY_MARKERS = (
 )
 
 
+#: The feminine or plural ending Spanish and Catalan ads add after a slash or in
+#: brackets: "Trabajador/a social", "Enfermeros/as", "Técnico(a)".
+_GENDER_ENDING = re.compile(r"(?<=\w\w\w)(?:/|\()(?:a|as|o|os|es|ra|ras)\)?(?!\w)", re.I)
+
+
+def ungendered(text: str) -> str:
+    """``text`` without the slash endings, so "Trabajador/a social" reads as
+    "Trabajador social" and a keyword written once matches both forms."""
+    return _GENDER_ENDING.sub("", text or "")
+
+
 def contains_phrase(text: str, phrase: str) -> bool:
     """Whether ``phrase`` appears in ``text`` as whole words.
 
@@ -171,13 +182,18 @@ def token_set(value: str) -> set[str]:
 # actually written in, without pulling in a detection library.
 _STOPWORDS: dict[str, set[str]] = {
     "en": {"the", "and", "for", "with", "you", "our", "are", "will", "your", "have", "team"},
-    "es": {"de", "que", "para", "con", "los", "las", "una", "del", "por", "experiencia", "empresa"},
+    "es": {"de", "que", "para", "con", "los", "las", "una", "del", "por", "experiencia", "empresa",
+           "el", "y", "al", "como"},
     "fr": {"le", "les", "des", "pour", "avec", "vous", "nous", "une", "dans", "notre", "sur"},
     "de": {"und", "der", "die", "das", "mit", "für", "sie", "wir", "ein", "eine", "bei"},
     "pt": {"de", "que", "para", "com", "uma", "dos", "das", "você", "nossa", "experiência"},
     "it": {"di", "che", "per", "con", "una", "del", "delle", "nostro", "esperienza", "sviluppo"},
     "nl": {"de", "het", "een", "van", "voor", "met", "wij", "je", "onze", "werken"},
 }
+
+
+#: The same words as the text is compared: without accents ("für" -> "fur").
+_FOLDED_STOPWORDS = {lang: {normalise(word) for word in words} for lang, words in _STOPWORDS.items()}
 
 
 def detect_language(text: str, default: str = "en") -> str:
@@ -187,10 +203,13 @@ def detect_language(text: str, default: str = "en") -> str:
     is a plain stop-word count: the winner is whichever language contributes
     most function words.
     """
-    tokens = normalise(str(text or "")).split()
+    # Addresses carry words of their own: "example.com" is not Portuguese "com".
+    plain = re.sub(r"\S+@\S+|https?://\S+|www\.\S+|\b[\w.-]+\.(?:com|es|org|net|eu)\b", " ",
+                   str(text or ""))
+    tokens = normalise(plain).split()
     if len(tokens) < 12:
         return default
-    counts = {lang: sum(1 for t in tokens if t in words) for lang, words in _STOPWORDS.items()}
+    counts = {lang: sum(1 for t in tokens if t in words) for lang, words in _FOLDED_STOPWORDS.items()}
     best = max(counts, key=lambda k: counts[k])
     return best if counts[best] >= 3 else default
 

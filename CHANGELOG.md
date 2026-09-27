@@ -13,6 +13,11 @@ All notable changes to this project are documented here. The format follows
 - **Start over** (Settings): deletes every job, application, document and
   search run, the profile and the settings, as a new installation. The keys
   saved in `.env` are kept. It asks for a word to be typed.
+- **Graduate profiles** ([benchmarks/](benchmarks/README.md)): nineteen sample
+  CVs of recent graduates, from law and nursing to electrician and cook. The
+  test suite checks each is read whole and that a typical junior ad for it is
+  sorted, scored and kept; `benchmarks/run.py` searches for real with them,
+  region by region, and writes a report.
 - **Legal and Navarra portals** in [docs/PORTALS.md](docs/PORTALS.md): the
   Colegio de Abogados de Pamplona's notice board, Infoempleo's legal and
   Navarra pages, legal tech.
@@ -25,6 +30,22 @@ All notable changes to this project are documented here. The format follows
 - **"Only in my areas" kept every portal offer**, because a page gives no
   location. The place an ad states ("Provincia: Navarra", "Localidad: …") is
   now read from its text.
+- **Internships were read as education.** "Prácticas", "Internships" and
+  similar headings open the experience section, so a graduate's internship is
+  a position with its results. A CV with no position at all gets a warning
+  with what to add (final project, internship, volunteering), not an error.
+- **Distinct offers from one portal were merged.** Every ad read from a page
+  carries the site's name as its company, and two "Enfermero/a" ads in two
+  provinces were taken for one; the survivor could even point at the other's
+  page. The site's name no longer counts as an employer.
+- **"Rioja (La)", "Balears (Illes)"**: the place an ad states is read in the
+  official lists' word order too, and a region that is not one province.
+- **Spanish CVs read as Portuguese**: an e-mail address's ".com" counted as a
+  Portuguese word, and words with accents never counted at all.
+- **"Trabajador/a social", "Diseñador/a gráfico/a"** are sorted into their job
+  family: the "/a" no longer hides the keyword.
+- **Skill vocabulary** for graphic design, architecture, physiotherapy,
+  psychology, dentistry, chemistry and microbiology, WordPress, MATLAB.
 - **LinkedIn and Indeed spent the result limit on the whole country** when you
   take no remote work and search only in your areas.
 
