@@ -101,11 +101,13 @@ from .api import (
     DocumentTextPayload,
     FilteredView,
     JobIdsPayload,
+    JobStatusPayload,
     JobView,
     ManualJobPayload,
     OnboardingPayload,
     ProfilePatch,
     QuestionPayload,
+    ResetPayload,
     SettingsPayload,
     SkillsPayload,
 )
@@ -714,6 +716,25 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
         """Take jobs off the board for good (they can be brought back for a week)."""
         deleted = database.delete_jobs(payload.ids)
         return {"ok": True, "deleted": deleted, "undo_days": database.UNDO_DAYS}
+
+    @app.post("/api/jobs/status")
+    def set_statuses(payload: JobStatusPayload):
+        """Discard, restore or mark as applied several jobs at once."""
+        changed = database.set_statuses(payload.ids, payload.status)
+        return {"ok": True, "changed": changed}
+
+    @app.post("/api/reset")
+    def reset_everything(payload: ResetPayload):
+        """Delete every job, the profile and the settings: a new installation.
+
+        Keys in ``.env`` are kept. The body must carry ``confirm: "RESET"``, so
+        no stray request can empty the database.
+        """
+        if payload.confirm != "RESET":
+            raise HTTPException(status_code=400,
+                                detail="Nothing was deleted: the confirmation was missing.")
+        database.reset()
+        return {"ok": True}
 
     @app.post("/api/jobs/undelete")
     def undelete_jobs(payload: JobIdsPayload):

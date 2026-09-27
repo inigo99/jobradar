@@ -73,6 +73,8 @@ class SearchQuery:
     #: The user wants on-site work only in ``local_areas``, so a board that
     #: can search by area should search only there.
     local_only: bool = False
+    #: Remote jobs are among the work modes the user accepts.
+    remote_wanted: bool = True
     remote_only: bool = False
     max_age_days: int = 7
     limit: int = 100

@@ -9,6 +9,7 @@ can be matched against. The data is ``resources/regions.yaml``.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from functools import lru_cache
 
@@ -62,6 +63,17 @@ def location_for(code: str, country_name: str) -> str:
     return ", ".join(p for p in parts if p)
 
 
+def names_a_place(location: str, country: str) -> bool:
+    """Whether a location says more than its country ("Spain", "ES")."""
+    from .config import country_info  # local import: config imports this
+
+    plain = normalise(location or "")
+    if not plain:
+        return False
+    return not country or plain not in {
+        normalise(country), normalise(country_info(country).get("name", ""))}
+
+
 def provinces_for(area: str) -> list[Province]:
     """The provinces an area names: itself, its capital or a town in it, or a
     NUTS-2 region (every province in it)."""
@@ -100,3 +112,34 @@ def region_codes(areas: list[str], country: str) -> list[str]:
             if item.country == country.upper() and item.region not in codes:
                 codes.append(item.region)
     return codes
+
+
+#: Where an ad says its place: "Provincia: Navarra", "Localidad de ubicación
+#: del puesto: Pamplona", "Location: Bilbao".
+_PLACE_LABEL = re.compile(
+    r"(?:provincia|localidad(?: de ubicaci[oó]n del puesto)?|ubicaci[oó]n(?: del puesto)?|"
+    r"lugar de trabajo|centro de trabajo|location|place of work)\s*:\s*(.{2,80})",
+    re.I)
+
+
+def place_in(text: str) -> tuple[str, str] | None:
+    """``(location, country)`` from the place an ad states, when it names a
+    province or town this module knows; ``None`` otherwise.
+
+    Only the words right after a label are read: a Pamplona firm's ad for a job
+    in Madrid mentions both, and the label says which one is the job.
+    """
+    for label in _PLACE_LABEL.finditer(text or ""):
+        window = f" {normalise(label.group(1))} "
+        best: tuple[int, Province] | None = None
+        for item in _provinces().values():
+            for name in (item.name, *item.name.split("/"), *item.places):
+                at = window.find(f" {normalise(name)} ")
+                if at >= 0 and (best is None or at < best[0]):
+                    best = (at, item)
+        if best:
+            from .config import country_info  # local import: config imports this
+
+            item = best[1]
+            return location_for(item.code, country_info(item.country).get("name", "")), item.country
+    return None

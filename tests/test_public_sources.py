@@ -305,3 +305,37 @@ def test_a_search_with_no_hits_is_not_reported_as_a_broken_portal():
     jobs, fetcher = _portals(["https://jobs.example/buscar?q={query}"], pages,
                              ["enfermera", "soldador"])
     assert len(jobs) == 1 and fetcher.problems == []
+
+
+def test_site_pages_and_menus_are_not_offers():
+    """"Legal", "Privacidad" or "Reservas" are also every site's menu and footer."""
+    page = ('<nav><a href="/reservas">Reserva de salas</a></nav>'
+            '<a href="/privacidad">Política de privacidad</a><a href="/aviso">Aviso legal</a>'
+            '<a href="/area/legal">Legal (1)</a>'
+            '<a href="/tablon/abogado-procesal">Abogado/a para el Departamento Procesal</a>'
+            '<a href="/tablon/dpo">Consultor/a de privacidad y protección de datos</a>'
+            '<footer><a href="/cookies">Legal</a></footer>')
+    jobs, _ = _portals(["https://colegio.example/tablon"], {"https://colegio.example/tablon": page},
+                       ["abogado", "legal", "privacidad", "reserva"])
+    assert [job.title for job in jobs] == ["Abogado/a para el Departamento Procesal",
+                                           "Consultor/a de privacidad y protección de datos"]
+
+
+def test_the_ad_page_says_where_a_listed_link_is():
+    """A page of links gives no place; the ad's own markup does."""
+    listing = '<a href="/oferta/1">Agente de reservas</a><a href="/oferta/2">Agente de reservas</a>'
+    malta = ('<script type="application/ld+json">{"@type": "JobPosting", "title": "Agente",'
+             ' "jobLocation": {"address": {"addressLocality": "St Julian\'s",'
+             ' "addressCountry": "MT"}}}</script>')
+    tudela = ('<script type="application/ld+json">{"@type": "Occupation", "occupationLocation":'
+              ' {"address": {"addressLocality": "Tudela", "addressRegion": "Navarra",'
+              ' "addressCountry": "España"}}}</script>')
+    pages = {"https://b.example/lista": listing, "https://b.example/oferta/1": malta,
+             "https://b.example/oferta/2": tudela}
+    fetcher = StubFetcher(pages=pages)
+    source = PortalsSource(cast(Any, fetcher), {"portals": ["https://b.example/lista"]})
+    jobs = source.search(SearchQuery(titles=["agente de reservas"], countries=["ES"]))
+    for job in jobs:
+        source.fetch_description(job)
+    assert [(job.location, job.country) for job in jobs] == [
+        ("St Julian's", "MT"), ("Tudela, Navarra, España", "")]

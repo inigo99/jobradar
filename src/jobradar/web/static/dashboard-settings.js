@@ -185,7 +185,31 @@ function settingsBody() {
       el("input", { type: "file", id: "s_cv", accept: ".pdf,.docx,.txt,.md,.html" }),
     ), skillsFieldset(profile), variantsFieldset(profile));
   }
+  body.append(resetFieldset());
   return body;
+}
+
+/* --------------------------------------------------------------------------
+   Start over: a new installation. Keys in .env are kept.
+-------------------------------------------------------------------------- */
+function resetFieldset() {
+  const word = t("DELETE");
+  const typed = el("input", { id: "s_reset", autocomplete: "off" });
+  const go = button(t("Delete everything and start over"), async () => {
+    if (typed.value.trim().toUpperCase() !== word.toUpperCase()) {
+      toast(t("Type {word} to confirm.", { word }));
+      return;
+    }
+    await api("/api/reset", { method: "POST", body: JSON.stringify({ confirm: "RESET" }) });
+    location.reload();
+  });
+  go.classList.add("danger");
+  return el("fieldset", {},
+    el("legend", {}, t("Start over")),
+    el("p", { className: "hint" },
+      t("Deletes every job, application, generated document and search run, your profile and these settings, as if JobRadar had just been installed. The keys you saved (language model, Adzuna, mailbox) are kept. It cannot be undone.")),
+    el("label", {}, t("Type {word} to confirm", { word })),
+    el("div", { className: "row" }, typed, go));
 }
 
 /* --------------------------------------------------------------------------

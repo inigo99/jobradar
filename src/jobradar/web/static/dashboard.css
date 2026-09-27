@@ -138,6 +138,9 @@
   .bank-row { border-bottom: 1px solid var(--line); padding: 8px 0; font-size: 13px; white-space: pre-wrap; }
   .bank-row .bank-q { font-weight: 700; margin: 0 0 4px; }
   .select-job { margin: 4px 10px 0 0; width: 16px; height: 16px; flex: none; }
+  .select-all { display: flex; gap: 8px; align-items: center; margin: 0 0 10px; font-size: 13px;
+                font-weight: 400; }
+  .select-all input { width: 16px; height: 16px; margin: 0; }
   .selection-bar { display: flex; gap: 10px; align-items: center; margin: 0 0 12px; padding: 9px 12px;
                    border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
   button.danger { color: var(--danger); }

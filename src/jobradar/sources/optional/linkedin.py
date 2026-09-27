@@ -103,15 +103,17 @@ class LinkedInGuestSource(JobSource):
 
         Remote roles are searched with LinkedIn's remote filter and a national
         location; the user's own areas are searched *without* it, because
-        that is the only way hybrid and on-site local jobs show up.
+        that is the only way hybrid and on-site local jobs show up. A user who
+        does not take remote work and has areas is searched only there.
         """
         from ...config import country_info
 
         pairs: list[tuple[str, bool]] = []
-        for code in query.countries or []:
-            pairs.append((country_info(code).get("name", code), True))
-        if not pairs:
-            pairs.append(("", True))
+        if query.remote_wanted or not query.local_areas:
+            for code in query.countries or []:
+                pairs.append((country_info(code).get("name", code), True))
+            if not pairs:
+                pairs.append(("", True))
         for area in query.local_areas:
             pairs.append((area, False))
         return pairs

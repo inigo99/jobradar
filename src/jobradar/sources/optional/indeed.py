@@ -133,7 +133,10 @@ class IndeedSource(JobSource):
     def search(self, query: SearchQuery) -> list[Job]:
         jobs: dict[str, Job] = {}
         countries = query.countries or ["US"]
-        places = [("", country) for country in countries]
+        # With "only in my areas", a country-wide search only spends the
+        # result limit on jobs the filters will drop.
+        country_wide = not (query.local_only and query.local_areas)
+        places = [("", country) for country in countries] if country_wide else []
         places += [(area, countries[0]) for area in query.local_areas]
         for term in query.terms():
             for place, country in places:

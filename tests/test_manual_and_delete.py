@@ -127,3 +127,33 @@ def test_raising_the_years_puts_set_aside_ads_back(client, database):
     saved = client.put("/api/settings", json={"settings": settings}).json()
     assert saved["restored"] == 1
     assert database.get_job(job.id) is not None
+
+
+def test_one_status_for_several_jobs_keeps_their_notes(client, database):
+    jobs = [make_job(native_id=str(i), company=f"Co {i}") for i in range(3)]
+    database.upsert_jobs(jobs)
+    database.save_application(Application(job_id=jobs[0].id, notes="Called on Monday"))
+    ids = [j.id for j in jobs[:2]]
+    answer = client.post("/api/jobs/status", json={"ids": [*ids, "gone:1"], "status": "applied"})
+    assert answer.json() == {"ok": True, "changed": 2}  # an unknown id is skipped
+    state = {j["id"]: j for j in client.get("/api/state").json()["jobs"]}
+    assert state[ids[0]]["status"] == "applied" and state[ids[0]]["notes"] == "Called on Monday"
+    assert state[ids[1]]["applied_on"] and state[ids[1]]["stage"] == "applied"
+    assert state[jobs[2].id]["status"] == "active"
+    client.post("/api/jobs/status", json={"ids": ids, "status": "discarded"})
+    assert database.get_application(ids[0]).status == ApplicationStatus.DISCARDED
+
+
+def test_starting_over_deletes_everything_but_the_keys(client, database, paths):
+    database.upsert_jobs([make_job()])
+    paths.env_file.write_text("GEMINI_API_KEY=abc\n", encoding="utf-8")
+    (paths.documents_dir / "cv.pdf").write_bytes(b"%PDF")
+    assert client.post("/api/reset", json={"confirm": "yes"}).status_code == 400
+    assert client.get("/api/state").json()["jobs"]  # nothing deleted without the word
+
+    assert client.post("/api/reset", json={"confirm": "RESET"}).json() == {"ok": True}
+    state = client.get("/api/state").json()
+    assert state["jobs"] == [] and not state["settings"]["onboarded"]
+    assert database.load_profile() is None
+    assert not any(paths.documents_dir.iterdir())
+    assert paths.env_file.read_text(encoding="utf-8") == "GEMINI_API_KEY=abc\n"

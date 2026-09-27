@@ -6,6 +6,28 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Added
+
+- **Select all the jobs shown**, and act on the selection: not interested,
+  mark as applied, back to active, or delete. Each job keeps its notes.
+- **Start over** (Settings): deletes every job, application, document and
+  search run, the profile and the settings, as a new installation. The keys
+  saved in `.env` are kept. It asks for a word to be typed.
+- **Legal and Navarra portals** in [docs/PORTALS.md](docs/PORTALS.md): the
+  Colegio de Abogados de Pamplona's notice board, Infoempleo's legal and
+  Navarra pages, legal tech.
+
+### Fixed
+
+- **Portals read as a page picked up menu links**: "Legal", "Reservas" or
+  "Política de privacidad" matched job titles. Menus, headers, footers,
+  site-policy links and category counters ("Legal (1)") are left out.
+- **"Only in my areas" kept every portal offer**, because a page gives no
+  location. The place an ad states ("Provincia: Navarra", "Localidad: …") is
+  now read from its text.
+- **LinkedIn and Indeed spent the result limit on the whole country** when you
+  take no remote work and search only in your areas.
+
 ## 1.8.0 — 2026-09-27
 
 ### Fixed

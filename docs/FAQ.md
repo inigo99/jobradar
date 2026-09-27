@@ -128,7 +128,7 @@ application's stage by itself.
 
 *Not interested* keeps it, marked discarded. **Delete** removes it and
 everything attached (letters, answers, notes), and a later search will not
-bring the same ad back. Tick several to delete them at once. Every deletion can
+bring the same ad back. Tick several, or all the jobs shown, to delete them at once. Every deletion can
 be undone from the message that appears, for a week.
 
 ### What is the difference between "discarded" and "rejected"?

@@ -126,7 +126,7 @@ jobradar serve
 
 **The board** has eight tabs — Today, Active, Applied, Rejected, Discarded, Closed ads, Filtered out and Insights. The **filter bar** narrows it by text, work mode, where (your areas, your country, abroad), job family, source, language, minimum salary and minimum match, and remembers your choice; sort by focus, match, date or salary. Each job shows both scores, its family, your strengths and gaps, the salary with its provenance, the latest reply from your inbox and anything to clarify before applying. *Filtered out* lists the ads just short on years in a table of their own.
 
-**Per job**: open the ad, tailor the CV, write a cover letter or the application email, answer the application form's questions, mark it, or delete it. Tick several jobs to delete them at once.
+**Per job**: open the ad, tailor the CV, write a cover letter or the application email, answer the application form's questions, mark it, or delete it. Tick several jobs, or **all the jobs shown** at once, to discard them, mark them as applied, bring them back or delete them.
 
 ![Answering an application form's questions](https://raw.githubusercontent.com/inigo99/jobradar/master/docs/images/form-answers.png)
 

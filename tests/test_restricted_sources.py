@@ -309,3 +309,20 @@ def test_weekly_sources_only_run_on_their_day():
     assert runs_today("remoteok", settings, monday)
     assert not runs_today("remoteok", settings, tuesday)
     assert runs_today("himalayas", settings, tuesday)
+
+
+def test_only_my_areas_skips_country_wide_searches():
+    """With "only in my areas" and no remote work, a country-wide search only
+    spends the result limit on jobs the filters will drop."""
+    from jobradar.sources.optional.indeed import IndeedSource
+
+    linkedin = LinkedInGuestSource(cast(Any, RecordingFetcher({})))
+    local = _query(countries=["ES"], local_areas=["Pamplona"], local_only=True,
+                   remote_wanted=False)
+    assert linkedin._locations(local) == [("Pamplona", False)]
+    assert linkedin._locations(_query(countries=["ES"], local_areas=["Pamplona"])) == [
+        ("Spain", True), ("Pamplona", False)]
+
+    fetcher = RecordingFetcher({})
+    IndeedSource(cast(Any, fetcher)).search(local)
+    assert {call["params"]["l"] for call in fetcher.calls} == {"Pamplona"}

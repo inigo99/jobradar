@@ -18,10 +18,10 @@ import re
 from dataclasses import dataclass
 from datetime import date
 
-from ..config import Filters, country_info, salary_bands
+from ..config import Filters, salary_bands
 from ..models import Job, RemoteScope, SalaryOrigin, WorkMode
-from ..regions import in_areas
-from ..textutils import contains_phrase, normalise
+from ..regions import in_areas, names_a_place
+from ..textutils import contains_phrase
 from .salary import ExchangeRates
 
 
@@ -43,16 +43,6 @@ def _in_local_area(job: Job, areas: list[str]) -> bool:
     ("Navarra" for "Pamplona"): some boards give nothing finer.
     """
     return in_areas(job.location or "", areas)
-
-
-def _location_is_precise(job: Job) -> bool:
-    """Whether the location says more than the country."""
-    location = normalise(job.location or "")
-    if not location:
-        return False
-    country = job.country or ""
-    return country == "" or location not in {
-        normalise(country), normalise(country_info(country).get("name", ""))}
 
 
 def _check_freshness(job: Job, filters: Filters, today: date) -> FilterOutcome | None:
@@ -92,7 +82,7 @@ def _check_geography(job: Job, filters: Filters) -> FilterOutcome | None:
     if filters.local_only and filters.local_areas and job.work_mode != WorkMode.REMOTE:
         if _in_local_area(job, filters.local_areas):
             return None
-        if _location_is_precise(job):
+        if names_a_place(job.location or "", job.country or ""):
             return FilterOutcome(False, f"outside your areas ({job.location})")
         return FilterOutcome(
             True, warnings=("The ad names no town — check it is in one of your areas.",))

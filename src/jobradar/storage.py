@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+import shutil
 import sqlite3
 import threading
 from collections.abc import Iterable, Iterator
@@ -35,6 +36,7 @@ from .errors import ConfigError, StorageError, describe_os_error
 from .models import (
     AnswerThread,
     Application,
+    ApplicationStage,
     ApplicationStatus,
     BankEntry,
     GeneratedDocument,
@@ -784,6 +786,43 @@ class Database:
                     _now(),
                 ),
             )
+
+    def set_statuses(self, job_ids: Iterable[str], status: ApplicationStatus,
+                     today: date | None = None) -> int:
+        """Give several jobs one status, keeping each one's notes and stage.
+
+        Marking applied dates the application today and puts it at the
+        "applied" stage, unless it already had them.
+        """
+        changed = 0
+        for job_id in dict.fromkeys(job_ids):
+            if self.get_job(job_id) is None:
+                continue
+            record = self.get_application(job_id)
+            record.status = status
+            if status == ApplicationStatus.APPLIED:
+                record.applied_on = record.applied_on or today or date.today()
+                record.stage = record.stage or ApplicationStage.APPLIED
+            self.save_application(record)
+            changed += 1
+        return changed
+
+    def reset(self) -> None:
+        """Back to a new installation: every job, application, document, run,
+        the profile and the settings, and the files generated from them.
+
+        The keys in ``.env`` stay: they are secrets the user typed in, not
+        data JobRadar made, and a fresh start usually still wants them.
+        """
+        with self.transaction() as cursor:
+            for table in ("matches", "applications", "generated_documents", "closed_jobs",
+                          "runs", "filtered_jobs", "jobs", "documents_kv"):
+                cursor.execute(f"DELETE FROM {table}")  # fixed names, never user input
+        for folder in (self.paths.cv_dir, self.paths.documents_dir, self.paths.cache_dir,
+                       self.paths.exports_dir, self.paths.uploads_dir):
+            shutil.rmtree(folder, ignore_errors=True)
+        self.paths.ensure()
+        use_custom_skills({})
 
     def tracked_job_ids(self) -> set[str]:
         """Jobs the user has touched — these are never removed automatically."""
