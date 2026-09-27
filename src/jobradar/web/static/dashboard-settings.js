@@ -118,10 +118,7 @@ function settingsBody() {
       el("label", {}, t("Companies to watch")),
       el("textarea", { id: "s_domains", value: settings.sources.company_domains.join("\n") }),
       el("label", {}, t("Job portals you use")),
-      el("textarea", { id: "s_portals", value: (settings.sources.portals || []).join("\n"),
-                       placeholder: "https://example.org/jobs?q={query}" }),
-      el("p", { className: "hint" },
-        t("One address per line: a search page with {query} where the search words go, an RSS feed, or a page that lists offers. JobRadar reads the offers the page marks up for search engines, the feed's items, or the links whose text matches your job titles.")),
+      portalsEditor(settings.sources.portals || []),
       el("div", { className: "two" },
         el("div", {}, el("label", {}, t("Seconds between requests")),
           el("input", { id: "s_delay", type: "number", step: "0.5", value: settings.sources.request_delay })),
@@ -447,8 +444,7 @@ async function saveSettings() {
   settings.sources.enabled = [...document.querySelectorAll(".s_source:checked")].map(n => n.value);
   settings.sources.disabled = [...document.querySelectorAll(".s_source:not(:checked)")].map(n => n.value);
   settings.sources.company_domains = list("s_domains");
-  // One per line only: an address can contain commas.
-  settings.sources.portals = value("s_portals").split("\n").map(s => s.trim()).filter(Boolean);
+  settings.sources.portals = collectPortals();
   settings.sources.weekly = [...document.querySelectorAll(".s_weekly:checked")].map(n => n.value);
   settings.sources.weekly_day = Number(value("s_weeklyday") || 0);
   settings.families = collectFamilies();
@@ -519,4 +515,57 @@ function keysForm(source) {
       el("a", { href: source.key_url, target: "_blank", rel: "noopener" }, t("Get a free key")),
       " ", t("(sign up, create an app, copy the values here)")) : null,
     el("div", { className: "row", style: "gap:6px;flex-wrap:wrap" }, ...fields, save));
+}
+
+/* The job portals the user reads: each can be switched off, renamed, edited
+   or deleted. New ones are pasted into the box below the list, one per line,
+   optionally preceded by a name — the format docs/PORTALS.md uses. */
+function portalRow(portal) {
+  const row = el("div", { className: "portal row", style: "gap:6px;margin:4px 0;flex-wrap:wrap" },
+    el("input", { type: "checkbox", className: "p_on", checked: portal.enabled !== false,
+                  title: t("Search this portal") }),
+    el("input", { className: "p_name", value: portal.name || "", placeholder: t("Name"),
+                  style: "width:12em" }),
+    el("input", { className: "p_url", value: portal.url || "", style: "flex:1;min-width:16em" }));
+  const remove = el("button", { className: "ghost", type: "button" }, t("Delete"));
+  remove.onclick = () => row.remove();
+  row.append(remove);
+  return row;
+}
+
+/* "Lanbide (País Vasco) https://…" -> {name, url}; a bare address has no name. */
+function parsePortalLine(line) {
+  const match = line.match(/https?:\/\/\S+/);
+  if (!match) return null;
+  const name = line.replace(match[0], "").replace(/[\s:|\-–—]+$/, "").replace(/^[\s\-*•]+/, "").trim();
+  return { url: match[0], name, enabled: true };
+}
+
+function portalsEditor(portals) {
+  const rows = el("div", { id: "s_portals" }, ...portals.map(portalRow));
+  const paste = el("textarea", { id: "s_portals_new", rows: 3,
+                                 placeholder: "https://example.org/jobs?q={query}" });
+  const add = el("button", { type: "button" }, t("Add"));
+  add.onclick = () => {
+    const found = paste.value.split("\n").map(parsePortalLine).filter(Boolean);
+    if (!found.length) { toast(t("Paste at least one address starting with http:// or https://.")); return; }
+    found.forEach(portal => rows.append(portalRow(portal)));
+    paste.value = "";
+    toast(tn(found.length, "Added 1 portal \u2014 save to keep it.", "Added {n} portals \u2014 save to keep them."));
+  };
+  return el("div", {},
+    rows,
+    el("p", { className: "hint" },
+      t("Add one or more, one per line: a search page with {query} where the search words go, an RSS feed, or a page that lists offers. A name before the address is optional. The guide lists tested portals by country and region: "),
+      el("a", { href: "https://github.com/inigo99/jobradar/blob/master/docs/PORTALS.md",
+                target: "_blank", rel: "noopener" }, "docs/PORTALS.md")),
+    paste, add);
+}
+
+function collectPortals() {
+  return [...document.querySelectorAll("#s_portals .portal")].map(row => ({
+    url: row.querySelector(".p_url").value.trim(),
+    name: row.querySelector(".p_name").value.trim(),
+    enabled: row.querySelector(".p_on").checked,
+  })).filter(portal => portal.url);
 }

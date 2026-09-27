@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from .errors import ConfigError, StorageError, describe_os_error
 from .models import WorkMode
@@ -194,6 +194,18 @@ class FamilyOverride(BaseModel):
     bands: dict[str, list[int]] | None = None
 
 
+class Portal(BaseModel):
+    """A job board the user reads, listed in Settings (``sources/portals.py``)."""
+
+    #: A search page with ``{query}`` where the search words go, a feed, or a
+    #: page of offers.
+    url: str
+    #: What the user calls it; the host name when left empty.
+    name: str = ""
+    #: Off keeps it listed without reading it.
+    enabled: bool = True
+
+
 class SourceSettings(BaseModel):
     """Which adapters run, and how politely."""
 
@@ -209,10 +221,21 @@ class SourceSettings(BaseModel):
     #: Extra company domains or ATS board slugs to crawl, e.g.
     #: ``["stripe.com", "greenhouse:airbnb", "lever:netflix"]``.
     company_domains: list[str] = Field(default_factory=list)
-    #: Job boards the user reads, one address each: a search page with
-    #: ``{query}`` where the search words go, a feed, or a page of offers.
-    #: Read by ``sources/portals.py``.
-    portals: list[str] = Field(default_factory=list)
+    #: Job boards the user reads (``sources/portals.py``); docs/PORTALS.md
+    #: lists tested ones.
+    portals: list[Portal] = Field(default_factory=list)
+
+    @field_validator("portals", mode="before")
+    @classmethod
+    def _portal_entries(cls, value: Any) -> Any:
+        """A bare address is a portal too: settings files and older saves."""
+        if isinstance(value, list):
+            return [{"url": item} if isinstance(item, str) else item for item in value]
+        return value
+
+    def active_portals(self) -> list[str]:
+        """The addresses of the portals switched on."""
+        return [p.url.strip() for p in self.portals if p.enabled and p.url.strip()]
     #: Seconds between two requests to the same host.
     request_delay: float = 1.0
     #: How many results to pull per source per run.

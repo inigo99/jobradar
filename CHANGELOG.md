@@ -20,12 +20,12 @@ All notable changes to this project are documented here. The format follows
 - **EURES**: the European Commission's job portal as an open source — about
   three million offers from the public employment services of the EU/EEA,
   Spain's regional services included, in every sector.
-- **Servicio Navarro de Empleo**: Navarre's regional employment service; it
-  runs when one of your areas is in Navarre.
 - **Your portals**: list the job boards you use under Settings → Job portals
   you use — a search page with `{query}`, an RSS/Atom feed, or a page of
   offers — and JobRadar reads them: feed items, schema.org `JobPosting`
-  markup, or the links matching your job titles.
+  markup, or the links matching your job titles. Each portal can be switched
+  off without deleting it. **docs/PORTALS.md** lists tested portals for
+  Spain's regions, Spanish boards and other EU countries, ready to paste.
 - **Adzuna and Jooble keys from the dashboard.** Settings → Where to search
   links to each sign-up page and takes the key there; it is saved to `.env`
   in the data folder (owner-readable only) and never sent back to the page.

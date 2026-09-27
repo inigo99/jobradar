@@ -175,8 +175,7 @@ The full reference — every filter, job families, how salaries are estimated, t
 | RemoteOK, We Work Remotely, Himalayas, Arbeitnow | open | Public APIs and feeds |
 | Manfred (Spain) | open | Publishes salary, remote share and each skill's required level |
 | EURES (EU public employment services) | open | About 3 million offers from every EU/EEA public employment service, Spain's regions included; every sector |
-| Servicio Navarro de Empleo | open | Navarre's regional service; runs when one of your areas is in Navarre |
-| Your portals | open | Any board you list in Settings: a search page with `{query}`, a feed, or a page of offers |
+| Your portals | open | Any board you list in Settings: a search page with `{query}`, a feed, or a page of offers. [docs/PORTALS.md](https://github.com/inigo99/jobradar/blob/master/docs/PORTALS.md) lists tested ones by country and region |
 | Bundesagentur für Arbeit (Germany) | open | The public employment service: every sector. Runs only when Germany is one of your countries |
 | Company career boards | open | Greenhouse, Lever, Ashby, Workable, Recruitee, SmartRecruiters, Personio — detected from a domain |
 | Adzuna, Jooble | credentials | Every sector, many countries (Spain included). Free keys: paste them in Settings → Where to search, which links to the sign-up page |

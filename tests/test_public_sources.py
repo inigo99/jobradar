@@ -1,23 +1,14 @@
-"""EURES, the Navarre employment service and "your portals": what is asked and
-how the answers are read. A stub stands in for ``Fetcher``; nothing touches
+"""EURES and "your portals": what is asked and how the answers are read. A stub stands in for ``Fetcher``; nothing touches
 the network."""
 
 from __future__ import annotations
 
 from typing import Any, cast
 
-from jobradar.config import Settings
+from jobradar.config import Portal, Settings
 from jobradar.sources import BY_ID, build_sources
 from jobradar.sources.base import SearchQuery
 from jobradar.sources.eures import SEARCH, EuresSource, publication_period
-from jobradar.sources.navarra import (
-    LISTING,
-    SEARCH_BOX,
-    NavarraSource,
-    hidden_fields,
-    in_navarre,
-    minimum_years,
-)
 from jobradar.sources.portals import PortalsSource, feed_items, job_postings
 from jobradar.textutils import title_matches
 
@@ -45,11 +36,6 @@ class StubFetcher:
         self.calls.append(("POST", url, payload))
         return self._answer(self.posts, url)
 
-    def post_form(self, url, data, headers=None):
-        self.calls.append(("FORM", url, data))
-        answer = self._answer(self.posts, url)
-        return answer(data) if callable(answer) else answer
-
     def _report_once(self, key, message):
         self.problems.append(message)
 
@@ -62,7 +48,7 @@ def test_title_matching_survives_gender_and_accents():
 
 
 def test_new_sources_are_registered_as_open():
-    for source_id in ("eures", "navarra", "portals"):
+    for source_id in ("eures", "portals"):
         assert BY_ID[source_id].tos_tier == "open"
 
 
@@ -126,81 +112,6 @@ def test_publication_period_never_narrower_than_the_filter():
     assert publication_period(5) == "LAST_WEEK"
     assert publication_period(20) == "LAST_MONTH"
     assert publication_period(90) is None
-
-
-# ---------------------------------------------------------------------------
-# Navarra
-# ---------------------------------------------------------------------------
-
-def _offer(offer_id: str, title: str, place: str) -> str:
-    return f'''
-        <div class="miniresumen2">
-            <div class="clearfix"><span>15/2026/00{offer_id}</span></div>
-            <a id="x" href="https://administracionelectronica.navarra.es/EmpleoIntermediacion/empleo/{offer_id}"><h2 style="font-size:18px;">{title}</h2></a>
-            <span><span class="material-icons">home</span><span class="iconicos">{place}</span>
-            <span class="material-icons">groups</span><span class="iconicos"> 1</span>
-            <span class="material-icons">date_range</span><span class="iconicos">  25/09/2026 - 09/10/2026</span></span>
-        </div>'''
-
-
-LISTING_PAGE = (
-    '<form><input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="abc&amp;def" />'
-    '<input type="hidden" name="__EVENTVALIDATION" id="__EVENTVALIDATION" value="ev" />'
-    + _offer("18966", "Camarero-a", "Santesteban")
-    + _offer("18980", "Técnico/a de turismo", "Estella-Lizarra")
-    + "</form>"
-)
-SEARCH_PAGE = _offer("18501", "Enfermero/a residencia", "Pamplona")
-AD_PAGE = '''
-    <span id="MainContent_lTitulo">Camarero-a</span>
-    <span id="MainContent_Descripcion">- Atención al cliente<br><br> - Servicio de mesas</span>
-    <span id="MainContent_lexpminima">1 a 3 años de experiencia</span>
-    <span id="MainContent_LIdiomas">Euskera y castellano</span>
-    <span id="MainContent_Jlaboral">Parcial</span>
-    <span id="MainContent_lSalario">Convenio Hostelería de Navarra</span>
-'''
-
-
-def _navarra(query: SearchQuery) -> tuple[list, StubFetcher]:
-    fetcher = StubFetcher(pages={LISTING: LISTING_PAGE,
-                                 "https://administracionelectronica.navarra.es/EmpleoIntermediacion/empleo/": AD_PAGE},
-                          posts={LISTING: SEARCH_PAGE})
-    return NavarraSource(cast(Any, fetcher)).search(query), fetcher
-
-
-def test_navarra_runs_only_for_an_area_in_navarre():
-    assert in_navarre(["Iruña/Pamplona"]) and in_navarre(["Tudela"]) and not in_navarre(["Bilbao"])
-    jobs, fetcher = _navarra(SearchQuery(titles=["camarero"], countries=["ES"], local_areas=["Bilbao"]))
-    assert jobs == [] and fetcher.calls == []
-
-
-def test_navarra_keeps_matching_new_offers_and_uses_the_portal_search():
-    jobs, fetcher = _navarra(SearchQuery(titles=["camarero", "enfermera"], countries=["ES"],
-                                         local_areas=["Pamplona"]))
-    titles = {job.title for job in jobs}
-    assert titles == {"Camarero-a", "Enfermero/a residencia"}  # turismo does not match
-    form = next(data for kind, _, data in fetcher.calls if kind == "FORM")
-    assert form["__VIEWSTATE"] == "abc&def" and form["__EVENTVALIDATION"] == "ev"
-    assert form[SEARCH_BOX] in ("camarero", "enfermera")
-    waiter = next(job for job in jobs if job.title == "Camarero-a")
-    assert waiter.location == "Santesteban, Navarra" and waiter.country == "ES"
-    assert str(waiter.posted_at) == "2026-09-25"
-
-
-def test_navarra_reads_the_ad_page_and_the_experience_floor():
-    jobs, _ = _navarra(SearchQuery(titles=["camarero"], countries=["ES"], local_areas=["Pamplona"]))
-    waiter = next(job for job in jobs if job.title == "Camarero-a")
-    fetcher = StubFetcher(pages={"https://administracionelectronica.navarra.es/EmpleoIntermediacion/empleo/": AD_PAGE})
-    text = NavarraSource(cast(Any, fetcher)).fetch_description(waiter)
-    assert "Atención al cliente" in text and "Idiomas: Euskera y castellano" in text
-    assert "Salario: Convenio Hostelería de Navarra" in text
-    assert waiter.min_years_experience == 1  # "1 a 3 años": the floor, not 3
-    assert minimum_years("Sin experiencia") == 0
-
-
-def test_hidden_fields_are_read_whatever_the_attribute_order():
-    page = '<input value="x" name="__VIEWSTATE" type="hidden"/><input type="text" name="q" value="n"/>'
-    assert hidden_fields(page) == {"__VIEWSTATE": "x"}
 
 
 # ---------------------------------------------------------------------------
@@ -284,8 +195,19 @@ def test_portals_only_run_when_some_are_listed(tmp_path):
     sources, fetcher = build_sources(settings, tmp_path)
     assert "portals" not in {s.id for s in sources}
     fetcher.close()
-    settings.sources.portals = ["https://jobs.example/rss"]
+    settings.sources.portals = [Portal(url="https://jobs.example/rss"),
+                                Portal(url="https://paused.example/", enabled=False)]
     sources, fetcher = build_sources(settings, tmp_path)
     portals = next(s for s in sources if s.id == "portals")
-    assert portals.options["portals"] == ["https://jobs.example/rss"]
+    assert portals.options["portals"] == ["https://jobs.example/rss"]  # the paused one is kept
     fetcher.close()
+    settings.sources.portals[0].enabled = False
+    sources, fetcher = build_sources(settings, tmp_path)
+    assert "portals" not in {s.id for s in sources}  # all paused: nothing to read
+    fetcher.close()
+
+
+def test_a_bare_address_is_read_as_a_portal():
+    settings = Settings.model_validate({"sources": {"portals": ["https://a.example/?q={query}"]}})
+    assert settings.sources.portals == [Portal(url="https://a.example/?q={query}")]
+    assert settings.sources.active_portals() == ["https://a.example/?q={query}"]

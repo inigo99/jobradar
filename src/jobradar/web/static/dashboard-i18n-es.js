@@ -448,5 +448,10 @@ I18N.es = {
   "weekly": "semanal",
   "Source code": "Código fuente",
   "Job portals you use": "Portales de empleo que usas",
-  "One address per line: a search page with {query} where the search words go, an RSS feed, or a page that lists offers. JobRadar reads the offers the page marks up for search engines, the feed's items, or the links whose text matches your job titles.": "Una dirección por línea: una página de búsqueda con {query} donde van las palabras buscadas, un feed RSS o una página que liste ofertas. JobRadar lee las ofertas que la página marca para los buscadores, los elementos del feed o los enlaces cuyo texto coincide con tus puestos.",
+  "Search this portal": "Buscar en este portal",
+  "Add": "Añadir",
+  "Paste at least one address starting with http:// or https://.": "Pega al menos una dirección que empiece por http:// o https://.",
+  "Added 1 portal \u2014 save to keep it.": "Añadido 1 portal: guarda para conservarlo.",
+  "Added {n} portals \u2014 save to keep them.": "Añadidos {n} portales: guarda para conservarlos.",
+  "Add one or more, one per line: a search page with {query} where the search words go, an RSS feed, or a page that lists offers. A name before the address is optional. The guide lists tested portals by country and region: ": "Añade uno o varios, uno por línea: una página de búsqueda con {query} donde van las palabras buscadas, un feed RSS o una página que liste ofertas. El nombre delante de la dirección es opcional. La guía reúne portales probados por país y región: ",
 };

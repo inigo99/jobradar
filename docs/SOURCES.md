@@ -33,7 +33,7 @@ For nurses, teachers, lawyers, tradespeople and most of the jobs that are not
 in tech, a country's public employment service is often the fullest board.
 Public-sector job offers are also information the law lets anyone reuse (in
 Spain, Ley 37/2007; in the EU, the Commission's reuse decision), which is why
-these adapters are `open` even when they read a page rather than an API.
+these adapters are `open`.
 
 - **EURES** (`eures`, `open`): the European Commission's job portal, around
   three million vacancies fed by the public employment services of the EU,
@@ -50,23 +50,19 @@ these adapters are `open` even when they read a page rather than an API.
   ad's text is fetched later, one request per new ad. The ads are in German,
   and the skill vocabulary is English and Spanish, so expect fewer skill
   matches than for Spanish or English ads.
-- **Servicio Navarro de Empleo** (`navarra`, Navarre, `open`): the regional
-  service's own offers, read from its web page (an ASP.NET site with no API).
-  It runs only when `ES` is a country and one of your areas is in Navarre
-  (Pamplona, Tudela, Estella…). Each search term goes through the portal's
-  own search form, the newest offers are added when their title matches, and
-  each ad's page is read for its duties, requirements and pay.
-
 SEPE / Empléate (Spain) has no public search, and most Spanish regional
 services publish on EURES; France Travail's official API needs an application
-registered with it — a `credentials` adapter for it would be welcome. A
-regional board is a small adapter: `navarra.py` is a good model.
+registered with it — a `credentials` adapter for it would be welcome.
+Regional and national boards are not built in: users add the ones they read
+as **their portals** (below), from the tested list in [PORTALS.md](PORTALS.md).
 
 ## Your portals
 
 Nobody can ship an adapter for every regional service, college or trade
 board, so users list the ones they read under **Settings → Job portals you
-use** (`sources.portals`), one address per line:
+use** (`sources.portals`); each can be switched off without deleting it.
+[PORTALS.md](PORTALS.md) lists tested ones by country and region. An address
+can be:
 
 - a search page, with `{query}` where the search words go
   (`https://example.org/jobs?q={query}`), fetched once per search term;

@@ -23,7 +23,6 @@ from .eures import EuresSource
 from .himalayas import HimalayasSource
 from .jooble import JoobleSource
 from .manfred import ManfredSource
-from .navarra import NavarraSource
 from .optional.indeed import IndeedSource
 from .optional.infojobs import InfoJobsSource
 from .optional.linkedin import LinkedInGuestSource
@@ -44,7 +43,6 @@ REGISTRY: tuple[type[JobSource], ...] = (
     ManfredSource,
     ArbeitsagenturSource,
     EuresSource,
-    NavarraSource,
     CompanyBoardsSource,
     PortalsSource,
     # tos_tier == "credentials": on as soon as the user supplies a free key.
@@ -137,7 +135,7 @@ def build_sources(settings: Settings, cache_dir: Path | None = None,
             if not options["company_domains"]:
                 continue
         if cls is PortalsSource:
-            options["portals"] = settings.sources.portals
+            options["portals"] = settings.sources.active_portals()
             if not options["portals"]:
                 continue
         instance = cls(fetcher, options)
