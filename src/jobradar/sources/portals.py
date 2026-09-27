@@ -23,7 +23,7 @@ import html
 import json
 import re
 from typing import Any
-from urllib.parse import quote_plus, urljoin, urlparse
+from urllib.parse import parse_qsl, quote_plus, urlencode, urljoin, urlparse, urlunparse
 
 from ..models import Job, RemoteScope, WorkMode
 from ..textutils import detect_language, parse_date, strip_html, title_matches
@@ -37,8 +37,26 @@ MAX_TEXT = 12000
 _JSON_LD = re.compile(r'<script[^>]*type=["\']application/ld\+json["\'][^>]*>(.*?)</script>',
                       re.S | re.I)
 _LINK = re.compile(r'<a\b[^>]*href=["\']([^"\'#]+)["\'][^>]*>(.*?)</a>', re.S | re.I)
+_HEADING = re.compile(r"<h[1-6]\b[^>]*>(.*?)</h[1-6]>", re.S | re.I)
 _MAIN = re.compile(r"<(main|article)\b[^>]*>(.*?)</\1>", re.S | re.I)
 _BODY = re.compile(r"<body\b[^>]*>(.*?)</body>", re.S | re.I)
+
+
+#: Query parameters that change on every visit (sessions, tracking) and would
+#: make the same ad look new each day.
+_VOLATILE = re.compile(r"(sess|^sid$|jsessionid|flujo|token|^utm_|^fbclid$|^gclid$|^ret$|^origen$)",
+                       re.I)
+
+
+def canonical(url: str) -> str:
+    """``url`` without session and tracking parameters, so an ad keeps one id."""
+    parts = urlparse(url)
+    path = re.sub(r";jsessionid=[^/?#]*", "", parts.path, flags=re.I)
+    query = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True)
+             if not _VOLATILE.search(k)]
+    params = "" if "jsessionid" in parts.params.lower() else parts.params
+    return urlunparse(parts._replace(path=path, params=params, query=urlencode(query),
+                                     fragment=""))
 
 
 def _tag(block: str, name: str) -> str:
@@ -169,6 +187,7 @@ class PortalsSource(JobSource):
         return self._from_links(body, url, terms)
 
     def _job(self, link: str, **fields: Any) -> Job:
+        link = canonical(link)
         native = hashlib.sha1(link.encode()).hexdigest()[:16]
         fields.setdefault("company", urlparse(link).netloc.removeprefix("www."))
         return self.make_job(native, url=link, **fields)
@@ -208,13 +227,17 @@ class PortalsSource(JobSource):
             return []  # without titles to match, every menu link would be a "job"
         jobs: dict[str, Job] = {}
         for href, anchor in _LINK.findall(body):
-            text = strip_html(anchor)
+            # A result card is often one link around a heading, the company and
+            # a summary: the heading is the title.
+            heading = _HEADING.search(anchor)
+            text = strip_html(heading.group(1) if heading else anchor)
             if not 4 <= len(text) <= 160 or not title_matches(text, terms):
                 continue
             link = urljoin(page, html.unescape(href))
             if not link.startswith(("http://", "https://")) or link.rstrip("/") == page.rstrip("/"):
                 continue
-            jobs.setdefault(link, self._job(link, title=text, language=detect_language(text)))
+            jobs.setdefault(canonical(link), self._job(link, title=text,
+                                                       language=detect_language(text)))
             if len(jobs) >= MAX_LINKS:
                 break
         return list(jobs.values())

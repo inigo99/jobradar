@@ -31,7 +31,6 @@ import json
 import logging
 import os
 import time
-import urllib.robotparser
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -43,6 +42,7 @@ import httpx
 
 from ..config import SourceSettings
 from ..models import Job, WorkMode
+from .robots import RobotRules
 
 log = logging.getLogger(__name__)
 
@@ -118,7 +118,7 @@ class Fetcher:
                             cache_dir, exc)
                 self.cache_dir = None
         self._last_request: dict[str, float] = {}
-        self._robots: dict[str, urllib.robotparser.RobotFileParser | None] = {}
+        self._robots: dict[str, RobotRules | None] = {}
         #: Browser executable Scrapling launches, once one has been found to
         #: work; ``None`` until then, meaning "Playwright's own build".
         self._browser_executable: str | None = None
@@ -149,18 +149,13 @@ class Fetcher:
         parsed = urlparse(url)
         origin = f"{parsed.scheme}://{parsed.netloc}"
         if origin not in self._robots:
-            parser = urllib.robotparser.RobotFileParser()
-            parser.set_url(f"{origin}/robots.txt")
             try:
                 response = self._client.get(f"{origin}/robots.txt")
-                if response.status_code == 200:
-                    parser.parse(response.text.splitlines())
-                else:  # no robots.txt at all == everything allowed
-                    parser.parse([])
             except httpx.HTTPError:
                 self._robots[origin] = None
                 return True
-            self._robots[origin] = parser
+            # No robots.txt at all (or an error page) means everything is allowed.
+            self._robots[origin] = RobotRules(response.text if response.status_code == 200 else "")
         rules = self._robots[origin]
         if rules is None:
             return True

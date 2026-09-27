@@ -211,3 +211,24 @@ def test_a_bare_address_is_read_as_a_portal():
     settings = Settings.model_validate({"sources": {"portals": ["https://a.example/?q={query}"]}})
     assert settings.sources.portals == [Portal(url="https://a.example/?q={query}")]
     assert settings.sources.active_portals() == ["https://a.example/?q={query}"]
+
+
+def test_a_result_card_link_takes_its_heading_as_title():
+    page = ('<li><a href="/offres/detail/214LBZJ"><div><h2><span>Infirmier en EHPAD (H/F)</span></h2>'
+            '<p>LES RIVES D\'ITHAQUE - 63 - LA ROCHE BLANCHE</p><p class="description">'
+            + "Dans un cadre calme et verdoyant, " * 10 + '</p></div></a></li>')
+    jobs, _ = _portals(["https://ft.example/offres"], {"https://ft.example/offres": page}, ["infirmier"])
+    assert [job.title for job in jobs] == ["Infirmier en EHPAD (H/F)"]
+
+
+def test_session_parameters_do_not_make_the_same_ad_new_every_day():
+    from jobradar.sources.portals import canonical
+    first = ("https://www.sistemanacionalempleo.es/OfertaDifusionWEB/detalleOferta.do"
+             "?modo=inicio&id=132026008310&ret=B&idFlujo=IQ0btG")
+    again = first.replace("IQ0btG", "wBLzxI")
+    assert canonical(first) == canonical(again) == (
+        "https://www.sistemanacionalempleo.es/OfertaDifusionWEB/detalleOferta.do"
+        "?modo=inicio&id=132026008310")
+    page = f'<a href="{first}">Enfermera/o en Leganés</a>'
+    jobs, _ = _portals(["https://sne.example/"], {"https://sne.example/": page}, ["enfermera"])
+    assert jobs[0].url == canonical(first)
