@@ -1,5 +1,7 @@
 """Importing a CV without a language model."""
 
+import pytest
+
 from jobradar.profile import import_profile
 from tests.conftest import SAMPLE_CV
 
@@ -46,3 +48,58 @@ def test_ceilings_never_appear_for_absent_skills():
 def test_years_of_experience_merges_overlaps():
     profile, _ = import_profile(SAMPLE_CV)
     assert profile.years_of_experience() > 4
+
+
+SPANISH_CV = """Lucía Martín Ortega
+Técnica de Recursos Humanos
+lucia.martin@example.com · +34 600 000 000 · Madrid, España
+
+EXPERIENCIA
+Técnica de Recursos Humanos — Grupo Distribución Centro S.A., Madrid (03/2022 – actualidad)
+- Gestión integral de nóminas de 350 empleados con A3Nom y seguros sociales.
+Técnica de Selección — Adecco, Madrid (09/2019 – 02/2022)
+- Reclutamiento para perfiles de logística y atención al cliente.
+
+FORMACIÓN
+Grado en Relaciones Laborales y Recursos Humanos — Universidad Complutense de Madrid (2015 – 2019)
+Máster en Dirección de Recursos Humanos — ESIC (2020 – 2021)
+
+HABILIDADES
+Selección de personal, nóminas, A3Nom, formación.
+"""
+
+
+def test_reads_the_usual_spanish_position_line():
+    from jobradar.profile.importer import heuristic_profile
+
+    profile = heuristic_profile(SPANISH_CV)
+    current, previous = profile.experience
+    assert current.organization == "Grupo Distribución Centro S.A."
+    assert current.location == {"es": "Madrid"}
+    assert (current.start, current.end) == ("2022-03", None)
+    assert previous.organization == "Adecco"
+    assert (previous.start, previous.end) == ("2019-09", "2022-02")  # not "still there"
+    degree, master = profile.education
+    assert degree.institution == {"es": "Universidad Complutense de Madrid"}
+    assert degree.degree == {"es": "Grado en Relaciones Laborales y Recursos Humanos"}
+    assert master.institution == {"es": "ESIC"}
+    assert profile.skills[0].items[-1] == "formación"  # no trailing full stop
+
+
+@pytest.mark.parametrize("text, expected", [
+    ("2021 - 2023", ("2021-01", "2023-12")),
+    ("(03/2022 – actualidad)", ("2022-03", None)),
+    ("marzo 2019 - febrero 2022", ("2019-03", "2022-02")),
+    ("de 2015 a 2019", ("2015-01", "2019-12")),
+    ("Jan 2020 – Dec 2021", ("2020-01", "2021-12")),
+    ("sept. 2018 – jul. 2020", ("2018-09", "2020-07")),
+    ("juillet 2017 - juin 2019", ("2017-07", "2019-06")),
+    ("04.2016 bis heute", ("2016-04", None)),
+    ("març 2020 - ara", ("2020-03", None)),
+    ("Marketing 2019-2021", ("2019-01", "2021-12")),  # not March
+])
+def test_date_ranges_in_the_ways_cvs_write_them(text, expected):
+    from jobradar.profile.importer import DATE_RANGE, _range
+
+    start, end, _ongoing = _range(DATE_RANGE.search(text))
+    assert (start, end) == expected

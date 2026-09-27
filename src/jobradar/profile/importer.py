@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import logging
 import re
+import unicodedata
 from pathlib import Path
 
 from ..errors import MissingDependencyError, ProfileError, describe_os_error
@@ -49,13 +50,83 @@ EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
 PHONE = re.compile(r"(?:\+\d{1,3}[ .-]?)?(?:\(?\d{2,4}\)?[ .-]?){2,4}\d{2,4}")
 URL = re.compile(r"(?:https?://)?(?:www\.)?((?:linkedin\.com|github\.com)/[\w\-/%.]+)", re.I)
 BULLET_LINE = re.compile(r"^\s*(?:[•▪◦·*\-–—]|\d+[.)])\s+(.{15,})$")
-# Matches "2021 - 2023", "2022-03 - present", "2019-09 – 2020-07" and the
-# Spanish, French and German words for "present".
+def _date(n: int) -> str:
+    """One date of a range: "2022", "2022-03", "03/2022", "03.2022", "marzo 2022",
+    "mar. 2022", "March 2022", "de marzo de 2022"."""
+    return (rf"(?:(?P<m{n}>\d{{1,2}})[/.](?=(?:19|20)\d{{2}})"
+            rf"|(?P<w{n}>[A-Za-zÀ-ÿ]{{3,10}})\.?\s+(?:de\s+)?)?"
+            rf"(?P<y{n}>(?:19|20)\d{{2}})(?:-(?P<n{n}>\d{{1,2}}))?")
+
+
+#: Words for "still there", in the languages CVs are written in.
+_ONGOING = (r"(?:la\s+)?actualidad|actualmente|actual|presente?|current(?:ly)?|now|today|hoy"
+            r"|heute|présent|ara|avui")
+
+# A date range as CVs write it: "2021 - 2023", "2022-03 – present",
+# "(03/2022 – actualidad)", "marzo 2019 - febrero 2022", "de 2015 a 2019".
 DATE_RANGE = re.compile(
-    r"((?:19|20)\d{2})(?:-(\d{1,2}))?\s*(?:[-–—/]|to|hasta|bis|à)\s*"
-    r"((?:19|20)\d{2}(?:-\d{1,2})?|present|actualidad|actualmente|current|now|heute|présent)",
+    _date(1) + r"\s*(?:[-–—]|/|\bto\b|\bhasta\b|\bbis\b|\bà\b|\buntil\b|\ba\b)\s*"
+    rf"(?:{_date(2)}|(?P<ongoing>{_ONGOING})\b)",
     re.I,
 )
+
+#: Month names and abbreviations (Spanish, Catalan, English, French, German,
+#: Portuguese, Italian), by their unaccented start. Longer keys first, so
+#: "juil" (juillet) wins over "jui".
+_MONTHS = sorted({
+    "ene": 1, "jan": 1, "gen": 1, "feb": 2, "fev": 2, "mar": 3, "mae": 3, "abr": 4, "apr": 4,
+    "avr": 4, "may": 5, "mai": 5, "mag": 5, "maig": 5, "jun": 6, "juin": 6, "giu": 6,
+    "jul": 7, "juil": 7, "lug": 7, "ago": 8, "aug": 8, "aou": 8, "sep": 9, "set": 9,
+    "oct": 10, "okt": 10, "out": 10, "ott": 10, "nov": 11, "dic": 12, "dec": 12, "dez": 12,
+    "des": 12,
+}.items(), key=lambda item: -len(item[0]))
+
+
+#: Full month names, so a longer word is only a month when it is one
+#: ("Marketing 2019" is not March).
+_MONTH_NAMES = frozenset("""
+enero febrero marzo abril mayo junio julio agosto septiembre setiembre octubre noviembre
+diciembre gener febrer marc abril maig juny juliol agost setembre octubre novembre desembre
+january february march april may june july august september october november december
+janvier fevrier mars avril mai juin juillet aout septembre octobre novembre decembre
+januar februar marz april mai juni juli august september oktober november dezember
+janeiro fevereiro marco abril maio junho julho agosto setembro outubro novembro dezembro
+gennaio febbraio marzo aprile maggio giugno luglio agosto settembre ottobre novembre dicembre
+""".split())
+
+
+def _month(number: str | None, word: str | None, trailing: str | None) -> int | None:
+    for value in (number, trailing):
+        if value and 1 <= int(value) <= 12:
+            return int(value)
+    if word:
+        plain = unicodedata.normalize("NFKD", word).encode("ascii", "ignore").decode().lower()
+        if len(plain) > 5 and plain not in _MONTH_NAMES:
+            return None  # a word before the year, not a month
+        for prefix, month in _MONTHS:
+            if plain.startswith(prefix):
+                return month
+    return None
+
+
+def _range(dates: re.Match[str]) -> tuple[str, str | None, bool]:
+    """``(start, end, ongoing)`` as "YYYY-MM" from a :data:`DATE_RANGE` match."""
+    start_month = _month(dates.group("m1"), dates.group("w1"), dates.group("n1"))
+    start = f"{dates.group('y1')}-{start_month or 1:02d}"
+    if dates.group("ongoing"):
+        return start, None, True
+    end_month = _month(dates.group("m2"), dates.group("w2"), dates.group("n2"))
+    return start, f"{dates.group('y2')}-{end_month or 12:02d}", False
+
+
+def _without_dates(line: str) -> str:
+    """``line`` with its date range, and the brackets that held it, removed."""
+    def keep_non_month(match: re.Match[str]) -> str:
+        word = match.group("w1")  # "Marketing 2019-2021": the word stays
+        return f"{word} " if word and _month(None, word, None) is None else ""
+
+    return re.sub(r"\(\s*\)|\[\s*\]", "", DATE_RANGE.sub(keep_non_month, line)).strip(" ·|—–-,()")
+
 
 #: Section headings, in the languages CVs are most often written in.
 SECTION_HEADINGS: dict[str, tuple[str, ...]] = {
@@ -295,13 +366,19 @@ def _parse_experience(lines: list[str], language: str) -> list[Experience]:
 
 
 def _new_experience(line: str, language: str, index: int) -> Experience:
-    """Start a position from its first header line."""
-    title = re.split(r"\s+[—–|]\s+|,\s{2,}", line)[0].strip()
+    """Start a position from its first header line.
+
+    "Técnica de RRHH — Grupo Centro S.A., Madrid (03/2022 – actualidad)"
+    gives the title, the employer, the city and the dates.
+    """
+    title = re.split(r"\s+[—–|]\s+|,\s{2,}", _without_dates(line))[0].strip()
     identifier = slugify(title, 24) or f"role{index + 1}"
+    organization, city = _organisation_and_city(line)
     experience = Experience(
         id=f"{identifier}-{index + 1}",
         title={language: title},
-        organization=_organisation_from(line),
+        organization=organization,
+        location={language: city} if city else {},
     )
     _apply_dates(experience, line)
     return experience
@@ -311,9 +388,11 @@ def _absorb_header_line(experience: Experience, line: str, language: str) -> Non
     """Fold a second or third header line into the position being built."""
     _apply_dates(experience, line)
     if not experience.organization:
-        experience.organization = _organisation_from(line)
+        experience.organization, city = _organisation_and_city(line)
+        if city and not experience.location:
+            experience.location = {language: city}
     if not experience.location:
-        without_dates = DATE_RANGE.sub("", line).strip(" ·|—–-,")
+        without_dates = _without_dates(line)
         if without_dates:
             experience.location = {language: without_dates}
 
@@ -323,30 +402,43 @@ def _apply_dates(experience: Experience, line: str) -> None:
     dates = DATE_RANGE.search(line)
     if not dates:
         return
-    year, month, end = dates.group(1), dates.group(2), dates.group(3)
-    experience.start = experience.start or f"{year}-{int(month or 1):02d}"
-    if re.match(r"(?i)present|actualidad|actualmente|current|now|heute|présent", end):
-        experience.end = None
-    elif "-" in end:
-        end_year, end_month = end.split("-")
-        experience.end = f"{end_year}-{int(end_month):02d}"
-    else:
-        experience.end = f"{end}-12"
+    start, end, _ongoing = _range(dates)
+    experience.start = experience.start or start
+    experience.end = end
 
 
 def _apply_dates_to_education(entry: Education, dates: re.Match[str]) -> None:
-    year, month, end = dates.group(1), dates.group(2), dates.group(3)
-    entry.start = f"{year}-{int(month or 1):02d}"
-    if "-" in end:
-        end_year, end_month = end.split("-")
-        entry.end = f"{end_year}-{int(end_month):02d}"
-    elif end.isdigit():
-        entry.end = f"{end}-12"
+    entry.start, end, _ongoing = _range(dates)
+    if end:
+        entry.end = end
 
 
 def _organisation_from(line: str) -> str:
-    parts = re.split(r"\s+[—–|]\s+|\sat\s|\sen\s", line.strip())
-    return parts[1].strip() if len(parts) > 1 else ""
+    """The employer or school: after a dash or bar, else after "at"/"en"."""
+    text = _without_dates(line)
+    parts = re.split(r"\s+[—–|]\s+", text)
+    if len(parts) < 2:
+        # "Developer at Google", "Desarrollador en Indra" — only when no dash
+        # says where the title ends: "Grado en Relaciones Laborales" is a title.
+        parts = re.split(r"\sat\s|\sen\s", text, maxsplit=1)
+    return parts[1].strip(" ,") if len(parts) > 1 else ""
+
+
+def _organisation_and_city(line: str) -> tuple[str, str]:
+    """``("Grupo Centro S.A.", "Madrid")`` from "… — Grupo Centro S.A., Madrid".
+
+    The last comma-separated part is taken as the city when it is short and
+    looks like a place name, not a company suffix.
+    """
+    organization = _organisation_from(line)
+    head, comma, tail = organization.rpartition(",")
+    tail = tail.strip()
+    if (comma and head.strip() and tail and len(tail.split()) <= 3
+            and not any(ch.isdigit() for ch in tail)
+            and tail.rstrip(".").lower() not in {"s.a", "sa", "s.l", "sl", "sau", "slu", "inc",
+                                                  "ltd", "llc", "gmbh", "s.l.u", "s.a.u"}):
+        return head.strip(), tail
+    return organization, ""
 
 
 def _reads_like_a_note(line: str) -> bool:
@@ -364,14 +456,14 @@ def _parse_education(lines: list[str], language: str) -> list[Education]:
             education[-1].note = {language: bullet.group(1)}
             continue
         dates = DATE_RANGE.search(line)
-        if education and dates and len(DATE_RANGE.sub("", line).strip(" ·|—–-,")) < 5:
+        if education and dates and len(_without_dates(line)) < 5:
             # A line holding only the dates belongs to the entry above it.
             _apply_dates_to_education(education[-1], dates)
             continue
         if education and not dates and _reads_like_a_note(line):
             education[-1].note = {language: line.strip()}
             continue
-        degree = re.split(r"\s+[—–|]\s+", DATE_RANGE.sub("", line).strip(" ·|—–-,"))[0].strip()
+        degree = re.split(r"\s+[—–|]\s+", _without_dates(line))[0].strip()
         if len(degree) < 5:
             continue
         entry = Education(
@@ -393,7 +485,8 @@ def _parse_skills(lines: list[str], language: str) -> list[SkillGroup]:
         label, separator, items = text.partition(":")
         if not separator:
             label, items = f"Skills {index + 1}", text
-        parsed = [item.strip() for item in re.split(r"[,;·|]|\s/\s", items) if item.strip()]
+        parsed = [item.strip().rstrip(".") for item in re.split(r"[,;·|]|\s/\s", items)
+                  if item.strip().rstrip(".")]
         if parsed:
             groups.append(
                 SkillGroup(key=slugify(label, 20) or f"group{index}",
