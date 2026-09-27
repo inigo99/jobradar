@@ -176,10 +176,10 @@ def test_without_markup_the_links_matching_your_titles_are_used():
 def test_a_search_address_is_filled_in_once_per_term():
     pages = {"https://jobs.example/buscar?q=": LINKS_PAGE}
     _, fetcher = _portals(["https://jobs.example/buscar?q={query}"], pages,
-                          ["enfermera", "mozo almacen"])
+                          ["enfermera", "mozo almacén"])
     asked = [url for kind, url, _ in fetcher.calls if kind == "GET"]
     assert asked == ["https://jobs.example/buscar?q=enfermera",
-                     "https://jobs.example/buscar?q=mozo+almacen"]
+                     "https://jobs.example/buscar?q=mozo+almacen"]  # accents left out
 
 
 def test_an_unreadable_portal_is_reported_not_silent():

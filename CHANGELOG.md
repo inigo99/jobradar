@@ -35,6 +35,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- **robots.txt wildcards were ignored.** Python's parser matches rules as
+  plain prefixes, so a rule such as `Disallow: *motsCles=*` never matched;
+  JobRadar now follows RFC 9309 (wildcards, `$`, longest rule wins).
 - **Saving Settings switched Adzuna and Jooble off.** The page ticked only the
   open sources by default, while the search also runs the credentials ones;
   pressing Save then stored them as disabled. They are now ticked like the

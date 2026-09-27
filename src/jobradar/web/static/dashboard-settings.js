@@ -537,8 +537,11 @@ function portalRow(portal) {
 function parsePortalLine(line) {
   const match = line.match(/https?:\/\/\S+/);
   if (!match) return null;
-  const name = line.replace(match[0], "").replace(/[\s:|\-–—]+$/, "").replace(/^[\s\-*•]+/, "").trim();
-  return { url: match[0], name, enabled: true };
+  // Copied from Markdown: drop the backticks and quotes around it.
+  const url = match[0].replace(/[`'"),.;]+$/, "");
+  const name = line.replace(match[0], "").replace(/[`'"]/g, "")
+    .replace(/[\s:|\-–—]+$/, "").replace(/^[\s\-*•|]+/, "").trim();
+  return { url, name, enabled: true };
 }
 
 function portalsEditor(portals) {

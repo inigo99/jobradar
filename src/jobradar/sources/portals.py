@@ -22,6 +22,7 @@ import hashlib
 import html
 import json
 import re
+import unicodedata
 from typing import Any
 from urllib.parse import parse_qsl, quote_plus, urlencode, urljoin, urlparse, urlunparse
 
@@ -57,6 +58,13 @@ def canonical(url: str) -> str:
     params = "" if "jsessionid" in parts.params.lower() else parts.params
     return urlunparse(parts._replace(path=path, params=params, query=urlencode(query),
                                      fragment=""))
+
+
+def _plain(term: str) -> str:
+    """The search words without accents: older sites decode them in their own
+    charset (ISO-8859-1, say) and garble them, and search boxes ignore them anyway."""
+    decomposed = unicodedata.normalize("NFKD", term)
+    return "".join(c for c in decomposed if not unicodedata.combining(c))
 
 
 def _tag(block: str, name: str) -> str:
@@ -151,7 +159,8 @@ class PortalsSource(JobSource):
             if not entry.startswith(("http://", "https://")):
                 continue
             if "{query}" in entry:
-                pages = [(entry.replace("{query}", quote_plus(term)), [term]) for term in terms]
+                pages = [(entry.replace("{query}", quote_plus(_plain(term))), [term])
+                         for term in terms]
             else:
                 pages = [(entry, terms)]
             for url, wanted in pages:

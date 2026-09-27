@@ -75,9 +75,13 @@ JSON-LD, which most job boards publish because Google for Jobs reads it); and,
 failing both, the links whose text matches one of the user's job titles
 (first five letters of each word, so "enfermera" finds "Enfermero/a"). An
 ad's text comes from its own page, again from its `JobPosting` markup when it
-has one. Plain HTTP only, and `robots.txt` is honoured: a page that blocks
-automated readers or builds its list with JavaScript yields nothing, and the
-run history says so.
+has one. Search words are sent without accents (older sites decode them in
+their own charset), session parameters are dropped from ad addresses so an ad
+keeps one id, and a link that wraps a whole result card is titled by the
+heading inside it. Plain HTTP only, and `robots.txt` is honoured — wildcards
+included (`Fetcher` uses `sources/robots.py`, since Python's own parser
+ignores them): a page that blocks automated readers or builds its list with
+JavaScript yields nothing, and the run history says so.
 
 ## Being a good citizen
 
