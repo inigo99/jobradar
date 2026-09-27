@@ -260,4 +260,4 @@ New sources, skills and job families for under-covered fields, salary bands, CV 
 
 Copyright (C) 2026 Íñigo Fernández Barrill and JobRadar contributors.
 
-[AGPL-3.0](https://github.com/inigo99/jobradar/blob/master/LICENSE) since 1.5.0 (earlier releases stay MIT). Use it, change it and share it freely; if you distribute a modified version, or let other people use one over a network, you must offer them its source code under the same license. Found a security problem? See [SECURITY.md](https://github.com/inigo99/jobradar/blob/master/SECURITY.md).
+[AGPL-3.0](https://github.com/inigo99/jobradar/blob/master/LICENSE) Use it, change it and share it freely; if you distribute a modified version, or let other people use one over a network, you must offer them its source code under the same license. Found a security problem? See [SECURITY.md](https://github.com/inigo99/jobradar/blob/master/SECURITY.md).

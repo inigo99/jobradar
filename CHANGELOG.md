@@ -12,8 +12,9 @@ All notable changes to this project are documented here. The format follows
 
 - **License: AGPL-3.0** (was MIT). JobRadar stays free to use, change and
   share; a modified version that is distributed or offered to others over a
-  network must publish its source under the same license. Releases up to
-  1.4.2 remain MIT. The Settings dialog links to the source code.
+  network must publish its source under the same license. Releases 1.4.0
+  to 1.4.2, published under MIT, were withdrawn: JobRadar is distributed
+  only under AGPL-3.0. The Settings dialog links to the source code.
 
 ### Added
 
