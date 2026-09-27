@@ -1,0 +1,97 @@
+# ---------------------------------------------------------------------------
+# Sub-national regions, by NUTS code.
+#
+# Some boards publish only a region code instead of a town — EURES gives the
+# NUTS-3 code (a province, in Spain) and searches by NUTS-2. This file turns
+# those codes into names, so a "Barcelona" or "Pamplona" in your areas can be
+# matched against them, and your areas into codes a board can search by.
+#
+# Each NUTS-3 entry: `name`, the NUTS-2 `region` it belongs to, and `places`:
+# other names people use for it (capital, main towns, co-official names).
+# The province is the finest grain these boards give, so an area resolves to
+# its whole province: "Pamplona" also keeps a job in Tudela.
+#
+# Adding a country is a block like ES below. Nothing else needs to change.
+# ---------------------------------------------------------------------------
+
+ES:
+  regions:
+    ES11: Galicia
+    ES12: Asturias
+    ES13: Cantabria
+    ES21: País Vasco
+    ES22: Navarra
+    ES23: La Rioja
+    ES24: Aragón
+    ES30: Comunidad de Madrid
+    ES41: Castilla y León
+    ES42: Castilla-La Mancha
+    ES43: Extremadura
+    ES51: Cataluña
+    ES52: Comunitat Valenciana
+    ES53: Illes Balears
+    ES61: Andalucía
+    ES62: Región de Murcia
+    ES63: Ceuta
+    ES64: Melilla
+    ES70: Canarias
+  provinces:
+    ES111: {name: A Coruña, places: [La Coruña, Coruña, Santiago de Compostela, Ferrol]}
+    ES112: {name: Lugo}
+    ES113: {name: Ourense, places: [Orense]}
+    ES114: {name: Pontevedra, places: [Vigo]}
+    ES120: {name: Asturias, places: [Oviedo, Gijón, Avilés]}
+    ES130: {name: Cantabria, places: [Santander, Torrelavega]}
+    ES211: {name: Araba/Álava, places: [Álava, Araba, Vitoria, Gasteiz, Vitoria-Gasteiz]}
+    ES212: {name: Gipuzkoa, places: [Guipúzcoa, San Sebastián, Donostia, Irún]}
+    ES213: {name: Bizkaia, places: [Vizcaya, Bilbao, Barakaldo, Getxo]}
+    ES220: {name: Navarra, places: [Nafarroa, Pamplona, Iruña, Iruñea, Tudela]}
+    ES230: {name: La Rioja, places: [Logroño]}
+    ES241: {name: Huesca, places: [Jaca, Monzón]}
+    ES242: {name: Teruel}
+    ES243: {name: Zaragoza}
+    ES300: {name: Madrid, places: [Alcalá de Henares, Getafe, Móstoles, Leganés, Alcobendas]}
+    ES411: {name: Ávila}
+    ES412: {name: Burgos}
+    ES413: {name: León, places: [Ponferrada]}
+    ES414: {name: Palencia}
+    ES415: {name: Salamanca}
+    ES416: {name: Segovia}
+    ES417: {name: Soria}
+    ES418: {name: Valladolid}
+    ES419: {name: Zamora}
+    ES421: {name: Albacete}
+    ES422: {name: Ciudad Real}
+    ES423: {name: Cuenca}
+    ES424: {name: Guadalajara}
+    ES425: {name: Toledo, places: [Talavera de la Reina]}
+    ES431: {name: Badajoz, places: [Mérida]}
+    ES432: {name: Cáceres}
+    ES511: {name: Barcelona, places: [Hospitalet de Llobregat, Badalona, Terrassa, Sabadell, Granollers, Mataró]}
+    ES512: {name: Girona, places: [Gerona]}
+    ES513: {name: Lleida, places: [Lérida]}
+    ES514: {name: Tarragona, places: [Reus]}
+    ES521: {name: Alicante/Alacant, places: [Alicante, Alacant, Elche, Elx, Benidorm]}
+    ES522: {name: Castellón/Castelló, places: [Castellón, Castelló, Castellón de la Plana]}
+    ES523: {name: Valencia/València, places: [Valencia, València]}
+    ES531: {name: Eivissa y Formentera, places: [Ibiza, Eivissa, Formentera]}
+    ES532: {name: Mallorca, places: [Palma, Palma de Mallorca]}
+    ES533: {name: Menorca, places: [Mahón, Maó]}
+    ES611: {name: Almería}
+    ES612: {name: Cádiz, places: [Jerez de la Frontera, Algeciras]}
+    ES613: {name: Córdoba}
+    ES614: {name: Granada}
+    ES615: {name: Huelva}
+    ES616: {name: Jaén}
+    ES617: {name: Málaga, places: [Marbella]}
+    ES618: {name: Sevilla, places: [Seville]}
+    ES620: {name: Murcia, places: [Cartagena]}
+    ES630: {name: Ceuta}
+    ES640: {name: Melilla}
+    ES703: {name: El Hierro}
+    ES704: {name: Fuerteventura}
+    ES705: {name: Gran Canaria, places: [Las Palmas, Las Palmas de Gran Canaria]}
+    ES706: {name: La Gomera}
+    ES707: {name: La Palma}
+    ES708: {name: Lanzarote}
+    ES709: {name: Tenerife, places: [Santa Cruz de Tenerife]}

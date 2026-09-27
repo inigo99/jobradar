@@ -57,6 +57,9 @@ function settingsBody() {
                           checked: f.work_modes.includes(mode) }), " " + workModeLabel(mode)))),
       el("label", {}, t("Areas where hybrid or on-site is fine")),
       input("s_areas", f.local_areas.join(", ")),
+      el("div", { className: "row", style: "margin-top:6px" },
+        el("input", { type: "checkbox", id: "s_localonly", checked: f.local_only }),
+        el("label", { style: "margin:0" }, t("Only in these areas \u2014 not elsewhere in my country"))),
       el("div", { className: "two" },
         el("div", {}, el("label", {}, t("Minimum salary")),
           el("input", { id: "s_minsal", type: "number", value: f.min_salary ?? "" })),
@@ -430,6 +433,7 @@ async function saveSettings() {
   const f = settings.filters;
   f.work_modes = [...document.querySelectorAll(".s_mode:checked")].map(n => n.value);
   f.local_areas = list("s_areas");
+  f.local_only = $("#s_localonly").checked;
   f.min_salary = value("s_minsal") ? Number(value("s_minsal")) : null;
   f.salary_currency = value("s_currency") || "EUR";
   f.max_years_experience = value("s_maxyears") ? Number(value("s_maxyears")) : null;

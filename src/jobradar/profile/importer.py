@@ -142,6 +142,11 @@ SECTION_HEADINGS: dict[str, tuple[str, ...]] = {
     "skills": ("technical skills", "skills", "competencies", "competencias técnicas",
                "competencias", "habilidades", "compétences", "kenntnisse"),
     "languages": ("languages", "idiomas", "langues", "sprachen"),
+    # Kept under their own heading in ``Profile.extras``; recognised mostly so
+    # their bullets do not end up as achievements of the last job.
+    "extras": ("activities", "extracurricular activities", "volunteering", "volunteer work",
+               "awards", "actividades", "otras actividades", "actividades complementarias",
+               "voluntariado", "premios", "activitats", "voluntariat"),
 }
 
 
@@ -248,26 +253,89 @@ def extract_text(path: str | Path) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _classify_heading(line: str) -> str | None:
-    """Is this line a section heading, and if so which section?
+def _section_named(name: str) -> str | None:
+    for section, headings in SECTION_HEADINGS.items():
+        if name in headings:
+            return section
+    return None
+
+
+def _heading_sections(line: str) -> list[str]:
+    """The sections a heading line opens, in order; empty when it is not one.
 
     Matching is near-exact on purpose. Prefix matching looks more forgiving and
     is actively harmful: "Languages: Python, Go, SQL" inside a skills block
     starts with "languages", and treating it as a heading silently swallows the
-    whole skills section.
+    whole skills section. Two narrow exceptions: a heading that joins several
+    ("Certificaciones, competencias e idiomas"), and one written in capitals
+    that qualifies a known heading ("ACTIVIDADES JURÍDICAS Y ACADÉMICAS") —
+    capitals are how a layout says "this is a heading".
     """
-    candidate = line.strip().rstrip(":").strip().lower()
+    stripped = line.strip().rstrip(":").strip()
+    candidate = stripped.lower()
     if not candidate or len(candidate) > 45 or candidate.endswith("."):
-        return None
+        return []
     # A heading is a label, not a sentence carrying values.
     if ":" in candidate or any(ch.isdigit() for ch in candidate):
-        return None
-    if len(candidate.split()) > 4:
-        return None
-    for section, headings in SECTION_HEADINGS.items():
-        if candidate in headings:
-            return section
-    return None
+        return []
+    if len(candidate.split()) > 5:
+        return []
+    exact = _section_named(candidate)
+    if exact:
+        return [exact]
+    parts = [p.strip() for p in re.split(r",|&|/|\s(?:y|e|and|et|und|i)\s", candidate)]
+    joined = [_section_named(part) for part in parts if part]
+    if len(joined) > 1 and all(joined):
+        return list(dict.fromkeys(section for section in joined if section))
+    if stripped.isupper():
+        words = candidate.split()
+        for size in (2, 1):
+            section = _section_named(" ".join(words[:size]))
+            if section:
+                return [section]
+    return []
+
+
+def _classify_heading(line: str) -> str | None:
+    """Is this line a section heading, and if so which section (the first, for
+    a heading that joins several)?"""
+    sections = _heading_sections(line)
+    return sections[0] if sections else None
+
+
+#: How a line that finished its sentence ends.
+_TERMINAL = (".", "!", "?", ";", ":", ")")
+_LABELLED = re.compile(r"^[^:\d]{3,40}:\s+\S")
+
+
+def _join_wrapped(lines: list[str]) -> list[str]:
+    """Put back together the lines a PDF broke inside one bullet or sentence.
+
+    PDF text comes out one printed line at a time, so a bullet that wraps
+    reads as a bullet plus a stray line, which would otherwise start a new
+    position. A line is a continuation when it follows a bullet (or another
+    continuation) that did not end its sentence, and either starts in lower
+    case or the line before was cut with a trailing space — how PDF text
+    extraction marks a soft wrap.
+    """
+    joined: list[str] = []
+    open_bullet = False
+    for raw in lines:
+        stripped = raw.strip()
+        if not stripped:
+            open_bullet = False
+            joined.append(raw)
+            continue
+        is_bullet = bool(BULLET_LINE.match(raw))
+        previous = joined[-1] if joined else ""
+        if (open_bullet and not is_bullet and not previous.rstrip().endswith(_TERMINAL)
+                and (stripped[0].islower() or previous != previous.rstrip())):
+            joined[-1] = f"{previous.rstrip()} {stripped}"
+            continue
+        joined.append(raw)
+        # A labelled list ("Competencias: a · b · c") wraps like a bullet.
+        open_bullet = is_bullet or bool(_LABELLED.match(stripped))
+    return joined
 
 
 def split_sections(text: str) -> dict[str, list[str]]:
@@ -275,17 +343,31 @@ def split_sections(text: str) -> dict[str, list[str]]:
 
     Anything before the first recognised heading becomes ``header`` — that is
     where the name and contact details live in essentially every CV layout.
+
+    Under a heading that joins several ("Certificaciones, competencias e
+    idiomas"), a line labelled with one of them ("Idiomas: italiano…") goes to
+    that section. An ``extras`` heading keeps its own words, as
+    ``extra:<Heading>``, since that is the title it is printed under.
     """
     sections: dict[str, list[str]] = {"header": []}
     current = "header"
-    for raw_line in text.splitlines():
-        line = raw_line.rstrip()
+    joint: list[str] = []
+    for line in _join_wrapped(text.splitlines()):
+        line = line.rstrip()
         if not line.strip():
             continue
-        heading = _classify_heading(line)
-        if heading:
-            current = heading
+        opened = _heading_sections(line)
+        if opened:
+            current = opened[0]
+            if current == "extras":
+                current = f"extra:{line.strip().rstrip(':').strip().capitalize()}"
+            joint = opened if len(opened) > 1 else []
             sections.setdefault(current, [])
+            continue
+        label, colon, rest = line.partition(":")
+        routed = _section_named(label.strip().lower()) if colon and joint else None
+        if routed in joint and rest.strip():
+            sections.setdefault(routed, []).append(rest.strip())
             continue
         sections.setdefault(current, []).append(line)
     return sections
@@ -371,7 +453,7 @@ def _new_experience(line: str, language: str, index: int) -> Experience:
     "Técnica de RRHH — Grupo Centro S.A., Madrid (03/2022 – actualidad)"
     gives the title, the employer, the city and the dates.
     """
-    title = re.split(r"\s+[—–|]\s+|,\s{2,}", _without_dates(line))[0].strip()
+    title = _title_part(_without_dates(line))
     identifier = slugify(title, 24) or f"role{index + 1}"
     organization, city = _organisation_and_city(line)
     experience = Experience(
@@ -416,12 +498,36 @@ def _apply_dates_to_education(entry: Education, dates: re.Match[str]) -> None:
 def _organisation_from(line: str) -> str:
     """The employer or school: after a dash or bar, else after "at"/"en"."""
     text = _without_dates(line)
+    if " · " in _squash(text):
+        return _squash(text).split(" · ", 1)[1].strip(" ,")
     parts = re.split(r"\s+[—–|]\s+", text)
     if len(parts) < 2:
         # "Developer at Google", "Desarrollador en Indra" — only when no dash
         # says where the title ends: "Grado en Relaciones Laborales" is a title.
         parts = re.split(r"\sat\s|\sen\s", text, maxsplit=1)
     return parts[1].strip(" ,") if len(parts) > 1 else ""
+
+
+def _title_part(text: str) -> str:
+    """The title of a "Title — Organisation, City" line.
+
+    A spaced middle dot ("Puesto  ·  Empresa") ends the title even when the
+    title itself holds a dash ("Campus Manager – Operaciones…").
+    """
+    if " · " in _squash(text):
+        return _squash(text).split(" · ")[0].strip()
+    return re.split(r"\s+[—–|]\s+|,\s{2,}", text)[0].strip()
+
+
+def _bullet_text(line: str) -> str:
+    """A line without its bullet mark, if it has one."""
+    bullet = BULLET_LINE.match(line)
+    return bullet.group(1) if bullet else line.strip()
+
+
+def _squash(text: str) -> str:
+    """Runs of spaces as one: layouts pad separators ("Puesto  ·  Empresa")."""
+    return re.sub(r"\s{2,}", " ", text)
 
 
 def _organisation_and_city(line: str) -> tuple[str, str]:
@@ -435,6 +541,7 @@ def _organisation_and_city(line: str) -> tuple[str, str]:
     tail = tail.strip()
     if (comma and head.strip() and tail and len(tail.split()) <= 3
             and not any(ch.isdigit() for ch in tail)
+            and not tail.rstrip(".").isupper()  # "…, HBTOO": an acronym, not a town
             and tail.rstrip(".").lower() not in {"s.a", "sa", "s.l", "sl", "sau", "slu", "inc",
                                                   "ltd", "llc", "gmbh", "s.l.u", "s.a.u"}):
         return head.strip(), tail
@@ -463,7 +570,7 @@ def _parse_education(lines: list[str], language: str) -> list[Education]:
         if education and not dates and _reads_like_a_note(line):
             education[-1].note = {language: line.strip()}
             continue
-        degree = re.split(r"\s+[—–|]\s+", _without_dates(line))[0].strip()
+        degree = _title_part(_without_dates(line))
         if len(degree) < 5:
             continue
         entry = Education(
@@ -506,29 +613,38 @@ def heuristic_profile(text: str) -> Profile:
     profile.experience = _parse_experience(sections.get("experience", []), language)
     profile.education = _parse_education(sections.get("education", []), language)
     profile.skills = _parse_skills(sections.get("skills", []), language)
+    for key, lines in sections.items():
+        if key.startswith("extra:") and lines:
+            items = [_bullet_text(line) for line in lines]
+            profile.extras[key.split(":", 1)[1]] = {language: " ".join(items)}
     for line in sections.get("certifications", []):
         bullet = BULLET_LINE.match(line)
         clean = bullet.group(1) if bullet else line.strip()
-        year = re.search(r"(19|20)\d{2}", clean)
-        if year:  # the year has its own field; keeping it in the name prints it twice
-            clean = re.sub(r"\s*\(?\b" + year.group(0) + r"\b\)?", "", clean).strip(" ,·—–-")
-        name, _, issuer = re.sub(r"\s+[–|]\s+", " — ", clean).partition(" — ")
-        profile.certifications.append(
-            Certification(name={language: name.strip()}, issuer=issuer.strip(),
-                          year=year.group(0) if year else "")
-        )
+        # "A · B · C" on one line is three certificates, each with its own year.
+        for item in _squash(clean).split(" · "):
+            item = item.strip(" .")
+            year = re.search(r"(19|20)\d{2}", item)
+            if year:  # the year has its own field; keeping it in the name prints it twice
+                item = re.sub(r",\s*" + year.group(0) + r"\)", ")", item)
+                item = re.sub(r"\s*\(?\b" + year.group(0) + r"\b\)?", "", item).strip(" ,·—–-")
+            name, _, issuer = re.sub(r"\s+[–|]\s+", " — ", item).partition(" — ")
+            if name.strip():
+                profile.certifications.append(
+                    Certification(name={language: name.strip()}, issuer=issuer.strip(),
+                                  year=year.group(0) if year else "")
+                )
     for line in sections.get("languages", []):
         for chunk in re.split(r"[·,;|]", line):
             chunk = chunk.strip()
             if not chunk:
                 continue
             level = re.search(r"\(([^)]+)\)|\b([ABC][12])\b|native|nativo|fluent", chunk, re.I)
-            profile.languages.append(
-                LanguageSkill(
-                    name={language: re.sub(r"\(.*?\)", "", chunk).strip()},
-                    level=level.group(0).strip("()") if level else "",
+            name = re.sub(r"\(.*?\)|\b[ABC][12]\b", "", chunk).strip(" .")
+            if name:
+                profile.languages.append(
+                    LanguageSkill(name={language: name},
+                                  level=level.group(0).strip("()") if level else "")
                 )
-            )
     return vocabulary.refresh(profile)
 
 

@@ -103,3 +103,49 @@ def test_date_ranges_in_the_ways_cvs_write_them(text, expected):
 
     start, end, _ongoing = _range(DATE_RANGE.search(text))
     assert (start, end) == expected
+
+
+#: What PDF text extraction gives for a two-column-free CV: wrapped bullets
+#: (the cut line keeps a trailing space), "Puesto · Empresa" headers, a
+#: section heading in capitals that qualifies a known one, and one heading
+#: that joins three sections.
+PDF_TEXT = """ANA RUIZ
+Barcelona, España  ·  ana@example.com
+EXPERIENCIA
+Campus Manager – Operaciones de residencia  ·  Unihabit, Barcelona may. 2025 – actualidad
+• Principal punto de contacto para residentes y proveedores; coordino llegadas y salidas de estudiantes 
+locales e internacionales.
+• Dirijo la recepción y el control de accesos del edificio, manteniendo al día incidencias, listados de 
+residentes y registros de acceso.
+Recepcionista nocturna  ·  Urbany Hostels, Barcelona dic. 2022 – may. 2025
+• Gestioné reservas y extranets de Booking.com y Expedia con Mews cada noche.
+ACTIVIDADES JURÍDICAS Y ACADÉMICAS
+• Secretaria judicial en una competición de juicios simulados, Universidad de Navarra (2022).
+FORMACIÓN
+Máster en Derecho Digital  ·  Universitat de Barcelona oct. 2022 – dic. 2022
+CERTIFICACIONES, COMPETENCIAS E IDIOMAS
+Certificaciones: Cyber Network Security · Jornada sobre IA en la UE (UOC, 2022).
+Competencias: Mews y extranets de OTAs · auditoría nocturna e informes de ingresos · control de 
+accesos e incidencias.
+Idiomas: Italiano (nativo) · Inglés C1 (EF SET) · Español B2 (DELE).
+"""
+
+
+def test_reads_a_cv_as_pdf_text_comes_out():
+    from jobradar.profile.importer import heuristic_profile
+
+    profile = heuristic_profile(PDF_TEXT)
+    campus, night = profile.experience  # no position made of a wrapped line
+    assert campus.title == {"es": "Campus Manager – Operaciones de residencia"}
+    assert campus.organization == "Unihabit" and campus.location == {"es": "Barcelona"}
+    assert campus.bullets[0].text["es"].endswith("estudiantes locales e internacionales.")
+    assert len(campus.bullets) == 2 and len(night.bullets) == 1
+    assert profile.education[0].degree == {"es": "Máster en Derecho Digital"}
+    assert profile.education[0].institution == {"es": "Universitat de Barcelona"}
+    assert list(profile.extras) == ["Actividades jurídicas y académicas"]
+    assert [c.name["es"] for c in profile.certifications] == [
+        "Cyber Network Security", "Jornada sobre IA en la UE (UOC)"]
+    assert profile.certifications[1].year == "2022"
+    assert profile.skills[0].items[2] == "control de accesos e incidencias"
+    assert [(lang.name["es"], lang.level) for lang in profile.languages] == [
+        ("Italiano", "nativo"), ("Inglés", "C1"), ("Español", "B2")]

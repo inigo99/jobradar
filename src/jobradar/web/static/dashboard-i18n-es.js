@@ -185,6 +185,7 @@ I18N.es = {
   "Monday": "Lunes",
   "Most ads publish no salary, so JobRadar estimates one and marks it as an estimate. Nothing is dropped for an unknown salary unless you ask for published figures only.": "La mayoría de ofertas no publica salario, así que JobRadar lo estima y lo marca como estimación. Nada se aparta por un salario desconocido salvo que pidas solo cifras publicadas.",
   "My areas": "Mis zonas",
+  "Only in these areas \u2014 not elsewhere in my country": "Solo en estas zonas, no en el resto de mi país",
   "My country": "Mi país",
   "Name": "Nombre",
   "New": "Nuevas",

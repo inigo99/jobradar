@@ -18,9 +18,10 @@ import re
 from dataclasses import dataclass
 from datetime import date
 
-from ..config import Filters, salary_bands
+from ..config import Filters, country_info, salary_bands
 from ..models import Job, RemoteScope, SalaryOrigin, WorkMode
-from ..textutils import contains_phrase
+from ..regions import in_areas
+from ..textutils import contains_phrase, normalise
 from .salary import ExchangeRates
 
 
@@ -38,9 +39,20 @@ def _in_local_area(job: Job, areas: list[str]) -> bool:
     """Is the job's location one of the user's areas? Whole words only.
 
     Only the location is read: a company called "Madrid Tech" hiring in Berlin
-    is not a Madrid job.
+    is not a Madrid job. A location that names only the province matches an area inside it
+    ("Navarra" for "Pamplona"): some boards give nothing finer.
     """
-    return any(contains_phrase(job.location or "", area) for area in areas)
+    return in_areas(job.location or "", areas)
+
+
+def _location_is_precise(job: Job) -> bool:
+    """Whether the location says more than the country."""
+    location = normalise(job.location or "")
+    if not location:
+        return False
+    country = job.country or ""
+    return country == "" or location not in {
+        normalise(country), normalise(country_info(country).get("name", ""))}
 
 
 def _check_freshness(job: Job, filters: Filters, today: date) -> FilterOutcome | None:
@@ -73,6 +85,17 @@ def _check_work_mode(job: Job, filters: Filters) -> FilterOutcome | None:
 def _check_geography(job: Job, filters: Filters) -> FilterOutcome | None:
     """Can the candidate actually hold this job from where they live?"""
     eligible = {c.upper() for c in filters.effective_countries()}
+
+    # "Only in my areas": anything that is not plainly remote must be in one.
+    # Public-employment boards rarely state a work mode and are nearly always
+    # on-site, so an unknown mode counts as on-site here.
+    if filters.local_only and filters.local_areas and job.work_mode != WorkMode.REMOTE:
+        if _in_local_area(job, filters.local_areas):
+            return None
+        if _location_is_precise(job):
+            return FilterOutcome(False, f"outside your areas ({job.location})")
+        return FilterOutcome(
+            True, warnings=("The ad names no town — check it is in one of your areas.",))
 
     # On-site and hybrid: the office has to be somewhere the candidate accepts.
     if job.work_mode in (WorkMode.ONSITE, WorkMode.HYBRID):

@@ -29,6 +29,8 @@ exact:
   Remote scope not stated — confirm you may work from your country.: 'No indica desde dónde se puede trabajar
     en remoto: confirma que puedes hacerlo desde tu país.'
   No salary information at all.: Ningún dato de salario.
+  The ad names no town — check it is in one of your areas.: 'La oferta no nombra ninguna localidad:
+    comprueba que está en una de tus zonas.'
   no publication date: sin fecha de publicación
   publication date is in the future: fecha de publicación en el futuro
   international remote is switched off: el remoto internacional está desactivado
@@ -361,6 +363,8 @@ patterns:
   es: la modalidad es {mode}
 - en: on-site/hybrid outside your areas ({place})
   es: presencial/híbrido fuera de tus zonas ({place})
+- en: outside your areas ({place})
+  es: fuera de tus zonas ({place})
 - en: remote but restricted to {where}
   es: remoto pero limitado a {where}
 - en: remote limited to {where}
@@ -632,7 +636,8 @@ skills:
   paid_media: Publicidad de pago
   crm: CRM
   b2b_sales: Ventas B2B
-  customer_success: Atención al cliente
+  customer_success: Éxito del cliente
+  customer_service: Atención al cliente
   project_management: Gestión de proyectos
   finance: Finanzas / contabilidad
   hr: RR. HH. / selección
@@ -692,6 +697,9 @@ skills:
   customer_focus: Orientación al cliente
   english: Inglés
   spanish: Español
+  italian: Italiano
+  basque: Euskera
+  dutch: Neerlandés
   french: Francés
   german: Alemán
   portuguese: Portugués
@@ -760,6 +768,8 @@ skills:
   tour_guiding: Guía turístico
   revenue_management: Revenue management
   hotel_pms: PMS hotelero
+  reservations: Reservas / OTAs
+  night_audit: Auditoría nocturna
   retail_sales: Venta al público
   call_centre: Atención telefónica / televenta
   negotiation: Negociación

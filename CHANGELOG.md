@@ -6,6 +6,35 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+## 1.8.0 — 2026-09-27
+
+### Fixed
+
+- **Spanish ads dropped as "remote limited to APAC".** Region names were
+  looked for inside words, and "capacidad" holds "apac". They are whole
+  words now.
+- **"Experiencia mínima de 6 meses" read as six years**, which filtered the
+  ad out and priced it in the senior band.
+- **EURES ignored your areas.** It searched the whole country, so a
+  best-match list from other provinces buried the local ads, and every job
+  read "Spain". Your areas are searched first, by region, and each job names
+  its province ("Navarra, Spain"), so an area like "Pamplona" matches it.
+- **CV import from PDF** no longer turns the second line of a wrapped bullet
+  into a position. It also reads "Puesto · Empresa" headers, headings in
+  capitals that qualify a known one ("ACTIVIDADES JURÍDICAS…", kept under
+  their own title), a heading that joins several ("Certificaciones,
+  competencias e idiomas", routing each labelled line), several
+  certificates on one line, and language levels apart from the name.
+- **Skill vocabulary.** "Formación" (every CV's education heading) no longer
+  proves teaching; "atención al cliente" is customer service, not customer
+  success, and quick to close; Italian, Basque and Dutch, reservations and
+  OTAs, and night audit are recognised.
+
+### Added
+
+- **Only in your areas** (`filters.local_only`, and a box in Settings): on-site
+  and hybrid jobs outside your areas are dropped even inside your country.
+
 ## 1.7.0 — 2026-09-27
 
 ### Fixed

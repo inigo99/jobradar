@@ -60,3 +60,16 @@ def test_dates():
 
 def test_strip_html_keeps_list_structure():
     assert "• one" in strip_html("<ul><li>one</li><li>two</li></ul>")
+
+
+def test_region_names_are_whole_words():
+    """"Capacidad" holds "apac"; a Spanish ad is not an Asia-Pacific remote job."""
+    assert detect_remote_scope("CAPACIDAD PARA ATENDER AL ALUMNADO")[0] == RemoteScope.UNKNOWN
+    assert detect_remote_scope("capacitación continua")[0] == RemoteScope.UNKNOWN
+    assert detect_remote_scope("Remote within APAC")[1] == ["APAC"]
+
+
+def test_months_of_experience_are_not_years():
+    assert extract_min_years("Experiencia mínima de 6 meses en puestos similares.") is None
+    assert extract_min_years("Experiencia mínima: 2 años") == 2
+    assert extract_min_years("Experiencia mínima de 1 ó 2 años en recepción") == 1

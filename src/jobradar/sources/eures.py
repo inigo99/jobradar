@@ -23,6 +23,11 @@ Three things the portal's search does not do for us:
   checked here, so the limit is not spent on old ads the pipeline drops.
 * **Fair share.** The result limit is split between the search terms, so the
   first term cannot use it all.
+
+Where: the portal gives a job's place only as a NUTS-3 code (a province, in
+Spain), which :mod:`jobradar.regions` turns into its name, and searches by
+NUTS-2. Your areas are searched first, by their region, so a country-wide
+best match does not bury them; with "only my areas" nothing else is asked.
 """
 
 from __future__ import annotations
@@ -32,6 +37,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from ..config import country_info
 from ..models import Job, Salary
+from ..regions import location_for, region_codes
 from ..textutils import (
     detect_remote_scope,
     detect_work_mode,
@@ -84,16 +90,20 @@ class EuresSource(JobSource):
         covered = [c for c in countries if c in COVERED]
         if countries and not covered:
             return []  # none of your countries is in EURES
-        locations = [NUTS.get(c, c.lower()) for c in covered]
+        country_wide = [NUTS.get(c, c.lower()) for c in covered]
+        local = [code for c in covered for code in region_codes(query.local_areas, c)]
+        places = [local] if local else []
+        if not (local and query.local_only):
+            places.append(country_wide)
         language = next((lang for lang in query.languages if lang in LANGUAGES), "en")
         session = f"jobradar-{uuid.uuid4().hex[:12]}"
-        terms = query.terms()
+        asks = [(term, locations) for locations in places for term in query.terms()]
         oldest = date.today() - timedelta(days=query.max_age_days)
         jobs: list[Job] = []
         seen: set[str] = set()
-        for index, term in enumerate(terms):
-            # What is left of the limit, shared by the terms still to ask.
-            share = max(1, (query.limit - len(jobs)) // (len(terms) - index))
+        for index, (term, locations) in enumerate(asks):
+            # What is left of the limit, shared by the searches still to make.
+            share = max(1, (query.limit - len(jobs)) // (len(asks) - index))
             taken = 0
             for page in range(1, MAX_PAGES + 1):
                 entries = self._page(term, page, locations, language, session, query)
@@ -144,7 +154,9 @@ class EuresSource(JobSource):
         description = strip_html(str(text.get("description") or entry.get("description") or ""))
         places = entry.get("locationMap") or {}
         country = next(iter(places), "")
-        location = country_info(country).get("name", country) if country else ""
+        country_name = country_info(country).get("name", country) if country else ""
+        codes = places.get(country) or []
+        location = location_for(codes[0], country_name) if codes and codes[0] else country_name
         created = entry.get("creationDate")
         posted = (datetime.fromtimestamp(created / 1000, tz=timezone.utc).date()
                   if isinstance(created, (int, float)) else None)
