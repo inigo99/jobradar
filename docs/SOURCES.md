@@ -110,9 +110,11 @@ is the usual cause), the fetcher tries the other Chromium builds it can find —
 or the one in `JOBRADAR_CHROMIUM_PATH` — and remembers the one that worked for
 the rest of the run.
 Start with `"dynamic"`; it is faster and is enough for most anti-bot walls.
-Reach for `"stealthy"` only for the specific requests that need it — see
-`sources/optional/infojobs.py`, where the listing uses `"dynamic"` but the ad
-page needs `"stealthy"` to get past a CAPTCHA challenge the other mode hits.
+Reach for `"stealthy"` only for the requests that need it: LinkedIn and
+Tecnoempleo are fine with `"dynamic"`, while InfoJobs answers `"dynamic"` with
+a CAPTCHA (HTTP 405) on every page and Indeed does the same, so both use
+`"stealthy"` throughout. Walls move: when a source that worked starts
+returning nothing, the run history shows the 405 or the challenge.
 
 ## Writing an adapter
 

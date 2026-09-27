@@ -79,11 +79,11 @@ def test_linkedin_check_open_uses_dynamic_browser():
 
 
 # ---------------------------------------------------------------------------
-# InfoJobs — listing is "dynamic", the ad page is "stealthy"
+# InfoJobs — every page is "stealthy" (a plain browser gets a CAPTCHA)
 # ---------------------------------------------------------------------------
 
 
-def test_infojobs_search_listing_is_dynamic_and_detail_is_stealthy():
+def test_infojobs_search_listing_and_detail_are_stealthy():
     listing = (
         '//www.infojobs.net/pamplona/data-scientist/of-iabc123 '
         'more text around it'
@@ -97,7 +97,7 @@ def test_infojobs_search_listing_is_dynamic_and_detail_is_stealthy():
 
     listing_calls = [c for c in fetcher.calls if "jobsearch" in c["url"]]
     detail_calls = [c for c in fetcher.calls if "of-iabc123" in c["url"]]
-    assert listing_calls and all(c["browser"] == "dynamic" for c in listing_calls)
+    assert listing_calls and all(c["browser"] == "stealthy" for c in listing_calls)
     assert detail_calls and all(c["browser"] == "stealthy" for c in detail_calls)
 
 
