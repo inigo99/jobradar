@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+## 1.5.0 — 2026-09-27
+
+### Changed
+
+- **License: AGPL-3.0** (was MIT). JobRadar stays free to use, change and
+  share; a modified version that is distributed or offered to others over a
+  network must publish its source under the same license. Releases up to
+  1.4.2 remain MIT. The Settings dialog links to the source code.
+
 ### Added
 
 - **Adzuna and Jooble keys from the dashboard.** Settings → Where to search

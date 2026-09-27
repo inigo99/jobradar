@@ -446,4 +446,5 @@ I18N.es = {
   "Get a free key": "Consigue una clave gratuita",
   "(sign up, create an app, copy the values here)": "(regístrate, crea una aplicación y copia aquí los valores)",
   "weekly": "semanal",
+  "Source code": "Código fuente",
 };

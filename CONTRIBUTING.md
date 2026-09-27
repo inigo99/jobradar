@@ -84,6 +84,9 @@ the alternative silently destroys the user's own tracking history.
 
 ## Pull requests
 
+JobRadar is licensed under the AGPL-3.0; by sending a pull request you agree
+that your contribution is licensed under it too.
+
 One change per PR, with a test where behaviour changed. In the description, say
 what a user will notice and why the change is worth making. If it touches the
 scoring, the validator or a filter, say what it does to a job that used to be
