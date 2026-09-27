@@ -179,6 +179,8 @@ class JobView(BaseModel):
     requirements: list[str]
     score_base: float
     score_tailored: float
+    #: False when the ad names nothing JobRadar can score: shown as "not scored", not 0%.
+    scored: bool = True
     score_delta: float
     gaps: list[str]
     #: The same gaps with weight and learning difficulty, so the list reads as

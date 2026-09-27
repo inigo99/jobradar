@@ -79,13 +79,14 @@ def score_job(job: Job, profile: Profile) -> MatchScore:
 
     Both scores are percentages of the total requirement weight, so they are
     comparable across jobs with different numbers of requirements. A job with
-    no parsed requirements scores zero rather than raising — that state means
-    "we could not read the ad", which the dashboard shows as such.
+    no recognised requirements is *not scored* (``scored=False``) rather than
+    scored zero: an ad in a language or a field the vocabulary does not cover
+    yet says nothing about the fit, and a 0% would bury a good job.
     """
     requirements = job.requirements or []
     total = sum(requirement.weight for requirement in requirements)
     if not total:
-        return MatchScore()
+        return MatchScore(scored=False)
 
     surfaced = choose_surfaced(requirements, profile)
     surfaced_set = set(surfaced)

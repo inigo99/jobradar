@@ -124,10 +124,10 @@ function jobCard(job) {
           .filter(Boolean).join(" · ")),
     ),
     el("div", { className: "score" },
-      el("div", { className: "big" }, job.score_tailored ? job.score_tailored.toFixed(0) + "%" : "—"),
+      el("div", { className: "big" }, job.scored ? job.score_tailored.toFixed(0) + "%" : "—"),
       el("div", { className: "delta" },
-        job.score_base ? t("{base}% as-is · +{delta} tailored", { base: job.score_base.toFixed(0),
-                                                                  delta: job.score_delta.toFixed(0) })
+        job.scored ? t("{base}% as-is · +{delta} tailored", { base: job.score_base.toFixed(0),
+                                                              delta: job.score_delta.toFixed(0) })
           : t("not scored")),
       job.focus ? el("div", { className: "focus" }, t("focus {n}", { n: job.focus.toFixed(0) })) : null,
     ),

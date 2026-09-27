@@ -55,6 +55,9 @@ FRESHNESS = (
 )
 
 SENIOR_PENALTY = 0.55
+#: Where an ad that could not be scored sits before the other factors: the
+#: middle of the board, not the bottom — nothing is known against it.
+UNSCORED_BASE = 50.0
 PUBLISHED_SALARY_BONUS = 1.06
 
 
@@ -92,6 +95,9 @@ def focus_for(
     base = score.tailored if score else 0.0
     factor, freshness_reason = _freshness(job.age_days(today))
     reasons = [freshness_reason] if freshness_reason else []
+    if score is not None and not score.scored:
+        base = UNSCORED_BASE
+        reasons.insert(0, "not scored: the ad names no skill JobRadar recognises — read it")
 
     if is_senior_title(job.title):
         asks = job.min_years_experience

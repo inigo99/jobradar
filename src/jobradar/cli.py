@@ -242,7 +242,7 @@ def cmd_search(args: argparse.Namespace) -> int:
             ["Score", "Company", "Title", "Where", "Salary"],
             [
                 [
-                    f"{result.scores[job.id].tailored:.0f}%" if job.id in result.scores else "—",
+                    result.scores[job.id].label() if job.id in result.scores else "—",
                     (job.company or "")[:26],
                     (job.title or "")[:44],
                     (job.location or "")[:24],
@@ -478,7 +478,7 @@ def cmd_jobs(args: argparse.Namespace) -> int:
         focus, _reason = focus_for(job, score, max_years=years, families=families)
         rows.append((focus, [
             f"{focus:.0f}",
-            f"{score.tailored:.0f}%" if score else "—",
+            score.label() if score else "—",
             status,
             (job.company or "")[:24],
             (job.title or "")[:40],

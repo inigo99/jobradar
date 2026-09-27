@@ -80,7 +80,7 @@ function passesBoardFilters(job) {
   const salary = Number(value("f_salary"));
   if (salary && (salaryMidpoint(job) ?? -1) < salary) return false;
   const score = Number(value("f_score"));
-  if (score && job.score_tailored < score) return false;
+  if (score && job.scored && job.score_tailored < score) return false;  // unscored stays visible
   return true;
 }
 
