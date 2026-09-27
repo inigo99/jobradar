@@ -8,23 +8,45 @@ included).
 
 The search is the JSON API the portal's own page calls, with no key;
 https://github.com/rorar/eures-api-documentation documents it. One POST per
-search term, restricted to your countries and to the age limit in your
-filters; the ad text comes in the same answer, so nothing else is fetched.
+search term and page, restricted to your countries and to the age limit in
+your filters; the ad text comes in the same answer, so nothing else is
+fetched.
+
+Three things the portal's search does not do for us:
+
+* **Relevance.** It matches any word of the search, so "técnico de recursos
+  humanos" also returns maintenance and lab technicians. Only ads whose title
+  matches the term (see :func:`~jobradar.textutils.title_matches`, synonyms
+  and Catalan included) are kept.
+* **Age.** Its age filter counts from the last *modification*: an ad created
+  in June and touched yesterday is "from last week". The creation date is
+  checked here, so the limit is not spent on old ads the pipeline drops.
+* **Fair share.** The result limit is split between the search terms, so the
+  first term cannot use it all.
 """
 
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from ..config import country_info
 from ..models import Job, Salary
-from ..textutils import detect_remote_scope, detect_work_mode, extract_salary, strip_html
+from ..textutils import (
+    detect_remote_scope,
+    detect_work_mode,
+    extract_salary,
+    strip_html,
+    title_matches,
+)
 from .base import JobSource, SearchQuery
 
 SEARCH = "https://europa.eu/eures/api/jv-searchengine/public/jv-search/search"
 AD_PAGE = "https://europa.eu/eures/portal/jv-se/jv-details/{id}?jvDisplayLanguage={lang}"
 PAGE_SIZE = 50
+#: Pages read per term at most: enough to fill a term's share after the
+#: title and age checks, without paging through thousands of ads.
+MAX_PAGES = 3
 #: Countries EURES covers (ISO 3166-1 alpha-2).
 COVERED = frozenset({
     "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IS",
@@ -65,32 +87,50 @@ class EuresSource(JobSource):
         locations = [NUTS.get(c, c.lower()) for c in covered]
         language = next((lang for lang in query.languages if lang in LANGUAGES), "en")
         session = f"jobradar-{uuid.uuid4().hex[:12]}"
+        terms = query.terms()
+        oldest = date.today() - timedelta(days=query.max_age_days)
         jobs: list[Job] = []
         seen: set[str] = set()
-        for term in query.terms():
-            payload = {
-                "resultsPerPage": PAGE_SIZE,
-                "page": 1,
-                "sortSearch": "BEST_MATCH",
-                "keywords": [{"keyword": term, "specificSearchCode": "EVERYWHERE"}],
-                "publicationPeriod": publication_period(query.max_age_days),
-                "occupationUris": [], "skillUris": [], "requiredExperienceCodes": [],
-                "positionScheduleCodes": [], "sectorCodes": [],
-                "educationAndQualificationLevelCodes": [], "positionOfferingCodes": [],
-                "locationCodes": locations, "euresFlagCodes": [], "otherBenefitsCodes": [],
-                "requiredLanguages": [], "minNumberPost": None,
-                "sessionId": session, "requestLanguage": language,
-            }
-            answer = self.fetcher.post_json(SEARCH, payload)
-            for entry in (answer or {}).get("jvs") or []:
-                job = self._parse(entry, language)
-                if job is None or job.native_id in seen:
-                    continue
-                seen.add(job.native_id)
-                jobs.append(job)
-                if len(jobs) >= query.limit:
-                    return jobs
+        for index, term in enumerate(terms):
+            # What is left of the limit, shared by the terms still to ask.
+            share = max(1, (query.limit - len(jobs)) // (len(terms) - index))
+            taken = 0
+            for page in range(1, MAX_PAGES + 1):
+                entries = self._page(term, page, locations, language, session, query)
+                for entry in entries:
+                    job = self._parse(entry, language)
+                    if job is None or job.native_id in seen:
+                        continue
+                    if not title_matches(job.title, [term]):
+                        continue  # the portal matched some other word of the search
+                    if job.posted_at is not None and job.posted_at < oldest:
+                        continue  # "recent" only because someone edited it
+                    seen.add(job.native_id)
+                    jobs.append(job)
+                    taken += 1
+                    if taken >= share:
+                        break
+                if taken >= share or len(entries) < PAGE_SIZE:
+                    break
         return jobs
+
+    def _page(self, term: str, page: int, locations: list[str], language: str,
+              session: str, query: SearchQuery) -> list[dict]:
+        payload = {
+            "resultsPerPage": PAGE_SIZE,
+            "page": page,
+            "sortSearch": "BEST_MATCH",
+            "keywords": [{"keyword": term, "specificSearchCode": "EVERYWHERE"}],
+            "publicationPeriod": publication_period(query.max_age_days),
+            "occupationUris": [], "skillUris": [], "requiredExperienceCodes": [],
+            "positionScheduleCodes": [], "sectorCodes": [],
+            "educationAndQualificationLevelCodes": [], "positionOfferingCodes": [],
+            "locationCodes": locations, "euresFlagCodes": [], "otherBenefitsCodes": [],
+            "requiredLanguages": [], "minNumberPost": None,
+            "sessionId": session, "requestLanguage": language,
+        }
+        answer = self.fetcher.post_json(SEARCH, payload)
+        return list((answer or {}).get("jvs") or [])
 
     def _parse(self, entry: dict, request_language: str) -> Job | None:
         vacancy_id = str(entry.get("id") or "")

@@ -3,6 +3,7 @@ the network."""
 
 from __future__ import annotations
 
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, cast
 
 from jobradar.config import Portal, Settings
@@ -47,6 +48,19 @@ def test_title_matching_survives_gender_and_accents():
     assert title_matches("Anything at all", [])
 
 
+def test_title_matching_knows_synonyms_in_spanish_catalan_and_english():
+    hr = ["técnico de recursos humanos"]
+    for title in ("TÈCNIC/A DE RRHH", "Tècnic/a de recursos humans", "HR Business Partner",
+                  "HR Specialist", "Técnicos superiores en recursos humanos"):
+        assert title_matches(title, hr), title
+    assert not title_matches("TÉCNICO DE MANTENIMIENTO", hr)
+    assert title_matches("Talent Acquisition Specialist", ["técnico de selección"])
+    assert title_matches("Recruiter", ["técnica de selección"])
+    assert title_matches("Payroll Specialist", ["técnico de nóminas"])
+    assert title_matches("Registered Nurse", ["enfermera"])
+    assert title_matches("Técnico/a de nóminas", ["payroll"])  # and back
+
+
 def test_new_sources_are_registered_as_open():
     for source_id in ("eures", "portals"):
         assert BY_ID[source_id].tos_tier == "open"
@@ -56,6 +70,8 @@ def test_new_sources_are_registered_as_open():
 # EURES
 # ---------------------------------------------------------------------------
 
+_YESTERDAY_MS = int((datetime.now(timezone.utc) - timedelta(days=1)).timestamp() * 1000)
+
 EURES_ANSWER = {
     "numberRecords": 2,
     "jvs": [
@@ -63,7 +79,7 @@ EURES_ANSWER = {
             "id": "MTAwMDEtMTAwMTEzOTMxMS1TIDE",
             "title": "Nurse (machine translation)",
             "description": "<p>translated</p>",
-            "creationDate": 1790400000000,
+            "creationDate": _YESTERDAY_MS,
             "locationMap": {"ES": ["ES220"]},
             "employer": {"name": "Hospital Universitario de Navarra"},
             "availableLanguages": ["es"],
@@ -98,7 +114,36 @@ def test_eures_reads_the_ad_in_its_own_language():
     assert job.company == "Hospital Universitario de Navarra"
     assert job.country == "ES" and job.language == "es"
     assert job.url.startswith("https://europa.eu/eures/portal/jv-se/jv-details/MTAw")
-    assert job.posted_at is not None and job.posted_at.year == 2026
+    assert job.posted_at is not None and (date.today() - job.posted_at).days <= 2
+
+
+def _eures_entry(number: int, title: str, days_old: int = 1) -> dict:
+    created = datetime.now(timezone.utc) - timedelta(days=days_old)
+    return {"id": f"ID{number}", "title": title, "creationDate": created.timestamp() * 1000,
+            "locationMap": {"ES": ["ES300"]}, "availableLanguages": ["es"],
+            "translations": {"es": {"title": title, "description": "<p>Oferta.</p>"}}}
+
+
+def test_eures_keeps_only_ads_whose_title_is_the_job_searched():
+    answer = {"jvs": [_eures_entry(1, "TÉCNICO/A DE RECURSOS HUMANOS"),
+                      _eures_entry(2, "TÈCNIC/A DE RRHH"),
+                      _eures_entry(3, "HR Business Partner"),
+                      _eures_entry(4, "TÉCNICO DE MANTENIMIENTO"),       # another "técnico"
+                      _eures_entry(5, "TÉCNICA DE RRHH", days_old=90)]}  # edited, not new
+    fetcher = StubFetcher(posts={SEARCH: answer})
+    jobs = EuresSource(cast(Any, fetcher)).search(
+        SearchQuery(titles=["técnico de recursos humanos"], countries=["ES"], max_age_days=30))
+    assert [job.native_id for job in jobs] == ["ID1", "ID2", "ID3"]
+
+
+def test_eures_shares_the_limit_between_the_search_terms():
+    many = {"jvs": [_eures_entry(n, f"Enfermera {n}") for n in range(50)]
+            + [_eures_entry(100 + n, f"Profesor {n}") for n in range(50)]}
+    fetcher = StubFetcher(posts={SEARCH: many})
+    jobs = EuresSource(cast(Any, fetcher)).search(
+        SearchQuery(titles=["enfermera", "profesor"], countries=["ES"], limit=20))
+    titles = [job.title.split()[0] for job in jobs]
+    assert titles.count("Enfermera") == 10 and titles.count("Profesor") == 10
 
 
 def test_eures_skips_countries_it_does_not_cover():
