@@ -103,21 +103,32 @@ class SearchQuery:
 #: firewall's refusal, or "try again later". Read as the page, a refusal
 #: becomes an ad's text (wrong family, no place) and an error a search with
 #: no results — cached for an hour.
-_BLOCK_PAGE = re.compile(
+_REFUSAL = re.compile(
     r"se le ha denegado el acceso|acceso denegado|access denied|the requested url was rejected|"
     r"request (?:was )?(?:rejected|blocked)|you have been blocked|attention required|"
-    r"are you a robot|unusual traffic|existe un problema para obtener|"
+    r"are you a robot|unusual traffic", re.I)
+#: The ones that pass: the Sistema Nacional de Empleo answers one search in
+#: several this way and the next a few seconds later, so they are retried.
+_TRY_LATER = re.compile(
+    r"existe un problema para obtener|"
     r"vuelva a intentar(?:lo)? (?:la operaci[oó]n )?(?:pasados unos|m[aá]s tarde)|"
     r"please try again later|temporarily unavailable", re.I)
 
 
-def looks_blocked(body: str) -> bool:
-    """Whether ``body`` is a refusal or error page rather than content.
+def _short(body: str) -> bool:
+    """Such pages are short; a long page that merely mentions one of these
+    phrases (an ad for a security role, say) is content."""
+    return len(body) < 50000
 
-    Such pages are short; a long page that merely mentions one of these
-    phrases (an ad for a security role, say) is content.
-    """
-    return len(body) < 50000 and bool(_BLOCK_PAGE.search(body[:30000]))
+
+def looks_blocked(body: str) -> bool:
+    """Whether ``body`` is a refusal or error page rather than content."""
+    return _short(body) and bool(_REFUSAL.search(body[:30000]) or _TRY_LATER.search(body[:30000]))
+
+
+def asks_to_retry(body: str) -> bool:
+    """Whether ``body`` is a "try again in a moment" page."""
+    return _short(body) and bool(_TRY_LATER.search(body[:30000]))
 
 
 _DECLARED_CHARSET = re.compile(rb"""(?:charset|encoding)\s*=\s*["']?([A-Za-z0-9_-]+)""", re.I)
@@ -407,6 +418,9 @@ class Fetcher:
                 if response.status_code >= 400:
                     log.debug("%s returned HTTP %s", full, response.status_code)
                     return None
+                if asks_to_retry(response.text) and attempt < retries:
+                    time.sleep(3 * (attempt + 1))
+                    continue
                 if looks_blocked(response.text):
                     host = urlparse(full).netloc
                     self._report_once(

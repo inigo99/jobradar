@@ -55,7 +55,8 @@ All notable changes to this project are documented here. The format follows
   Sent with HTTP 200 (the Sistema Nacional de Empleo does both), a refusal
   became an ad's text — no place, a wrong family, and the offer passed "only
   in my areas" — and an error became a search with no results, cached for an
-  hour. Both are now recognised, reported once, and never cached.
+  hour. Both are now recognised, reported once, and never cached; a "try
+  again" page is first retried twice, since it usually passes in seconds.
 - **Titles matched their lookalikes.** A searched title was compared on its
   first five letters, so "contable" found "¿Has olvidado tu contraseña?" and
   "técnico de laboratorio" found "técnico laboral". The comparison now drops

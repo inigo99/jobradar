@@ -326,5 +326,16 @@ def test_a_try_again_later_page_is_not_an_empty_search(fetcher):
     page = ("<html><body>Errores encontrados. Existe un problema para obtener el listado de "
             "ofertas. Por favor, vuelva a intentar la operación pasados unos instantes.</body></html>")
     respx.get("https://sne.test/buscar").mock(return_value=httpx.Response(200, text=page))
-    assert fetcher.get("https://sne.test/buscar") is None
+    assert fetcher.get("https://sne.test/buscar", retries=0) is None
     assert not any(fetcher.cache_dir.iterdir())  # nothing cached: the next run asks again
+
+
+@respx.mock
+def test_a_try_again_later_page_is_retried(fetcher, monkeypatch):
+    """It passes in seconds: one search in several gets it, the next does not."""
+    monkeypatch.setattr("jobradar.sources.base.time.sleep", lambda _s: None)
+    page = "<p>Existe un problema para obtener el listado de ofertas.</p>"
+    route = respx.get("https://sne.test/buscar").mock(side_effect=[
+        httpx.Response(200, text=page), httpx.Response(200, text="<a>Enfermero/a</a>")])
+    assert fetcher.get("https://sne.test/buscar") == "<a>Enfermero/a</a>"
+    assert route.call_count == 2 and not fetcher.problems
