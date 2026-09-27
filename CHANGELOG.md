@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+## 1.4.2 — 2026-09-27
+
 ### Fixed
 
 - **InfoJobs returned no jobs.** Its listing now answers a plain headless
