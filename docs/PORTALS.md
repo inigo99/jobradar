@@ -31,7 +31,8 @@ How each is read:
 
 The Sistema Nacional de Empleo gathers the offers every regional public
 employment service puts out for applicants (SAE, Lanbide, SEPE Madrid, SOC,
-Labora…), in every sector. One search covers them all:
+Labora…), in every sector. One search covers them all (tested live on 27
+September 2026: 35 offers for "enfermera", each read with its full text):
 
 ```text
 Sistema Nacional de Empleo (toda España) https://www.sistemanacionalempleo.es/OfertaDifusionWEB/busquedaOfertas.do?modo=continuar&palabraBusqueda={query}&botonNavegacion=Enviar
@@ -39,28 +40,10 @@ Sistema Nacional de Empleo (toda España) https://www.sistemanacionalempleo.es/O
 
 ### One region
 
-The same search limited to one autonomous community — add yours instead of
-the one above if you only look near home:
-
-```text
-SNE Andalucía https://www.sistemanacionalempleo.es/OfertaDifusionWEB/busquedaOfertas.do?modo=continuar&CA=01&palabraBusqueda={query}&botonNavegacion=Enviar
-SNE Aragón https://www.sistemanacionalempleo.es/OfertaDifusionWEB/busquedaOfertas.do?modo=continuar&CA=02&palabraBusqueda={query}&botonNavegacion=Enviar
-SNE Asturias https://www.sistemanacionalempleo.es/OfertaDifusionWEB/busquedaOfertas.do?modo=continuar&CA=03&palabraBusqueda={query}&botonNavegacion=Enviar
-SNE Illes Balears https://www.sistemanacionalempleo.es/OfertaDifusionWEB/busquedaOfertas.do?modo=continuar&CA=04&palabraBusqueda={query}&botonNavegacion=Enviar
-SNE Canarias https://www.sistemanacionalempleo.es/OfertaDifusionWEB/busquedaOfertas.do?modo=continuar&CA=05&palabraBusqueda={query}&botonNavegacion=Enviar
-SNE Cantabria https://www.sistemanacionalempleo.es/OfertaDifusionWEB/busquedaOfertas.do?modo=continuar&CA=06&palabraBusqueda={query}&botonNavegacion=Enviar
-SNE Castilla-La Mancha https://www.sistemanacionalempleo.es/OfertaDifusionWEB/busquedaOfertas.do?modo=continuar&CA=07&palabraBusqueda={query}&botonNavegacion=Enviar
-SNE Castilla y León https://www.sistemanacionalempleo.es/OfertaDifusionWEB/busquedaOfertas.do?modo=continuar&CA=08&palabraBusqueda={query}&botonNavegacion=Enviar
-SNE Cataluña https://www.sistemanacionalempleo.es/OfertaDifusionWEB/busquedaOfertas.do?modo=continuar&CA=09&palabraBusqueda={query}&botonNavegacion=Enviar
-SNE Comunitat Valenciana https://www.sistemanacionalempleo.es/OfertaDifusionWEB/busquedaOfertas.do?modo=continuar&CA=10&palabraBusqueda={query}&botonNavegacion=Enviar
-SNE Extremadura https://www.sistemanacionalempleo.es/OfertaDifusionWEB/busquedaOfertas.do?modo=continuar&CA=11&palabraBusqueda={query}&botonNavegacion=Enviar
-SNE Galicia https://www.sistemanacionalempleo.es/OfertaDifusionWEB/busquedaOfertas.do?modo=continuar&CA=12&palabraBusqueda={query}&botonNavegacion=Enviar
-SNE Comunidad de Madrid https://www.sistemanacionalempleo.es/OfertaDifusionWEB/busquedaOfertas.do?modo=continuar&CA=13&palabraBusqueda={query}&botonNavegacion=Enviar
-SNE Región de Murcia https://www.sistemanacionalempleo.es/OfertaDifusionWEB/busquedaOfertas.do?modo=continuar&CA=14&palabraBusqueda={query}&botonNavegacion=Enviar
-SNE Navarra https://www.sistemanacionalempleo.es/OfertaDifusionWEB/busquedaOfertas.do?modo=continuar&CA=15&palabraBusqueda={query}&botonNavegacion=Enviar
-SNE País Vasco https://www.sistemanacionalempleo.es/OfertaDifusionWEB/busquedaOfertas.do?modo=continuar&CA=16&palabraBusqueda={query}&botonNavegacion=Enviar
-SNE La Rioja https://www.sistemanacionalempleo.es/OfertaDifusionWEB/busquedaOfertas.do?modo=continuar&CA=17&palabraBusqueda={query}&botonNavegacion=Enviar
-```
+The Sistema Nacional de Empleo's search for a single autonomous community
+only works through its form (it keeps the chosen region in the visitor's
+session), so it cannot be added as an address. Use the search above; each
+offer's text, which JobRadar reads and scores, gives its town and province.
 
 Some regional services also publish offers only on their own site. The
 Servicio Navarro de Empleo's list is read as a **page** (its newest ten
@@ -107,7 +90,7 @@ France Travail — infirmier https://candidat.francetravail.fr/offres/emploi/inf
 ## Italy
 
 ```text
-Cercolavoro (ultime offerte) http://www.cercolavoro.com/rss/offerte+lavoro+rss.jsp
+Cercolavoro (ultime offerte) https://www.cercolavoro.com/rss/offerte+lavoro+rss.jsp
 ```
 
 ## Everywhere else in Europe

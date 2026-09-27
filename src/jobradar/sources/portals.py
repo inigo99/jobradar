@@ -41,6 +41,8 @@ _LINK = re.compile(r'<a\b[^>]*href=["\']([^"\'#]+)["\'][^>]*>(.*?)</a>', re.S | 
 _HEADING = re.compile(r"<h[1-6]\b[^>]*>(.*?)</h[1-6]>", re.S | re.I)
 _MAIN = re.compile(r"<(main|article)\b[^>]*>(.*?)</\1>", re.S | re.I)
 _BODY = re.compile(r"<body\b[^>]*>(.*?)</body>", re.S | re.I)
+#: Page chrome around an ad: menus, headers, footers, language pickers.
+_CHROME = re.compile(r"<(nav|header|footer|select|noscript|button)\b[^>]*>.*?</\1>", re.S | re.I)
 
 
 #: Query parameters that change on every visit (sessions, tracking) and would
@@ -154,6 +156,8 @@ class PortalsSource(JobSource):
     def search(self, query: SearchQuery) -> list[Job]:
         jobs: dict[str, Job] = {}
         terms = query.terms()
+        # The result limit is per portal: a busy first portal must not crowd
+        # out the ones listed after it.
         for entry in self.options.get("portals") or []:
             entry = entry.strip()
             if not entry.startswith(("http://", "https://")):
@@ -163,6 +167,7 @@ class PortalsSource(JobSource):
                          for term in terms]
             else:
                 pages = [(entry, terms)]
+            taken, read, recognised = 0, False, False
             for url, wanted in pages:
                 body = self.get(url)
                 if not body:
@@ -171,17 +176,21 @@ class PortalsSource(JobSource):
                         f"Could not read {url}: it did not answer, or its robots.txt "
                         "does not allow automated readers.")
                     continue
+                read = True
                 found = self.read_page(body, url, wanted)
-                if not found:
-                    self.fetcher._report_once(
-                        f"portal-empty:{urlparse(url).netloc}",
-                        f"Nothing recognisable on {url}: no feed, no JobPosting markup "
-                        "and no link matching your job titles. The page may build its "
-                        "list with JavaScript.")
+                recognised = recognised or bool(found)
                 for job in found:
-                    jobs.setdefault(job.native_id, job)
-                if len(jobs) >= query.limit:
-                    return list(jobs.values())[: query.limit]
+                    if taken < query.limit and job.native_id not in jobs:
+                        jobs[job.native_id] = job
+                        taken += 1
+                if taken >= query.limit:
+                    break
+            if read and not recognised:  # one search with no hits is not a broken portal
+                self.fetcher._report_once(
+                    f"portal-empty:{entry}",
+                    f"Nothing recognisable on {entry}: no feed, no JobPosting markup "
+                    "and no link matching your job titles. The page may build its "
+                    "list with JavaScript.")
         return list(jobs.values())
 
     def read_page(self, body: str, url: str, terms: list[str]) -> list[Job]:
@@ -262,6 +271,7 @@ class PortalsSource(JobSource):
             text = strip_html(_text(posting.get("description")))
             if text:
                 return text[:MAX_TEXT]
+        body = _CHROME.sub(" ", body)
         main = _MAIN.search(body) or _BODY.search(body)
         text = strip_html(main.group(2) if main and main.lastindex == 2 else
                           (main.group(1) if main else body))

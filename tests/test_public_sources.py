@@ -232,3 +232,31 @@ def test_session_parameters_do_not_make_the_same_ad_new_every_day():
     page = f'<a href="{first}">Enfermera/o en Leganés</a>'
     jobs, _ = _portals(["https://sne.example/"], {"https://sne.example/": page}, ["enfermera"])
     assert jobs[0].url == canonical(first)
+
+
+def test_an_ad_page_is_read_without_its_menus_and_with_every_accent():
+    page = ("<html><body><header><select><option>Espa&ntilde;ol</option></select></header>"
+            "<nav><ul><li></li><li></li></ul></nav>"
+            "<div><h2>T&eacute;cnico-a calidad</h2><p>Funciones: inspecci&oacute;n</p></div>"
+            "<footer>Aviso legal</footer></body></html>")
+    fetcher = StubFetcher(pages={"https://ads.example/1": page})
+    source = PortalsSource(cast(Any, fetcher), {})
+    text = source.fetch_description(source._job("https://ads.example/1", title="x"))
+    assert text == "Técnico-a calidad\nFunciones: inspección"
+
+
+def test_each_portal_gets_its_own_share_of_the_limit():
+    many = "".join(f'<a href="/o/{n}">Enfermera {n}</a>' for n in range(10))
+    pages = {"https://busy.example/": many, "https://quiet.example/": LINKS_PAGE}
+    fetcher = StubFetcher(pages=pages)
+    source = PortalsSource(cast(Any, fetcher), {"portals": list(pages)})
+    jobs = source.search(SearchQuery(titles=["enfermera"], countries=["ES"], limit=3))
+    assert [job.url.split("/")[2] for job in jobs] == ["busy.example"] * 3 + ["quiet.example"]
+
+
+def test_a_search_with_no_hits_is_not_reported_as_a_broken_portal():
+    pages = {"https://jobs.example/buscar?q=enfermera": LINKS_PAGE,
+             "https://jobs.example/buscar?q=soldador": "<html>Sin resultados</html>"}
+    jobs, fetcher = _portals(["https://jobs.example/buscar?q={query}"], pages,
+                             ["enfermera", "soldador"])
+    assert len(jobs) == 1 and fetcher.problems == []

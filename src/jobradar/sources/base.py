@@ -26,10 +26,12 @@ plain HTTP, which is faster and needs nothing extra.
 
 from __future__ import annotations
 
+import codecs
 import hashlib
 import json
 import logging
 import os
+import re
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -91,6 +93,29 @@ class SearchQuery:
 # ---------------------------------------------------------------------------
 
 
+_DECLARED_CHARSET = re.compile(rb"""(?:charset|encoding)\s*=\s*["']?([A-Za-z0-9_-]+)""", re.I)
+
+
+def sniff_encoding(content: bytes) -> str:
+    """The charset of a body whose HTTP headers named none.
+
+    Older Spanish and Portuguese sites send ``text/html`` alone and declare
+    ISO-8859-1 only in a ``<meta>`` or ``<?xml?>`` tag; reading them as UTF-8
+    turns every accent into a replacement character.
+    """
+    declared = _DECLARED_CHARSET.search(content[:4096])
+    if declared:
+        try:
+            return codecs.lookup(declared.group(1).decode("ascii")).name
+        except LookupError:
+            pass
+    try:
+        content.decode("utf-8")
+        return "utf-8"
+    except UnicodeDecodeError:
+        return "cp1252"
+
+
 class Fetcher:
     """Rate-limited, cached, robots-aware HTTP client shared by all sources.
 
@@ -132,6 +157,7 @@ class Fetcher:
             timeout=settings.timeout,
             follow_redirects=True,
             headers={"User-Agent": settings.user_agent, "Accept-Language": "en,es;q=0.8"},
+            default_encoding=sniff_encoding,
         )
 
     # -- internals ---------------------------------------------------------
@@ -321,7 +347,9 @@ class Fetcher:
         return nothing, and they only run when the user switched them on by
         name after reading their terms note.
         """
-        full = str(httpx.URL(url, params=params or {}))
+        # Merge, not replace: httpx.URL(url, params=...) drops the query already
+        # in ``url``, which is how a portal's own search address arrives.
+        full = str(httpx.URL(url).copy_merge_params(params)) if params else url
         cache_path = self._cache_path(full) if use_cache else None
         cached = self._read_cache(cache_path)
         if cached is not None:

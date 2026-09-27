@@ -43,6 +43,14 @@ All notable changes to this project are documented here. The format follows
   pressing Save then stored them as disabled. They are now ticked like the
   search runs them, and saving a key ticks its source.
 - The source tiers and "weekly" in Settings are translated.
+- **An address's own query was dropped.** A page fetched with a query string
+  already in its address (`…?l=p&c=140`) was requested without it. No
+  built-in source was affected (they pass their parameters separately), but
+  every search page and feed under Your portals was.
+- **Accents garbled on older sites.** A page that declares ISO-8859-1 only in
+  its `<meta>` or `<?xml?>` tag, not in its HTTP headers, was read as UTF-8;
+  and ad text now decodes every HTML entity (`&ntilde;`, `&oacute;`…) instead
+  of a handful.
 
 ## 1.4.2 — 2026-09-27
 
