@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+## 1.7.1 — 2026-09-27
+
 ### Fixed
 
 - **Spanish ads dropped as "remote limited to APAC".** Region names were
