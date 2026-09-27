@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+## 1.6.0 — 2026-09-27
+
 ### Changed
 
 - **Jobs appear while the search runs.** Sources are handled one at a time
