@@ -519,6 +519,12 @@ def _title_part(text: str) -> str:
     return re.split(r"\s+[—–|]\s+|,\s{2,}", text)[0].strip()
 
 
+def _bullet_text(line: str) -> str:
+    """A line without its bullet mark, if it has one."""
+    bullet = BULLET_LINE.match(line)
+    return bullet.group(1) if bullet else line.strip()
+
+
 def _squash(text: str) -> str:
     """Runs of spaces as one: layouts pad separators ("Puesto  ·  Empresa")."""
     return re.sub(r"\s{2,}", " ", text)
@@ -609,7 +615,7 @@ def heuristic_profile(text: str) -> Profile:
     profile.skills = _parse_skills(sections.get("skills", []), language)
     for key, lines in sections.items():
         if key.startswith("extra:") and lines:
-            items = [(BULLET_LINE.match(line) or [None, line.strip()])[1] for line in lines]
+            items = [_bullet_text(line) for line in lines]
             profile.extras[key.split(":", 1)[1]] = {language: " ".join(items)}
     for line in sections.get("certifications", []):
         bullet = BULLET_LINE.match(line)
