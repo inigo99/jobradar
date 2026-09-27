@@ -25,8 +25,10 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
+import threading
 from collections.abc import Iterable
 from contextlib import asynccontextmanager
+from dataclasses import asdict
 from datetime import date, datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -329,6 +331,10 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
     app.state.paths = paths
     app.state.running = {"search": False, "sweep": False}
     app.state.last_run = None
+    #: The search running in the background: where it is, how to stop it,
+    #: and how the last one ended — see /api/search.
+    app.state.search = {"progress": None, "outcome": None, "cancel": None, "thread": None}
+    search_lock = threading.Lock()  # sync routes run in a thread pool: two clicks can race
 
     # -- helpers ----------------------------------------------------------
 
@@ -971,31 +977,68 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
     # -- pipeline ---------------------------------------------------------
 
     @app.post("/api/search")
-    async def search():
-        """Run a full search. Long, so it runs in a worker thread."""
-        if app.state.running["search"]:
-            return JSONResponse({"ok": False, "detail": localize.message("A search is already running")},
-                                status_code=409)
+    def search():
+        """Start a search in the background and answer at once.
+
+        Jobs are stored as they are read; the page follows the run with
+        GET /api/search and can stop it with POST /api/search/cancel.
+        """
         settings = database.load_settings()
         if not settings.onboarded:
             raise HTTPException(status_code=409, detail="Finish the setup first")
+        with search_lock:
+            if app.state.running["search"]:
+                return JSONResponse(
+                    {"ok": False, "detail": localize.message("A search is already running")},
+                    status_code=409)
+            app.state.running["search"] = True
+        cancel = threading.Event()
+        search_state = app.state.search
+        search_state.update(progress=None, outcome=None, cancel=cancel)
 
-        app.state.running["search"] = True
+        def report(progress) -> None:
+            search_state["progress"] = asdict(progress)
 
-        def work():
+        def work() -> None:
             try:
-                return run_search(settings=settings, paths=paths, database=database)
+                result = run_search(settings=settings, paths=paths, database=database,
+                                    progress=report, cancel=cancel)
+                app.state.last_run = result.run.model_dump(mode="json")
+                search_state["outcome"] = {
+                    "ok": True,
+                    "run": app.state.last_run,
+                    "new": [f"{job.company} — {job.title}" for job in result.new_jobs][:50],
+                    "rejected": len(result.rejected),
+                }
+            except JobRadarError as exc:
+                search_state["outcome"] = {"ok": False, "detail": localize.message(exc.message)}
+            except Exception as exc:  # the page must hear that the run died, and why
+                log.exception("The search failed")
+                search_state["outcome"] = {"ok": False, "detail": str(exc)}
             finally:
                 app.state.running["search"] = False
 
-        result = await asyncio.to_thread(work)
-        app.state.last_run = result.run.model_dump(mode="json")
-        return {
-            "ok": True,
-            "run": app.state.last_run,
-            "new": [f"{job.company} — {job.title}" for job in result.new_jobs][:50],
-            "rejected": len(result.rejected),
-        }
+        thread = threading.Thread(target=work, name="jobradar-search", daemon=True)
+        search_state["thread"] = thread
+        thread.start()
+        return {"ok": True, "started": True}
+
+    @app.get("/api/search")
+    def search_status():
+        """Where the running search is, or how the last one ended."""
+        search_state = app.state.search
+        return {"running": app.state.running["search"],
+                "progress": search_state["progress"],
+                "outcome": search_state["outcome"]}
+
+    @app.post("/api/search/cancel")
+    def search_cancel():
+        """Stop the running search after the job it is reading; what it stored stays."""
+        cancel = app.state.search["cancel"]
+        if not app.state.running["search"] or cancel is None:
+            return {"ok": False, "running": False}
+        cancel.set()
+        return {"ok": True, "running": True}
 
     @app.get("/api/insights")
     def insights(runs: int = Query(30, ge=1, le=365)):

@@ -211,3 +211,9 @@ table.grid th, table.grid td { text-align: left; padding: 5px 8px; border-bottom
 table.grid th { font-weight: 600; color: var(--ink-2); font-size: 12.5px; }
 table.grid td:not(:first-child), table.grid th:not(:first-child) { text-align: right;
   font-variant-numeric: tabular-nums; }
+
+/* The running search: where it is, and the jobs it stored that the board does not show yet. */
+.search-status { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 12px;
+  padding: 8px 12px; border-radius: 8px; background: var(--accent-soft); color: var(--accent-ink); }
+.search-status progress { flex: 0 0 160px; accent-color: var(--accent); }
+.search-status span { flex: 1 1 240px; font-size: 13.5px; }

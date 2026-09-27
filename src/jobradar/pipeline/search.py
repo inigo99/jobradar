@@ -23,11 +23,17 @@ if you get them wrong:
 * **A new id is not necessarily a new job.** Reposts and the same opening on
   another board are matched against everything on file, closed and aged-out
   jobs included, and set aside with the job they duplicate.
+* **Store as you go.** Sources are handled one at a time, and each job is
+  saved the moment it is read, filtered and scored, so the dashboard fills up
+  while the run is still going instead of all at once at the end. A later
+  board's copy of a job already kept this run is folded into it.
 """
 
 from __future__ import annotations
 
 import logging
+import threading
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from typing import TYPE_CHECKING
@@ -39,7 +45,7 @@ from ..models import Job, MatchScore, Profile, SearchRun
 from ..sources import SearchQuery, build_sources
 from ..sources.base import Fetcher, JobSource
 from ..storage import Database
-from .dedupe import deduplicate, split_known
+from .dedupe import _merge, deduplicate, split_known
 from .enrich import enrich_job
 from .filters import apply_filters
 from .filters import category as filter_category
@@ -51,6 +57,24 @@ if TYPE_CHECKING:
     from ..mail import MailReport
 
 log = logging.getLogger(__name__)
+
+
+@dataclass
+class SearchProgress:
+    """Where a running search is, for the dashboard's progress line."""
+
+    sources_total: int = 0
+    sources_done: int = 0
+    #: The source being asked or read now.
+    source: str = ""
+    #: "searching" (asking the source), "reading" (its ads, one by one) or "done".
+    stage: str = ""
+    #: The current source's ads left after duplicates, and how many are read.
+    to_read: int = 0
+    read: int = 0
+    kept: int = 0
+    new: int = 0
+    filtered: int = 0
 
 
 @dataclass
@@ -130,22 +154,17 @@ class SearchPipeline:
 
     # -- stages ------------------------------------------------------------
 
-    def collect(self, query: SearchQuery) -> tuple[list[Job], list[str], list[str]]:
-        """Ask every source, tolerating individual failures."""
-        collected: list[Job] = []
-        used: list[str] = []
-        errors: list[str] = []
-        for source in self.sources():
-            try:
-                found = source.search(query)
-            except Exception as exc:  # one broken board must not end the run
-                log.warning("Source %s failed: %s", source.id, exc)
-                errors.append(f"{source.id}: {exc}")
-                continue
-            log.info("%s returned %d jobs", source.name, len(found))
-            used.append(source.id)
-            collected.extend(found)
-        return collected, used, errors
+    def _ask(self, source: JobSource, query: SearchQuery, run: SearchRun) -> list[Job] | None:
+        """One source's listings, or None when it failed; one broken board must not end the run."""
+        try:
+            found = source.search(query)
+        except Exception as exc:
+            log.warning("Source %s failed: %s", source.id, exc)
+            run.errors.append(f"{source.id}: {exc}")
+            return None
+        log.info("%s returned %d jobs", source.name, len(found))
+        run.sources.append(source.id)
+        return found
 
     def _prefilter(
         self, jobs: list[Job]
@@ -192,117 +211,196 @@ class SearchPipeline:
 
     # -- run ---------------------------------------------------------------
 
-    def run(self, enrich: bool = True) -> SearchResult:
+    def run(
+        self,
+        enrich: bool = True,
+        progress: Callable[[SearchProgress], None] | None = None,
+        cancel: threading.Event | None = None,
+    ) -> SearchResult:
+        """Search every source, storing each job as soon as it is decided.
+
+        ``progress`` is called after every step with where the run is;
+        ``cancel``, once set, stops the run after the job being read — what
+        was stored so far stays.
+        """
         started = datetime.now(timezone.utc)
         pruned = prune_stale(self.database, self.settings.prune_after_days, self.today)
         query = self.query()
+        sources = self.sources()
+        result = SearchResult(run=SearchRun(started_at=started, pruned=len(pruned)))
+        state = SearchProgress(sources_total=len(sources))
 
-        collected, used, errors = self.collect(query)
-        deduped = deduplicate(collected)
-        known_on_file = self.database.list_jobs(include_closed=True)
-        fresh, known_duplicates = split_known(deduped, known_on_file)
-        candidates, rejected, prefiltered = self._prefilter(fresh)
-
-        known_ids = self.database.known_job_ids()
-        by_source: dict[str, dict[str, int]] = {}
-        for job in collected:
-            counts = by_source.setdefault(job.source or "unknown", {"fetched": 0, "kept": 0})
-            counts["fetched"] += 1
-        result = SearchResult(
-            run=SearchRun(
-                started_at=started,
-                sources=used,
-                fetched=len(collected),
-                after_dedupe=len(deduped),
-                known_duplicates=len(known_duplicates),
-                pruned=len(pruned),
-                errors=errors,
-            ),
-            rejected=rejected,
-            filtered=list(prefiltered),
-        )
-        for job, twin in known_duplicates:
-            reason = f"duplicate of a job already on file ({twin.company} — {twin.title})"
-            result.rejected[job.id] = reason
-            result.filtered.append((job, reason))
+        def report(**changes: object) -> None:
+            for name, value in changes.items():
+                setattr(state, name, value)
+            if progress is not None:
+                try:
+                    progress(state)
+                except Exception:  # a broken listener must not cost the run
+                    log.exception("The search progress listener failed")
 
         # The years ceiling comes from the profile's own dates unless the user
         # typed a number, so it rises on its own instead of ageing quietly.
         profile_years = self.profile.years_of_experience(self.today) if self.profile else None
+        known_on_file = self.database.list_jobs(include_closed=True)
+        known_ids = self.database.known_job_ids()
+        #: Every job decided this run, by id, and the ones kept: a later
+        #: board's copy of a kept job is folded into it, not read again.
+        decided: dict[str, Job] = {}
+        kept: dict[str, Job] = {}
+        by_source: dict[str, dict[str, int]] = {}
 
-        for listed in candidates:
-            job = listed
-            if enrich:
-                stored = self._stored_reading(listed)
-                if stored is not None:
-                    job = stored
-                    result.run.reused += 1
-                else:
-                    source = self._source_for(job)
-                    enrich_job(
-                        job,
-                        self.settings,
-                        llm=self.llm,
-                        rates=self.rates,
-                        fetch_description=source.fetch_description if source else None,
-                        resolve_work_mode=source.resolve_work_mode if source else None,
-                    )
+        def cancelled() -> bool:
+            return cancel is not None and cancel.is_set()
 
+        def reject(job: Job, reason: str) -> None:
+            result.rejected[job.id] = reason
+            if reason in ("deleted by you", "previously recorded as closed"):
+                return  # nothing to reconsider: the job is gone, not filtered
+            result.filtered.append((job, reason))
+            # Nothing rejected is thrown away: a filter one notch too strict is
+            # invisible while its victims vanish, and the symptom — an empty
+            # board — looks exactly like "there were no jobs today".
+            self.database.save_filtered([(job, reason, filter_category(reason))])
+            report(filtered=state.filtered + 1)
+
+        def fold(twin: Job, copy: Job) -> None:
+            """Another board's copy of a job kept this run: add what it knows."""
+            _merge(twin, copy)
+            self.database.upsert_jobs([twin])
+            if self.profile:
+                result.scores[twin.id] = score_job(twin, self.profile)
+                self.database.save_score(twin.id, result.scores[twin.id])
+
+        try:
+            for index, source in enumerate(sources):
+                if cancelled():
+                    break
+                report(source=source.name, stage="searching", to_read=0, read=0)
+                found = self._ask(source, query, result.run)
+                if found is not None:
+                    result.run.fetched += len(found)
+                    for job in found:
+                        by_source.setdefault(job.source or "unknown",
+                                             {"fetched": 0, "kept": 0})["fetched"] += 1
+                    self._handle(found, enrich, result, known_on_file, known_ids, decided,
+                                 kept, by_source, profile_years, reject, fold, report,
+                                 cancelled)
+                report(sources_done=index + 1)
+        finally:
+            # Written whatever happened, so a cancelled or crashed run still
+            # leaves its line in the history next to the jobs it stored.
+            result.run.cancelled = cancelled()
+            result.run.kept = len(result.kept)
+            result.run.new = len(result.new_jobs)
+            result.run.by_source = by_source
+            result.run.skipped_sources = list(self.skipped_sources)
+            categories: dict[str, int] = {}
+            for _job, reason in result.filtered:
+                key = filter_category(reason)
+                categories[key] = categories.get(key, 0) + 1
+            result.run.filtered_by_category = categories
+            if self._fetcher is not None:
+                result.run.fetch_problems = list(self._fetcher.problems)
+            result.run.finished_at = datetime.now(timezone.utc)
+            self.database.log_run(result.run)
+            if self._fetcher is not None:
+                self._fetcher.close()
+            report(stage="done")
+        return result
+
+    def _handle(self, found: list[Job], enrich: bool, result: SearchResult,
+                known_on_file: list[Job], known_ids: set[str], decided: dict[str, Job],
+                kept: dict[str, Job], by_source: dict[str, dict[str, int]],
+                profile_years: float | None, reject: Callable[[Job, str], None],
+                fold: Callable[[Job, Job], None], report: Callable[..., None],
+                cancelled: Callable[[], bool]) -> None:
+        """Deduplicate, read, filter, score and store one source's listings."""
+        batch: list[Job] = []
+        for job in deduplicate(found):
+            if job.id in kept:
+                fold(kept[job.id], job)
+            elif job.id not in decided:
+                batch.append(job)
+        # The same opening on a board read earlier this run.
+        batch, twins = split_known(batch, kept.values())
+        for job, twin in twins:
+            fold(twin, job)
+        result.run.after_dedupe += len(batch)
+
+        fresh, known_duplicates = split_known(batch, known_on_file)
+        for job, twin in known_duplicates:
+            decided[job.id] = job
+            result.run.known_duplicates += 1
+            reject(job, f"duplicate of a job already on file ({twin.company} — {twin.title})")
+        candidates, rejected, prefiltered = self._prefilter(fresh)
+        for job in fresh:
+            if job.id in rejected:
+                decided[job.id] = job
+        for job, reason in prefiltered:
+            reject(job, reason)
+        for job_id, reason in rejected.items():
+            if job_id not in result.rejected:
+                result.rejected[job_id] = reason
+
+        report(stage="reading", to_read=len(candidates), read=0)
+        for number, listed in enumerate(candidates, start=1):
+            if cancelled():
+                return
+            job = self._read(listed, enrich, result)
+            decided[job.id] = job
             outcome = apply_filters(
                 job, self.settings.filters, self.rates, self.today, profile_years
             )
             if not outcome.keep:
-                result.rejected[job.id] = outcome.reason
-                result.filtered.append((job, outcome.reason))
-                continue
-            if outcome.warnings:
-                result.warnings[job.id] = list(outcome.warnings)
-                if job.alerts is None:
-                    job.alerts = []
-                for warning in outcome.warnings:
-                    if warning not in job.alerts:
-                        job.alerts.append(warning)
+                reject(job, outcome.reason)
+            elif job.id in self.database.deleted_job_ids():
+                # Deleted from the board while this run was reading it.
+                result.rejected[job.id] = "deleted by you"
+            else:
+                self._keep(job, outcome.warnings, result, known_ids, kept, by_source)
+                report(kept=len(result.kept), new=len(result.new_jobs))
+            report(read=number)
 
-            result.kept.append(job)
-            by_source.setdefault(job.source or "unknown", {"fetched": 0, "kept": 0})["kept"] += 1
-            if job.id not in known_ids:
-                result.new_jobs.append(job)
-
-            if self.profile:
-                result.scores[job.id] = score_job(job, self.profile)
-
-        # Nothing rejected is thrown away: a filter one notch too strict is
-        # invisible while its victims vanish, and the symptom — an empty
-        # board — looks exactly like "there were no jobs today".
-        kept_ids = {job.id for job in result.kept}
-        self.database.save_filtered(
-            (job, reason, filter_category(reason))
-            for job, reason in result.filtered
-            if job.id not in kept_ids
+    def _read(self, listed: Job, enrich: bool, result: SearchResult) -> Job:
+        """The job with its ad read: the stored reading if there is one."""
+        if not enrich:
+            return listed
+        stored = self._stored_reading(listed)
+        if stored is not None:
+            result.run.reused += 1
+            return stored
+        source = self._source_for(listed)
+        enrich_job(
+            listed,
+            self.settings,
+            llm=self.llm,
+            rates=self.rates,
+            fetch_description=source.fetch_description if source else None,
+            resolve_work_mode=source.resolve_work_mode if source else None,
         )
-        self.database.drop_filtered(sorted(kept_ids))
+        return listed
 
-        new, _updated = self.database.upsert_jobs(result.kept)
-        for job_id, score in result.scores.items():
-            self.database.save_score(job_id, score)
-
-        result.run.kept = len(result.kept)
-        result.run.new = new
-        result.run.by_source = by_source
-        result.run.skipped_sources = list(self.skipped_sources)
-        categories: dict[str, int] = {}
-        for _job, reason in result.filtered:
-            key = filter_category(reason)
-            categories[key] = categories.get(key, 0) + 1
-        result.run.filtered_by_category = categories
-        if self._fetcher is not None:
-            result.run.fetch_problems = list(self._fetcher.problems)
-        result.run.finished_at = datetime.now(timezone.utc)
-        self.database.log_run(result.run)
-
-        if self._fetcher is not None:
-            self._fetcher.close()
-        return result
+    def _keep(self, job: Job, warnings: Sequence[str], result: SearchResult, known_ids: set[str],
+              kept: dict[str, Job], by_source: dict[str, dict[str, int]]) -> None:
+        """Store a job that passed the filters, with its score, right away."""
+        if warnings:
+            result.warnings[job.id] = list(warnings)
+            if job.alerts is None:
+                job.alerts = []
+            for warning in warnings:
+                if warning not in job.alerts:
+                    job.alerts.append(warning)
+        self.database.upsert_jobs([job])
+        self.database.drop_filtered([job.id])
+        kept[job.id] = job
+        result.kept.append(job)
+        by_source.setdefault(job.source or "unknown", {"fetched": 0, "kept": 0})["kept"] += 1
+        if job.id not in known_ids:
+            result.new_jobs.append(job)
+        if self.profile:
+            result.scores[job.id] = score_job(job, self.profile)
+            self.database.save_score(job.id, result.scores[job.id])
 
 
 def run_search(
@@ -311,6 +409,8 @@ def run_search(
     database: Database | None = None,
     enrich: bool = True,
     refresh: bool = False,
+    progress: Callable[[SearchProgress], None] | None = None,
+    cancel: threading.Event | None = None,
 ) -> SearchResult:
     """Convenience entry point used by the CLI, the API and scheduled runs."""
     paths = paths or Paths.resolve()
@@ -328,8 +428,8 @@ def run_search(
         refresh=refresh,
     )
     try:
-        result = pipeline.run(enrich=enrich)
-        if settings.mail.enabled and settings.mail.check_after_search:
+        result = pipeline.run(enrich=enrich, progress=progress, cancel=cancel)
+        if settings.mail.enabled and settings.mail.check_after_search and not result.run.cancelled:
             # A mail problem must not cost the search its results.
             # Imported here: jobradar.mail uses this package's dedupe helpers.
             from ..mail import check_mail

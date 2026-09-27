@@ -28,6 +28,11 @@
 </header>
 
 <main>
+  <div class="search-status" id="search-status" hidden>
+    <progress id="search-bar" max="1" value="0"></progress>
+    <span id="search-text" aria-live="polite"></span>
+    <button type="button" class="primary" id="search-show" hidden></button>
+  </div>
   <div class="tabs" id="tabs" role="tablist"></div>
   <div class="toolbar" id="toolbar">
     <div class="filters" role="search" data-i18n-aria-label="Filter the board">
