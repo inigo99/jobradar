@@ -6,7 +6,7 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
-## 1.7.1 — 2026-09-27
+## 1.8.0 — 2026-09-27
 
 ### Fixed
 
