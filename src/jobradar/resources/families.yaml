@@ -53,7 +53,8 @@ engineering:
              "industrial engineer", "process engineer", "ingeniero de procesos",
              "quality engineer", "ingeniero de calidad", "project engineer", "chemical engineer",
              "ingeniero químico", "structural engineer", "aerospace", "automoción", automotive,
-             "ingeniero de caminos", "design engineer", "maintenance engineer"]
+             "ingeniero de caminos", "design engineer", "maintenance engineer",
+             "técnico de calidad", "técnica de calidad", "quality technician"]
   bands: {junior: [24000, 32000], mid: [32000, 45000], senior: [45000, 62000], lead: [58000, 85000]}
 
 healthcare:
@@ -149,7 +150,8 @@ logistics_transport:
 
 manufacturing_trades:
   label: Manufacturing & skilled trades
-  keywords: [electrician, electricista, plumber, fontaner*, welder, soldador*, mechanic,
+  keywords: [electrician, electricista, electricidad, "oficial de 1ª", "oficial de 2ª",
+             "oficial de primera", "oficial de segunda", plumber, fontaner*, welder, soldador*, mechanic,
              mecánic*, carpenter, carpinter*, "machine operator", "operario de producción",
              "operario", "production operator", "maintenance technician", "técnico de mantenimiento",
              "cnc", tornero, fresador*, "industrial technician", "painter", pintor*, albañil,

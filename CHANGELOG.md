@@ -44,6 +44,12 @@ All notable changes to this project are documented here. The format follows
   Portuguese word, and words with accents never counted at all.
 - **"Trabajador/a social", "Diseñador/a gráfico/a"** are sorted into their job
   family: the "/a" no longer hides the keyword.
+- **Titles matched their lookalikes.** A searched title was compared on its
+  first five letters, so "contable" found "¿Has olvidado tu contraseña?" and
+  "técnico de laboratorio" found "técnico laboral". The comparison now drops
+  only a word's last few letters: "recepcionista" still finds "recepción".
+- **"Oficial de 1ª electricidad" and "Técnico de calidad"** are sorted into
+  trades and engineering, not left general or taken for finance.
 - **Skill vocabulary** for graphic design, architecture, physiotherapy,
   psychology, dentistry, chemistry and microbiology, WordPress, MATLAB.
 - **LinkedIn and Indeed spent the result limit on the whole country** when you

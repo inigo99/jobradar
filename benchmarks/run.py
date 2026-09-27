@@ -99,7 +99,11 @@ def run_one(key: str, spec: dict, region_key: str, extra: list[str], cache: Path
     kept = result.kept
     by_title = [job for job in kept if title_matches(job.title, spec["titles"])]
     by_family = [job for job in kept if job.family == spec["family"]]
-    scores = [result.scores[job.id].tailored for job in kept if job.id in result.scores]
+    def score(job):  # None for an ad JobRadar could not score (no skill it knows)
+        found = result.scores.get(job.id)
+        return round(found.tailored) if found and found.scored else None
+
+    scores = [s for s in map(score, kept) if s is not None]
     reasons = Counter(reason.split(" (")[0] for reason in result.rejected.values())
     return {
         "profile": key, "region": region_key, "seconds": round(seconds),
@@ -108,14 +112,13 @@ def run_one(key: str, spec: dict, region_key: str, extra: list[str], cache: Path
         "fetched_by_source": {s: c.get("fetched", 0) for s, c in result.run.by_source.items()},
         "title_matches": len(by_title), "family_matches": len(by_family),
         "median_score": round(statistics.median(scores)) if scores else None,
+        "unscored": sum(1 for job in kept if score(job) is None),
         "rejected": dict(reasons.most_common(5)),
         "problems": result.run.fetch_problems[:3] + result.run.errors[:3],
         "jobs": [{"title": job.title, "company": job.company, "location": job.location,
                   "family": job.family, "source": job.source,
-                  "score": round(result.scores[job.id].tailored) if job.id in result.scores else None,
-                  "url": job.url}
-                 for job in sorted(kept, key=lambda j: -(result.scores[j.id].tailored
-                                                         if j.id in result.scores else 0))],
+                  "score": score(job), "url": job.url}
+                 for job in sorted(kept, key=lambda j: -(score(j) or -1))],
     }
 
 
@@ -129,13 +132,15 @@ def report(rows: list[dict], profiles: dict, regions: list[str]) -> str:
     for region in regions:
         region_rows = [r for r in rows if r["region"] == region]
         lines += [f"## {region.title()}", "",
-                  "| Profile | Fetched | Kept | By title | By family | Median score | Main reason dropped |",
-                  "|---|---:|---:|---:|---:|---:|---|"]
+                  "| Profile | Fetched | Kept | By title | By family | Median score | Not scored "
+                  "| Main reason dropped |",
+                  "|---|---:|---:|---:|---:|---:|---:|---|"]
         for r in region_rows:
             reason = next(iter(r["rejected"]), "—")
             lines.append(f"| {profiles[r['profile']]['label']} | {r['fetched']} | {r['kept']} | "
                          f"{r['title_matches']} | {r['family_matches']} | "
-                         f"{r['median_score'] if r['median_score'] is not None else '—'} | {reason} |")
+                         f"{r['median_score'] if r['median_score'] is not None else '—'} | "
+                         f"{r['unscored']} | {reason} |")
         empty = [profiles[r["profile"]]["label"] for r in region_rows if not r["kept"]]
         lines += ["", f"Nothing kept: {', '.join(empty) or 'none'}.", ""]
         for r in region_rows:
@@ -144,7 +149,8 @@ def report(rows: list[dict], profiles: dict, regions: list[str]) -> str:
             lines.append(f"<details><summary>{profiles[r['profile']]['label']} — "
                          f"{r['kept']} kept</summary>\n")
             for job in r["jobs"][:10]:
-                lines.append(f"- {job['score'] if job['score'] is not None else '—'}% · "
+                shown = f"{job['score']}%" if job["score"] is not None else "—"
+                lines.append(f"- {shown} · "
                              f"[{job['title']}]({job['url']}) · {job['location'] or '?'} · "
                              f"{job['family']} · {job['source']}")
             lines.append("\n</details>\n")

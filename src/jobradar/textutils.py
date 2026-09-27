@@ -104,15 +104,23 @@ def _variants(term: str) -> list[str]:
 def _stems(variant: str) -> list[str]:
     words = [w for w in variant.split() if w not in _TITLE_NOISE]
     specific = [w for w in words if w not in _GENERIC_ROLE]
-    return [w[:5] for w in (specific or words)]
+    return [_stem(w) for w in (specific or words)]
+
+
+def _stem(word: str) -> str:
+    """Enough of ``word`` to allow its gender, number and close relatives
+    ("recepcionista" -> "recepción", "fisioterapeuta" -> "fisioterapia") and
+    no more: a fixed five letters also let "contable" find "contraseña" and
+    "laboratorio" find "laboral"."""
+    return word[:max(6, len(word) - 4)]
 
 
 def title_matches(title: str, terms: list[str]) -> bool:
     """Whether ``title`` looks like one of the searched ``terms``.
 
     For boards that return everything and leave the matching to us. Every
-    significant word of a term must start a word of the title, compared on
-    its first five letters, so gendered and plural forms still match:
+    significant word of a term must start a word of the title, compared
+    without its last few letters, so gendered and plural forms still match:
     "enfermera" finds "Enfermero/a", "camarero" finds "Camarero-a"; and the
     names in :data:`TITLE_SYNONYMS` stand for each other, so "recursos
     humanos" finds "RRHH" and "HR". No terms means no filter.
