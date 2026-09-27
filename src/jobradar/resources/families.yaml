@@ -58,7 +58,7 @@ engineering:
 
 healthcare:
   label: Healthcare
-  keywords: [nurse, enfermer*, doctor, médico*, physician, physiotherapist, fisioterapeuta,
+  keywords: [nurse, enfermer*, infermer*, doctor, médico*, physician, physiotherapist, fisioterapeuta,
              pharmacist, farmacéutic*, "care assistant", "auxiliar de enfermería", "tcae",
              "técnico de laboratorio", "lab technician", dentist, dentista, "higienista",
              psychologist, psicólog*, midwife, matron*, radiographer, "técnico de radiología",
@@ -76,7 +76,7 @@ care_social:
 
 education:
   label: Education & training
-  keywords: [teacher, profesor*, maestr*, docente, tutor, lecturer, "teaching assistant",
+  keywords: [teacher, profesor*, professor*, maestr*, mestre*, docent*, tutor, lecturer, "teaching assistant",
              "auxiliar de conversación", formador*, trainer, "instructional designer",
              "orientador*", "educador infantil", "educadora infantil", pedagog*, "school",
              academia, "early years", catedrátic*, "e-learning"]
@@ -107,16 +107,16 @@ customer_service:
 
 finance_accounting:
   label: Finance & accounting
-  keywords: [accountant, contable, contabilidad, accounting, "financial analyst",
+  keywords: [accountant, contable, comptable, contabilidad, comptabilitat, accounting, "financial analyst",
              "analista financiero", auditor*, "controller", "controlling", tesorer*, treasury,
-             "tax advisor", "asesor fiscal", payroll, nóminas, "accounts payable",
+             "tax advisor", "asesor fiscal", "accounts payable",
              "accounts receivable", "finance manager", "director financiero", cfo, "bookkeeper",
              "analista de riesgos", "risk analyst", actuar*]
   bands: {junior: [20000, 27000], mid: [27000, 40000], senior: [40000, 58000], lead: [55000, 90000]}
 
 legal:
   label: Legal
-  keywords: [lawyer, abogad*, solicitor, attorney, paralegal, jurista, "legal counsel",
+  keywords: [lawyer, abogad*, advocat*, solicitor, attorney, paralegal, jurista, "legal counsel",
              "asesor jurídico", "asesora jurídica", "compliance", notari*, "legal assistant",
              "procurador*", "graduado social", "cumplimiento normativo", mediador*,
              "asociado/a", "associate lawyer", "m&a"]
@@ -124,15 +124,16 @@ legal:
 
 human_resources:
   label: Human resources
-  keywords: ["human resources", "recursos humanos", rrhh, recruiter, reclutador*,
-             "talent acquisition", "hr business partner", "técnico de selección",
-             "técnica de selección", "people partner", "people operations",
+  keywords: ["human resources", "recursos humanos", "recursos humans", rrhh, "rr.hh", hr,
+             recruiter, reclutador*, selecci*, payroll, nóminas,
+             nòmines, "administración de personal", "hr generalist", "hr specialist",
+             "talent acquisition", "hr business partner", "people partner", "people operations",
              "learning and development", "compensation and benefits", "relaciones laborales"]
   bands: {junior: [19000, 26000], mid: [26000, 38000], senior: [38000, 54000], lead: [50000, 80000]}
 
 administration_office:
   label: Administration & office
-  keywords: [administrativ*, "office manager", "administrative assistant", secretari*,
+  keywords: [administrativ*, administratiu*, "office manager", "administrative assistant", secretari*,
              "executive assistant", "personal assistant", "asistente de dirección",
              "data entry", "back office", "auxiliar administrativo", "gestor administrativo",
              "office assistant", "recepción"]
@@ -165,7 +166,7 @@ construction_property:
 
 hospitality_tourism:
   label: Hospitality, food & tourism
-  keywords: [chef, cocinero*, "ayudante de cocina", "kitchen porter", waiter, camarer*,
+  keywords: [chef, cocinero*, cuiner*, cambrer*, "ayudante de cocina", "kitchen porter", waiter, camarer*,
              bartender, barista, "hotel", hotel*, "front desk", "guest relations", "housekeeping",
              "camarera de pisos", "tour guide", "guía turístico", "travel agent",
              "agente de viajes", "restaurant manager", "jefe de sala", sumiller*, "event coordinator"]

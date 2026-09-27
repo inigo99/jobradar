@@ -71,7 +71,8 @@ def test_every_sector_has_a_real_vocabulary():
 
 
 @pytest.mark.parametrize(("name", "family"), [("nurse", "healthcare"), ("lawyer", "legal"),
-                                              ("teacher", "education"), ("data", "data_analytics")])
+                                              ("teacher", "education"), ("data", "data_analytics"),
+                                              ("hr", "human_resources")])
 def test_each_demo_profile_fills_a_board_in_its_own_field(database, paths, name, family):
     from jobradar.demo import load_demo
 

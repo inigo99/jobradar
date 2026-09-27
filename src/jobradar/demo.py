@@ -72,6 +72,13 @@ DEMO_PROFILES: dict[str, DemoProfile] = {
         min_salary=18000,
         description="an English teacher and CLIL coordinator in Valencia (English)",
     ),
+    "hr": DemoProfile(
+        cv="hr_cv.txt", jobs="hr_jobs.json", language="es",
+        titles=("Técnico de recursos humanos", "Técnico de selección", "Técnico de nóminas"),
+        work_modes=(WorkMode.HYBRID, WorkMode.ONSITE), local_areas=("Madrid",),
+        min_salary=24000,
+        description="an HR, recruitment and payroll specialist in Madrid (Spanish)",
+    ),
 }
 DEFAULT_DEMO = "data"
 
