@@ -5,9 +5,9 @@ covers every kind of work: nursing, teaching, trades, care, retail, offices,
 apprenticeships. Its search is a JSON API the agency's own site and app use,
 with a public client id; https://jobsuche.api.bund.dev documents it.
 
-It is off until you switch it on (Settings → Sources), like the other
-national boards in docs/PORTALS.md, and then only runs when Germany is one of
-the countries you search: the search sends
+It is on by default only for people who search in Germany (the other
+national boards work the same way), and only runs when Germany is one of the
+countries you search: the search sends
 the title, and the ads come back without their text, which is fetched later,
 one request per ad, only for the ads that survive the filters.
 """
@@ -39,7 +39,7 @@ class ArbeitsagenturSource(JobSource):
     name = "Bundesagentur für Arbeit"
     homepage = "https://www.arbeitsagentur.de/jobsuche/"
     tos_tier = "open"
-    opt_in = True  # Germany's national board: switched on by those who look there
+    countries = ("DE",)
     tos_note = ("Public JSON API behind the agency's own job search, with a public client id; "
                 "documented by the community at jobsuche.api.bund.dev, not by the agency.")
 

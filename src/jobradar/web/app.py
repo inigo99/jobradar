@@ -407,7 +407,7 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
             "profile": localize.profile(_profile_summary(profile)),
             "jobs": jobs,
             "sources": [{**source, "tos_note": localize.message(source["tos_note"])}
-                        for source in available_sources()],
+                        for source in available_sources(settings.filters.effective_countries())],
             "families": localize.families(catalogue_view(settings)),
             "mail": {job_id: news.model_dump(mode="json")
                      for job_id, news in database.mail_news().items()},

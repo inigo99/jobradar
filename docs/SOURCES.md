@@ -27,6 +27,17 @@ the volume of a person doing their own job search.
 Shipped restricted adapters: LinkedIn (guest endpoint), InfoJobs, Tecnoempleo
 and Indeed. Manfred is `open`: it serves its offers as public JSON.
 
+## National boards
+
+A source that only covers some countries declares them (`countries =
+("ES",)`). It is on by default only for users who search one of those
+countries — Manfred for Spain; the Bundesagentur für Arbeit and Arbeitnow for
+Germany (Arbeitnow also Austria and Switzerland) — and anyone else can switch
+it on in Settings, where it is labelled "National board". Restricted ones
+(InfoJobs, Tecnoempleo) declare their country too, but stay off until named.
+Sources that serve every country (EURES, the remote boards, company boards,
+Adzuna, Jooble) are on for everyone.
+
 ## Public employment services
 
 For nurses, teachers, lawyers, tradespeople and most of the jobs that are not
@@ -43,12 +54,11 @@ these adapters are `open`.
   [rorar/eures-api-documentation](https://github.com/rorar/eures-api-documentation)),
   restricted to your countries and your age limit. The ad is kept in the
   language it was written in, not the portal's machine translation.
-- **Bundesagentur für Arbeit** (`arbeitsagentur`, Germany, `open`, **off
-  until you switch it on**): the JSON API behind the agency's own search,
-  with its public client id, documented at
-  [jobsuche.api.bund.dev](https://jobsuche.api.bund.dev). Like the national
-  boards in [PORTALS.md](PORTALS.md), it is for the people who look there;
-  once on, it runs only when `DE` is one of your countries. Search results carry no text, so each
+- **Bundesagentur für Arbeit** (`arbeitsagentur`, Germany, `open`, national):
+  the JSON API behind the agency's own search, with its public client id,
+  documented at [jobsuche.api.bund.dev](https://jobsuche.api.bund.dev). On
+  by default for users who search in Germany, and it only runs when `DE` is
+  one of your countries. Search results carry no text, so each
   ad's text is fetched later, one request per new ad. The ads are in German,
   and the skill vocabulary is English and Spanish, so expect fewer skill
   matches than for Spanish or English ads.

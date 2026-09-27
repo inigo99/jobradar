@@ -14,9 +14,12 @@ All notable changes to this project are documented here. The format follows
   being read, jobs kept) and a "Show N new jobs" button that adds them to the
   board without moving what you are reading. Reloading the page keeps
   following the run.
-- The Bundesagentur für Arbeit (Germany) is off until switched on in
-  Settings → Sources, like the national boards listed in `docs/PORTALS.md`;
-  installs that already chose their sources keep their choice.
+- **National boards follow your countries.** Manfred (Spain), the
+  Bundesagentur für Arbeit and Arbeitnow (Germany; Arbeitnow also Austria
+  and Switzerland) are on by default only for users who search one of their
+  countries, instead of for everyone; others can switch them on in Settings,
+  where they are labelled "National board". Installs that already chose
+  their sources keep their choice.
 
 ### Added
 

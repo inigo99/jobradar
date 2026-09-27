@@ -80,6 +80,19 @@ const stageLabel = stage => ({ applied: t("applied"), screening: t("screening"),
 const severityLabel = sev => ({ error: t("error"), warning: t("warning"), info: t("note") }[sev] || sev);
 /* A country's name in the interface language, from the browser's own data;
    the server's English name when the browser has none. */
+/* Mirrors sources.on_by_default: never a restricted source, and a national
+   board only for users who search one of its countries. */
+function onByDefault(source, countries) {
+  if (source.tos_tier === "restricted") return false;
+  if (!source.countries || !source.countries.length) return true;
+  return source.countries.some(code => countries.includes(code));
+}
+/* "National board: Spain", under a national source's name. */
+function nationalNote(source) {
+  if (!source.countries || !source.countries.length) return null;
+  return el("div", { className: "hint" }, t("National board: {countries}",
+    { countries: source.countries.map(code => countryName(code, code)).join(", ") }));
+}
 function countryName(code, fallback) {
   try {
     return new Intl.DisplayNames([LANG], { type: "region" }).of(code) || fallback;

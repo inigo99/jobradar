@@ -105,6 +105,7 @@ class ManfredSource(JobSource):
     name = "Manfred"
     homepage = "https://www.getmanfred.com"
     tos_tier = "open"
+    countries = ("ES",)
     supports_remote_filter = True
 
     def search(self, query: SearchQuery) -> list[Job]:

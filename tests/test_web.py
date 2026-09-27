@@ -132,3 +132,30 @@ def test_a_search_runs_in_the_background_and_can_be_stopped(paths, monkeypatch):
         assert status["running"] is False
         assert status["outcome"]["ok"] is True and status["outcome"]["run"]["cancelled"] is True
         assert client.post("/api/search/cancel").json()["ok"] is False  # nothing to stop
+
+
+def test_national_boards_follow_the_users_countries(paths):
+    from fastapi.testclient import TestClient
+
+    from jobradar.config import Settings
+    from jobradar.sources import build_sources
+    from jobradar.storage import Database
+
+    database = Database(paths)
+    settings = Settings(onboarded=True)
+    settings.filters.home_country = "ES"
+    database.save_settings(settings)
+    database.close()
+    with TestClient(create_app(paths, allowed_hosts={"testserver"})) as client:
+        sources = {s["id"]: s for s in client.get("/api/state").json()["sources"]}
+    assert sources["manfred"]["default_enabled"] and sources["manfred"]["countries"] == ["ES"]
+    assert not sources["arbeitsagentur"]["default_enabled"]
+    assert not sources["arbeitnow"]["default_enabled"]
+    assert not sources["infojobs"]["default_enabled"]  # restricted stays off, Spanish or not
+    assert sources["eures"]["default_enabled"] and sources["eures"]["countries"] == []
+
+    settings.filters.home_country = "DE"
+    running, fetcher = build_sources(settings, paths.cache_dir)
+    fetcher.close()
+    ids = {source.id for source in running}
+    assert {"arbeitsagentur", "arbeitnow"} <= ids and "manfred" not in ids

@@ -579,9 +579,10 @@ def cmd_sources(args: argparse.Namespace) -> int:
     settings = database.load_settings()
     from .sources import resolve_enabled
 
-    enabled = set(resolve_enabled(settings.sources))
+    countries = settings.filters.effective_countries()
+    enabled = set(resolve_enabled(settings.sources, countries))
     rows = []
-    for source in available_sources():
+    for source in available_sources(countries):
         missing = [name for name in source["required_env"] if not os.environ.get(name)]
         state = "on" if source["id"] in enabled else "off"
         if state == "on" and source["id"] in settings.sources.weekly:

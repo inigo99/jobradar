@@ -40,6 +40,7 @@ class TecnoempleoSource(JobSource):
     name = "Tecnoempleo"
     homepage = "https://www.tecnoempleo.com"
     tos_tier = "restricted"
+    countries = ("ES",)
     tos_note = (
         "Tecnoempleo's terms restrict automated collection. Enabling this adapter "
         "is your decision and your responsibility; keep the volume low."

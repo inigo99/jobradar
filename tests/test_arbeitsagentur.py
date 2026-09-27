@@ -43,17 +43,20 @@ def _source(responses: dict[str, Any] | None = None) -> tuple[ArbeitsagenturSour
     return ArbeitsagenturSource(cast(Any, fetcher)), fetcher
 
 
-def test_registered_as_an_open_source_that_is_off_until_chosen():
+def test_registered_as_germanys_national_board():
     from jobradar.config import SourceSettings
     from jobradar.sources import resolve_enabled
 
     assert BY_ID["arbeitsagentur"] is ArbeitsagenturSource
     entry = next(s for s in available() if s["id"] == "arbeitsagentur")
     assert entry["tos_tier"] == "open" and entry["required_env"] == []
-    # A national board, like the ones in docs/PORTALS.md: added, not assumed.
+    assert entry["countries"] == ["DE"]
+    # On by default only for people who look for work in Germany.
     assert not entry["default_enabled"]
-    assert "arbeitsagentur" not in resolve_enabled(SourceSettings())
-    assert "arbeitsagentur" in resolve_enabled(SourceSettings(enabled=["arbeitsagentur"]))
+    assert next(s for s in available(["de"]) if s["id"] == "arbeitsagentur")["default_enabled"]
+    assert "arbeitsagentur" not in resolve_enabled(SourceSettings(), ["ES"])
+    assert "arbeitsagentur" in resolve_enabled(SourceSettings(), ["ES", "DE"])
+    assert "arbeitsagentur" in resolve_enabled(SourceSettings(enabled=["arbeitsagentur"]), ["ES"])
 
 
 def test_does_nothing_unless_germany_is_searched():

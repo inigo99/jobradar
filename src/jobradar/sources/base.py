@@ -34,6 +34,7 @@ import os
 import re
 import time
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -425,9 +426,19 @@ class Fetcher:
 # ---------------------------------------------------------------------------
 
 
-def on_by_default(source: type[JobSource]) -> bool:
-    """Does ``source`` run when the user has not chosen sources themselves?"""
-    return source.tos_tier != "restricted" and not source.opt_in
+def on_by_default(source: type[JobSource], countries: Iterable[str] = ()) -> bool:
+    """Does ``source`` run when the user has not chosen sources themselves?
+
+    Restricted sources never do. A national board does when one of its
+    countries is one of ``countries`` (the user's): a Spanish tech board is
+    noise for a nurse in Germany, and Germany's agency is for people who look
+    for work there.
+    """
+    if source.tos_tier == "restricted":
+        return False
+    if not source.countries:
+        return True
+    return bool({code.upper() for code in countries} & set(source.countries))
 
 
 class JobSource(ABC):
@@ -451,9 +462,10 @@ class JobSource(ABC):
     key_url: str = ""
     #: True when the source itself can tell remote from on-site reliably.
     supports_remote_filter: bool = False
-    #: A national board only some users need: off until switched on in
-    #: Settings, like the portals in docs/PORTALS.md are added by hand.
-    opt_in: bool = False
+    #: For a national board, the countries it covers (ISO codes). It is on by
+    #: default only for users who search one of them; the rest can switch it
+    #: on in Settings, as they add the portals in docs/PORTALS.md.
+    countries: tuple[str, ...] = ()
 
     def __init__(self, fetcher: Fetcher, options: dict | None = None):
         self.fetcher = fetcher
@@ -498,11 +510,6 @@ class JobSource(ABC):
         return True, ""
 
     # -- helpers for subclasses -------------------------------------------
-
-    @property
-    def default_enabled(self) -> bool:
-        """Restricted and opt-in sources are never on unless the user says so."""
-        return on_by_default(type(self))
 
     def get(self, url: str, **kwargs: Any) -> str | None:
         """Fetch ``url`` through the shared :class:`Fetcher`.

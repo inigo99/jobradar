@@ -98,8 +98,8 @@ Cercolavoro (ultime offerte) https://www.cercolavoro.com/rss/offerte+lavoro+rss.
 The Bundesagentur für Arbeit, Germany's public employment service, has every
 sector. JobRadar reads it through the agency's own search API, which gives
 cleaner offers (title, employer, date and full text) than its web pages, so
-it is built in rather than pasted: switch on **Bundesagentur für Arbeit**
-under **Settings → Sources**, and add `DE` to your countries.
+it is built in rather than pasted: add `DE` to your countries and it is on
+(or switch on **Bundesagentur für Arbeit** under **Settings → Sources**).
 
 ## Everywhere else in Europe
 

@@ -279,6 +279,7 @@ I18N.es = {
   "Search runs": "Búsquedas",
   "Searching…": "Buscando…",
   "Stop search": "Detener búsqueda",
+  "National board: {countries}": "Portal nacional: {countries}",
   "Stopping…": "Deteniendo…",
   "Starting the search…": "Empezando la búsqueda…",
   "{source}: reading ad {read} of {total}": "{source}: leyendo anuncio {read} de {total}",
