@@ -161,3 +161,89 @@ def test_a_job_that_passes_later_leaves_the_filtered_list(database, profile, con
     relaxed.run(enrich=False)
     assert database.list_filtered() == []
     assert database.get_job(job.id) is not None
+
+
+# ---------------------------------------------------------------------------
+# Storing as the run goes
+# ---------------------------------------------------------------------------
+
+
+def _remote(**fields):
+    fields.setdefault("posted_at", TODAY)
+    return make_job(remote_scope=RemoteScope.COUNTRY, country="ES", **fields)
+
+
+class OtherSource(FakeSource):
+    id = "other"
+    name = "Other board"
+
+
+def test_each_job_is_stored_before_the_next_source_is_asked(database, profile, configured):
+    first = _remote(native_id="a", company="Alpha", title="Backend Engineer")
+    second = _remote(native_id="b", company="Beta", title="Backend Engineer", source="other")
+    stored_when_asked: list[bool] = []
+
+    class Watching(OtherSource):
+        def search(self, query):
+            stored_when_asked.append(database.get_job(first.id) is not None)
+            return [second]
+
+    steps: list[tuple[str, int, int]] = []
+    result = SearchPipeline(configured, profile, database,
+                            sources=[FakeSource([first]), Watching([])], today=TODAY).run(
+        enrich=False, progress=lambda p: steps.append((p.stage, p.sources_done, p.kept)))
+    assert stored_when_asked == [True]
+    assert {job.id for job in result.kept} == {first.id, second.id}
+    assert steps[-1] == ("done", 2, 2)
+    assert ("reading", 0, 1) in steps  # the first job counted while the first source is read
+
+
+def test_a_later_boards_copy_is_folded_into_the_kept_job(database, profile, configured):
+    kept = _remote(native_id="1", company="Acme", title="Backend Engineer", description="")
+    copy = _remote(native_id="2", company="Acme", title="Backend Engineer", source="other",
+                   description="Full text of the ad", url="https://other.example/2")
+    result = SearchPipeline(configured, profile, database,
+                            sources=[FakeSource([kept]), OtherSource([copy])], today=TODAY).run(
+        enrich=False)
+    assert [job.id for job in result.kept] == [kept.id]
+    stored = database.get_job(kept.id)
+    assert stored.description == "Full text of the ad"
+    assert stored.raw["also_seen_on"] == ["other"]
+
+
+def test_a_cancelled_run_keeps_what_it_stored_and_says_so(database, profile, configured):
+    import threading
+
+    cancel = threading.Event()
+    jobs = [_remote(native_id=str(n), company=f"Company {n}", title="Backend Engineer")
+            for n in range(3)]
+
+    def stop_after_first(progress):
+        if progress.kept == 1:
+            cancel.set()
+
+    result = SearchPipeline(configured, profile, database,
+                            sources=[FakeSource(jobs), OtherSource([_remote(native_id="x")])],
+                            today=TODAY).run(enrich=False, progress=stop_after_first,
+                                             cancel=cancel)
+    assert len(result.kept) == 1 and result.run.cancelled
+    assert result.run.sources == ["test"]  # the second board was never asked
+    assert database.recent_runs(1)[0].cancelled
+    assert database.get_job(jobs[0].id) is not None
+
+
+def test_a_job_deleted_while_the_run_reads_it_stays_deleted(database, profile, configured):
+    job = _remote(native_id="gone", company="Gone Ltd", title="Backend Engineer")
+    other = _remote(native_id="stay", company="Stay Ltd", title="Backend Engineer")
+
+    def delete_it(progress):
+        # The user deletes the second job from the board as the first is stored.
+        if progress.kept == 1 and database.get_job(job.id) is None:
+            database.upsert_jobs([job])
+            database.delete_jobs([job.id])
+
+    result = SearchPipeline(configured, profile, database,
+                            sources=[FakeSource([other, job])], today=TODAY).run(
+        enrich=False, progress=delete_it)
+    assert [kept.id for kept in result.kept] == [other.id]
+    assert database.get_job(job.id) is None

@@ -101,6 +101,7 @@ function settingsBody() {
           el("div", { style: "flex:1" },
             el("div", {}, el("b", {}, source.name), " ",
               el("span", { className: "tier " + source.tos_tier }, tierLabel(source.tos_tier))),
+            nationalNote(source),
             source.required_env.length ? keysForm(source) : null,
             source.tos_note ? el("div", { className: "hint" }, source.tos_note) : null),
           el("label", { className: "row", style: "margin:0;font-weight:400;white-space:nowrap" },

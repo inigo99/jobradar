@@ -617,6 +617,8 @@ class SearchRun(BaseModel):
     filtered_by_category: dict[str, int] = Field(default_factory=dict)
     #: Problems the fetcher reported (a blocked page, no browser...), once each.
     fetch_problems: list[str] = Field(default_factory=list)
+    #: Stopped by the user before every source was read.
+    cancelled: bool = False
 
     @property
     def duration_seconds(self) -> float | None:

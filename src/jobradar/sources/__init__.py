@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Iterable
 from datetime import date
 from pathlib import Path
 
@@ -18,7 +19,7 @@ from .adzuna import AdzunaSource
 from .arbeitnow import ArbeitnowSource
 from .arbeitsagentur import ArbeitsagenturSource
 from .ats import CompanyBoardsSource
-from .base import Fetcher, JobSource, SearchQuery
+from .base import Fetcher, JobSource, SearchQuery, on_by_default
 from .eures import EuresSource
 from .himalayas import HimalayasSource
 from .jooble import JoobleSource
@@ -58,8 +59,12 @@ REGISTRY: tuple[type[JobSource], ...] = (
 BY_ID: dict[str, type[JobSource]] = {cls.id: cls for cls in REGISTRY}
 
 
-def available() -> list[dict]:
-    """Describe every source, for the settings screen and ``jobradar sources``."""
+def available(countries: Iterable[str] = ()) -> list[dict]:
+    """Describe every source, for the settings screen and ``jobradar sources``.
+
+    ``countries`` are the user's: they decide whether a national board is on
+    by default.
+    """
     return [
         {
             "id": cls.id,
@@ -71,20 +76,24 @@ def available() -> list[dict]:
             "key_url": cls.key_url,
             # Whether every credential is set — never the values themselves.
             "configured": all(os.environ.get(name) for name in cls.required_env),
+            # A national board's countries: the page ticks it for users who pick one.
+            "countries": list(cls.countries),
             # What resolve_enabled() runs when the user has not chosen: everything but
-            # the restricted tier (a credentials source without its key is skipped).
-            "default_enabled": cls.tos_tier != "restricted",
+            # the restricted tier and other countries' national boards (a
+            # credentials source without its key is skipped).
+            "default_enabled": on_by_default(cls, countries),
         }
         for cls in REGISTRY
     ]
 
 
-def resolve_enabled(settings: SourceSettings) -> list[str]:
+def resolve_enabled(settings: SourceSettings, countries: Iterable[str] = ()) -> list[str]:
     """Work out which source ids should run.
 
-    An empty ``enabled`` list means "the safe defaults". Restricted sources are
-    only ever included when named explicitly, and being named in ``disabled``
-    always wins.
+    An empty ``enabled`` list means "the safe defaults": every open and
+    credentials source, and the national boards of the user's ``countries``.
+    Restricted sources are only ever included when named explicitly, and
+    being named in ``disabled`` always wins.
     """
     if settings.enabled:
         unknown = [sid for sid in settings.enabled if sid not in BY_ID]
@@ -93,7 +102,7 @@ def resolve_enabled(settings: SourceSettings) -> list[str]:
                         "(see 'jobradar sources' for the valid ids).", ", ".join(unknown))
         chosen = [sid for sid in settings.enabled if sid in BY_ID]
     else:
-        chosen = [cls.id for cls in REGISTRY if cls.tos_tier != "restricted"]
+        chosen = [cls.id for cls in REGISTRY if on_by_default(cls, countries)]
     return [sid for sid in chosen if sid not in settings.disabled]
 
 
@@ -120,7 +129,7 @@ def build_sources(settings: Settings, cache_dir: Path | None = None,
     skipped = skipped if skipped is not None else []
     fetcher = Fetcher(settings.sources, cache_dir)
     sources: list[JobSource] = []
-    enabled = resolve_enabled(settings.sources)
+    enabled = resolve_enabled(settings.sources, settings.filters.effective_countries())
     resting = 0  # weekly sources skipped today
     for source_id in enabled:
         if not every_day and not runs_today(source_id, settings.sources, today):

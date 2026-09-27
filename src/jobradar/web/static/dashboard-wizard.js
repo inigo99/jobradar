@@ -116,14 +116,16 @@ function wizardStep(step) {
 }
 
 function sourceRow(source) {
+  const filters = WIZARD.data.filters;
   const enabled = WIZARD.data.enabled_sources.length
     ? WIZARD.data.enabled_sources.includes(source.id)
-    : source.default_enabled;
+    : onByDefault(source, [filters.home_country, ...filters.eligible_countries]);
   return el("div", { className: "source" },
     el("input", { type: "checkbox", className: "source-box", value: source.id, checked: enabled }),
     el("div", {},
       el("div", {}, el("b", {}, source.name), " ",
         el("span", { className: "tier " + source.tos_tier }, tierLabel(source.tos_tier))),
+      nationalNote(source),
       source.required_env.length ? keysForm(source) : null,
       source.tos_note ? el("div", { className: "hint" }, source.tos_note) : null,
     ));

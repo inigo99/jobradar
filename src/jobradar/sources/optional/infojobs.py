@@ -41,6 +41,7 @@ class InfoJobsSource(JobSource):
     name = "InfoJobs"
     homepage = "https://www.infojobs.net"
     tos_tier = "restricted"
+    countries = ("ES",)
     tos_note = (
         "InfoJobs' terms of use restrict automated collection of its listings. "
         "InfoJobs also publishes an official partner API — if you can get a key, "

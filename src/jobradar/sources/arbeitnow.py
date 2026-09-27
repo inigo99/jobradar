@@ -25,6 +25,7 @@ class ArbeitnowSource(JobSource):
     name = "Arbeitnow"
     homepage = "https://www.arbeitnow.com"
     tos_tier = "open"
+    countries = ("DE", "AT", "CH")
 
     def search(self, query: SearchQuery) -> list[Job]:
         terms = [t.lower() for t in query.terms()]

@@ -6,6 +6,29 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Changed
+
+- **Jobs appear while the search runs.** Sources are handled one at a time
+  and each job is stored as soon as it is read, filtered and scored, instead
+  of all at once at the end. The dashboard shows the progress (source, ad
+  being read, jobs kept) and a "Show N new jobs" button that adds them to the
+  board without moving what you are reading. Reloading the page keeps
+  following the run.
+- **National boards follow your countries.** Manfred (Spain), the
+  Bundesagentur für Arbeit and Arbeitnow (Germany; Arbeitnow also Austria
+  and Switzerland) are on by default only for users who search one of their
+  countries, instead of for everyone; others can switch them on in Settings,
+  where they are labelled "National board". Installs that already chose
+  their sources keep their choice.
+
+### Added
+
+- **Stop search.** The search button stops a running search; the jobs it
+  already stored stay, and the run history marks it as stopped.
+- API: `POST /api/search` now starts the search in the background and answers
+  at once; `GET /api/search` reports its progress and outcome, and
+  `POST /api/search/cancel` stops it.
+
 ## 1.5.0 — 2026-09-27
 
 ### Changed
