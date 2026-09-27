@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security problem
+    url: https://github.com/inigo99/jobradar/security/advisories/new
+    about: Report it privately, please — see SECURITY.md.
+  - name: Documentation
+    url: https://github.com/inigo99/jobradar/tree/master/docs
+    about: Configuration, sources, scheduling and how the CV tailoring works.

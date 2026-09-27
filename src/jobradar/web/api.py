@@ -36,6 +36,13 @@ class OnboardingPayload(BaseModel):
     cv_template: str = "classic"
 
 
+class CredentialsPayload(BaseModel):
+    """Keys for one source, by environment variable name. An empty value
+    removes the key."""
+
+    values: dict[str, str]
+
+
 class SettingsPayload(BaseModel):
     """A settings update from the configuration panel."""
 

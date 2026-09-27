@@ -419,6 +419,8 @@ class JobSource(ABC):
     tos_note: str = ""
     #: Environment variables this source needs, if any.
     required_env: tuple[str, ...] = ()
+    #: Where to get those credentials: shown next to the key fields in Settings.
+    key_url: str = ""
     #: True when the source itself can tell remote from on-site reliably.
     supports_remote_filter: bool = False
 
@@ -469,7 +471,7 @@ class JobSource(ABC):
     @property
     def default_enabled(self) -> bool:
         """Restricted sources are never on unless the user says so."""
-        return self.tos_tier == "open"
+        return self.tos_tier != "restricted"
 
     def get(self, url: str, **kwargs: Any) -> str | None:
         """Fetch ``url`` through the shared :class:`Fetcher`.

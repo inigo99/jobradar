@@ -100,13 +100,12 @@ function settingsBody() {
           el("input", { type: "checkbox", className: "s_source", value: source.id, checked: enabled }),
           el("div", { style: "flex:1" },
             el("div", {}, el("b", {}, source.name), " ",
-              el("span", { className: "tier " + source.tos_tier }, source.tos_tier)),
-            source.required_env.length
-              ? el("div", { className: "hint" }, t("Needs {names}", { names: source.required_env.join(", ") })) : null,
+              el("span", { className: "tier " + source.tos_tier }, tierLabel(source.tos_tier))),
+            source.required_env.length ? keysForm(source) : null,
             source.tos_note ? el("div", { className: "hint" }, source.tos_note) : null),
           el("label", { className: "row", style: "margin:0;font-weight:400;white-space:nowrap" },
             el("input", { type: "checkbox", className: "s_weekly", value: source.id,
-                          checked: settings.sources.weekly.includes(source.id) }), " weekly"));
+                          checked: settings.sources.weekly.includes(source.id) }), " ", t("weekly")));
       }),
       el("div", { className: "two" },
         el("div", {}, el("label", {}, t("Weekly sources run on")),
@@ -477,4 +476,40 @@ async function saveSettings() {
     ? tn(saved.restored, "Settings saved. {n} ad set aside for years is now within reach, back on the board.",
          "Settings saved. {n} ads set aside for years are now within reach, back on the board.")
     : t("Settings saved"));
+}
+
+/* A source that needs a free key (Adzuna, Jooble): where to get it, and fields
+   to paste it. The key goes to the data folder's .env; the page is only ever
+   told whether it is set, never the key itself. */
+function keysForm(source) {
+  const status = el("div", { className: "hint" },
+    source.configured ? t("Key saved \u2014 this source runs.")
+                      : t("Needs a free key: without it this source is skipped."));
+  const fields = source.required_env.map(name =>
+    el("input", { type: "password", autocomplete: "off", "data-env": name,
+                  placeholder: source.configured ? t("{name} (saved)", { name })
+                                                 : name }));
+  const save = button(t("Save key"), async () => {
+    const values = {};
+    fields.forEach(field => { if (field.value.trim()) values[field.dataset.env] = field.value.trim(); });
+    if (!Object.keys(values).length) { toast(t("Paste the key first.")); return; }
+    try {
+      const saved = await api(`/api/credentials/${source.id}`,
+                              { method: "PUT", body: JSON.stringify({ values }) });
+      source.configured = saved.configured;
+      // A key is saved to be used: tick the source (Settings and the wizard).
+      document.querySelectorAll(`.s_source[value="${source.id}"], .source-box[value="${source.id}"]`)
+        .forEach(box => { box.checked = true; });
+      fields.forEach(field => { field.value = ""; });
+      status.textContent = saved.configured ? t("Key saved \u2014 this source runs.")
+                                            : t("Saved. It still needs the other field.");
+      toast(t("Key saved."));
+    } catch (error) { toast(error.message, 6000); }
+  });
+  return el("div", { className: "keys" },
+    status,
+    source.key_url ? el("div", { className: "hint" },
+      el("a", { href: source.key_url, target: "_blank", rel: "noopener" }, t("Get a free key")),
+      " ", t("(sign up, create an app, copy the values here)")) : null,
+    el("div", { className: "row", style: "gap:6px;flex-wrap:wrap" }, ...fields, save));
 }

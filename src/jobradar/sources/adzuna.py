@@ -31,6 +31,7 @@ class AdzunaSource(JobSource):
     homepage = "https://www.adzuna.com"
     tos_tier = "credentials"
     required_env = ("ADZUNA_APP_ID", "ADZUNA_APP_KEY")
+    key_url = "https://developer.adzuna.com/signup"
 
     def search(self, query: SearchQuery) -> list[Job]:
         if not self.credentials_present():

@@ -42,13 +42,20 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.requests import Request
 
 from .. import __version__
-from ..config import Filters, Paths, countries, load_dotenv, validation_summary
+from ..config import Filters, Paths, countries, load_dotenv, save_env_values, validation_summary
 from ..documents import generate_cover_letter, generate_email, render_cv, tailor
 from ..documents.answers import add_turn, answer, to_bank
 from ..documents.letters import contact_line
 from ..documents.pdfwriter import letter_pdf
 from ..documents.review import measure, review_text
-from ..errors import JobRadarError, ProfileError, StorageError, describe_os_error
+from ..errors import (
+    ConfigError,
+    JobRadarError,
+    NotFoundError,
+    ProfileError,
+    StorageError,
+    describe_os_error,
+)
 from ..families import Family, catalogue_view, families_for
 from ..families import classify as classify_family
 from ..families import label_for as family_label
@@ -87,6 +94,7 @@ from .api import (
     AnswerLimitPayload,
     ApplicationPayload,
     BankEditPayload,
+    CredentialsPayload,
     DocumentTextPayload,
     FilteredView,
     JobIdsPayload,
@@ -243,6 +251,7 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
     """
     load_dotenv()
     paths = (paths or Paths.resolve()).ensure()
+    load_dotenv(paths.env_file)  # keys saved from Settings
     # One Database object for the whole app: it keeps one SQLite connection
     # per thread, so a search running in a worker thread cannot interleave
     # its transactions with the page's reads, and settings the CLI wrote are
@@ -518,6 +527,23 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
                 "profile": localize.profile(_profile_summary(profile))}
 
     # -- settings and profile ---------------------------------------------
+
+    @app.put("/api/credentials/{source_id}")
+    def save_credentials(source_id: str, payload: CredentialsPayload):
+        """Save a source's keys (Adzuna, Jooble) to the data folder's ``.env``.
+
+        Only the names that source declares are accepted, and the values are
+        never sent back: the page only learns whether the source is configured.
+        """
+        source = next((s for s in available_sources() if s["id"] == source_id), None)
+        if source is None or not source["required_env"]:
+            raise NotFoundError(f"There is no source {source_id!r} that takes keys.")
+        unknown = set(payload.values) - set(source["required_env"])
+        if unknown:
+            raise ConfigError(f"{source['name']} does not use {', '.join(sorted(unknown))}.")
+        save_env_values(paths.env_file, payload.values)
+        configured = next(s for s in available_sources() if s["id"] == source_id)["configured"]
+        return {"ok": True, "configured": configured}
 
     @app.put("/api/settings")
     def update_settings(payload: SettingsPayload):

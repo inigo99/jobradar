@@ -231,6 +231,13 @@ searches that read dozens of ads, lower `max_calls_per_run` or use a paid key.
 Copy `.env.example` to `.env`. Nothing here is stored in the database or
 included in an export.
 
+JobRadar reads two `.env` files: the one in the folder you run it from, and
+`.env` inside the data folder (`JOBRADAR_HOME`). The second is where
+**Settings → Where to search** saves the Adzuna and Jooble keys you paste there
+(readable by your user only). A variable already set in the real environment
+wins over both, so a key in `docker-compose.yml` or your shell overrides one
+saved from the dashboard at the next start.
+
 | Variable | For |
 |---|---|
 | `JOBRADAR_HOME` | Where the data lives (default `./data`) |

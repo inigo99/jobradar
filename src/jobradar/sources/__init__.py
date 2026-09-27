@@ -8,6 +8,7 @@ module directly, which is what makes adding a board a one-file change.
 from __future__ import annotations
 
 import logging
+import os
 from datetime import date
 from pathlib import Path
 
@@ -63,7 +64,12 @@ def available() -> list[dict]:
             "tos_tier": cls.tos_tier,
             "tos_note": cls.tos_note,
             "required_env": list(cls.required_env),
-            "default_enabled": cls.tos_tier == "open",
+            "key_url": cls.key_url,
+            # Whether every credential is set — never the values themselves.
+            "configured": all(os.environ.get(name) for name in cls.required_env),
+            # What resolve_enabled() runs when the user has not chosen: everything but
+            # the restricted tier (a credentials source without its key is skipped).
+            "default_enabled": cls.tos_tier != "restricted",
         }
         for cls in REGISTRY
     ]

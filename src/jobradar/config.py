@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
@@ -70,6 +71,12 @@ class Paths(BaseModel):
     @property
     def exports_dir(self) -> Path:
         return self.home / "exports"
+
+    @property
+    def env_file(self) -> Path:
+        """Keys saved from the dashboard: ``NAME=value`` lines, readable by the
+        owner only. Kept with the rest of the user's data, never in the database."""
+        return self.home / ".env"
 
     @property
     def uploads_dir(self) -> Path:
@@ -495,6 +502,52 @@ def country_info(code: str) -> dict:
 
 def currency_for(code: str) -> str:
     return country_info(code).get("currency", "EUR")
+
+
+#: What a key saved from the dashboard may be called: an environment variable.
+ENV_NAME = re.compile(r"[A-Z][A-Z0-9_]*\Z")
+
+
+def save_env_values(path: str | Path, values: dict[str, str]) -> None:
+    """Write ``values`` into the ``.env`` at ``path`` and into this process.
+
+    Other lines in the file are kept. An empty value removes the key. The file
+    is made readable by its owner only, since it holds credentials.
+    """
+    for name, value in values.items():
+        if not ENV_NAME.match(name):
+            raise ConfigError(f"{name!r} is not a valid setting name.")
+        if any(ch in value for ch in "\r\n\"'"):
+            raise ConfigError(f"The value for {name} contains characters a key never has.",
+                              hint="Paste the key alone, without quotes or line breaks.")
+    file = Path(path)
+    try:
+        lines = file.read_text(encoding="utf-8").splitlines() if file.is_file() else []
+    except (OSError, UnicodeDecodeError) as exc:
+        raise StorageError(f"Cannot read {file}: {exc}.") from exc
+    pending = {name: value.strip() for name, value in values.items()}
+    kept: list[str] = []
+    for line in lines:
+        name = line.partition("=")[0].strip()
+        if name in pending:
+            value = pending.pop(name)
+            if value:
+                kept.append(f"{name}={value}")
+        else:
+            kept.append(line)
+    kept += [f"{name}={value}" for name, value in pending.items() if value]
+    try:
+        file.parent.mkdir(parents=True, exist_ok=True)
+        file.write_text("\n".join(kept) + "\n", encoding="utf-8")
+        file.chmod(0o600)
+    except OSError as exc:
+        raise StorageError(f"Cannot save the keys to {file}: {describe_os_error(exc)}.",
+                           hint="Point --home (or JOBRADAR_HOME) at a folder you can write to.") from exc
+    for name, value in values.items():
+        if value.strip():
+            os.environ[name] = value.strip()
+        else:
+            os.environ.pop(name, None)
 
 
 def load_dotenv(path: str | Path = ".env") -> None:

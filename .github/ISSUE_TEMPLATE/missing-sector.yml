@@ -1,0 +1,34 @@
+name: My field or country is not covered
+description: Skills, job families, salary bands or a job board for work JobRadar does not know well yet.
+title: "[coverage] "
+labels: [coverage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        JobRadar should work for any kind of job, and the vocabulary is plain
+        data (`resources/skills.yaml`, `families.yaml`, `salary_bands.yaml`,
+        `countries.yaml`). Tell us what is missing — or open a PR, see
+        CONTRIBUTING.md.
+  - type: input
+    id: field
+    attributes:
+      label: Your field and country
+      placeholder: "Speech therapist, Portugal"
+    validations:
+      required: true
+  - type: textarea
+    id: missing
+    attributes:
+      label: What is missing or wrong
+      description: Skills it does not recognise, a job family that is wrong, a salary band, a board where the jobs are.
+      placeholder: |
+        - "terapia miofuncional" is not recognised as a skill
+        - most jobs are on net-empregos.com
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: An example ad (link or text)
+      description: Helps us test the change. Remove anything personal.

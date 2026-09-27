@@ -6,6 +6,23 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Added
+
+- **Adzuna and Jooble keys from the dashboard.** Settings → Where to search
+  links to each sign-up page and takes the key there; it is saved to `.env`
+  in the data folder (owner-readable only) and never sent back to the page.
+  These two sources cover every sector, so they matter most outside tech.
+- **Issue templates** for a job board that stopped working, a field or
+  country that is not covered, and other bugs.
+
+### Fixed
+
+- **Saving Settings switched Adzuna and Jooble off.** The page ticked only the
+  open sources by default, while the search also runs the credentials ones;
+  pressing Save then stored them as disabled. They are now ticked like the
+  search runs them, and saving a key ticks its source.
+- The source tiers and "weekly" in Settings are translated.
+
 ## 1.4.2 — 2026-09-27
 
 ### Fixed
