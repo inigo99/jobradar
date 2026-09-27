@@ -2,7 +2,8 @@
 
 Settings live in `data/jobradar.sqlite3` and are edited from the dashboard
 (**Settings**) or with `jobradar init`. For unattended installs, write them as
-YAML and load them once:
+YAML and load them once (for a first configuration by profession, see
+[STARTER_CONFIGS.md](STARTER_CONFIGS.md)):
 
 ```bash
 jobradar init --config settings.yaml --cv ~/Documents/cv.pdf

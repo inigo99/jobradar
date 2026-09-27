@@ -118,6 +118,8 @@ jobradar tailor --top 5
 jobradar serve
 ```
 
+Not sure which titles, filters and boards to start with? **[docs/STARTER_CONFIGS.md](https://github.com/inigo99/jobradar/blob/master/docs/STARTER_CONFIGS.md)** has a first configuration for nineteen professions, from nursing and law to electrician and cook ([en español](https://github.com/inigo99/jobradar/blob/master/docs/STARTER_CONFIGS.es.md)).
+
 ---
 
 ## The dashboard

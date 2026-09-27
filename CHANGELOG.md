@@ -18,6 +18,11 @@ All notable changes to this project are documented here. The format follows
   test suite checks each is read whole and that a typical junior ad for it is
   sorted, scored and kept; `benchmarks/run.py` searches for real with them,
   region by region, and writes a report.
+- **Starter configurations** for nineteen professions, in English and Spanish
+  ([docs/STARTER_CONFIGS.md](docs/STARTER_CONFIGS.md),
+  [docs/STARTER_CONFIGS.es.md](docs/STARTER_CONFIGS.es.md)): titles as ads
+  write them, the work modes, the Infoempleo area page, the job family and a
+  salary floor for each, with what makes the difference and a complete example.
 - **Legal and Navarra portals** in [docs/PORTALS.md](docs/PORTALS.md): the
   Colegio de Abogados de Pamplona's notice board, Infoempleo's legal and
   Navarra pages, legal tech.
