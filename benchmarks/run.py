@@ -149,9 +149,9 @@ def report(rows: list[dict], profiles: dict, regions: list[str]) -> str:
                          f"{r['unscored']} | {reason} |")
         empty = [profiles[r["profile"]]["label"] for r in region_rows if not r["kept"]]
         lines += ["", f"Nothing kept: {', '.join(empty) or 'none'}.", ""]
-        refused = sorted({p for r in region_rows for p in r["problems"] if "refused" in p})
+        refused = sorted({p for r in region_rows for p in r["problems"] if "access-denied" in p})
         if refused:
-            lines += ["**Sites that refused requests during the run** (their offers are "
+            lines += ["**Sites that refused requests or failed during the run** (their offers are "
                       "missing, the numbers above are low):", "",
                       *[f"- {p}" for p in refused], ""]
         for r in region_rows:

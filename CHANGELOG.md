@@ -44,11 +44,11 @@ All notable changes to this project are documented here. The format follows
   Portuguese word, and words with accents never counted at all.
 - **"Trabajador/a social", "Diseñador/a gráfico/a"** are sorted into their job
   family: the "/a" no longer hides the keyword.
-- **A site's "access denied" page was read as an ad.** A firewall that
-  refuses with HTTP 200 (the Sistema Nacional de Empleo does, after many
-  requests) gave its refusal as the ad's text: no place, a wrong family, and
-  the offer passed "only in my areas". It is now recognised, reported once,
-  and never cached.
+- **A site's "access denied" or "try again later" page was read as content.**
+  Sent with HTTP 200 (the Sistema Nacional de Empleo does both), a refusal
+  became an ad's text — no place, a wrong family, and the offer passed "only
+  in my areas" — and an error became a search with no results, cached for an
+  hour. Both are now recognised, reported once, and never cached.
 - **Titles matched their lookalikes.** A searched title was compared on its
   first five letters, so "contable" found "¿Has olvidado tu contraseña?" and
   "técnico de laboratorio" found "técnico laboral". The comparison now drops

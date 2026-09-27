@@ -99,17 +99,25 @@ class SearchQuery:
 # ---------------------------------------------------------------------------
 
 
-#: What a site's firewall answers, with HTTP 200, instead of the page asked for.
-#: Read as the page, it becomes an ad's text: wrong family, no place, no skills.
+#: What a site answers, with HTTP 200, instead of the page asked for: a
+#: firewall's refusal, or "try again later". Read as the page, a refusal
+#: becomes an ad's text (wrong family, no place) and an error a search with
+#: no results — cached for an hour.
 _BLOCK_PAGE = re.compile(
     r"se le ha denegado el acceso|acceso denegado|access denied|the requested url was rejected|"
     r"request (?:was )?(?:rejected|blocked)|you have been blocked|attention required|"
-    r"are you a robot|unusual traffic", re.I)
+    r"are you a robot|unusual traffic|existe un problema para obtener|"
+    r"vuelva a intentar(?:lo)? (?:la operaci[oó]n )?(?:pasados unos|m[aá]s tarde)|"
+    r"please try again later|temporarily unavailable", re.I)
 
 
 def looks_blocked(body: str) -> bool:
-    """Whether ``body`` is a short refusal page rather than content."""
-    return len(body) < 20000 and bool(_BLOCK_PAGE.search(body[:6000]))
+    """Whether ``body`` is a refusal or error page rather than content.
+
+    Such pages are short; a long page that merely mentions one of these
+    phrases (an ad for a security role, say) is content.
+    """
+    return len(body) < 50000 and bool(_BLOCK_PAGE.search(body[:30000]))
 
 
 _DECLARED_CHARSET = re.compile(rb"""(?:charset|encoding)\s*=\s*["']?([A-Za-z0-9_-]+)""", re.I)
@@ -403,8 +411,8 @@ class Fetcher:
                     host = urlparse(full).netloc
                     self._report_once(
                         f"blocked:{host}",
-                        f"{host} refused the request with an access-denied page: it limits "
-                        "automated readers. Its offers are left out of this run; try again "
+                        f"{host} answered with an access-denied or \"try again later\" page "
+                        "instead of results. Its offers are left out of this run; try again "
                         "later, or raise the delay between requests in Settings.")
                     return None
                 self._write_cache(cache_path, response.text)

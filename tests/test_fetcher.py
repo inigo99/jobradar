@@ -318,3 +318,13 @@ def test_an_access_denied_page_is_not_content(fetcher):
     respx.get("https://sne.test/oferta").mock(
         return_value=httpx.Response(200, text="<p>Enfermero/a. Acceso al centro por la calle Mayor.</p>"))
     assert "Enfermero" in fetcher.get("https://sne.test/oferta")
+
+
+@respx.mock
+def test_a_try_again_later_page_is_not_an_empty_search(fetcher):
+    """Sent with HTTP 200, it would read as "no offers" and be cached for an hour."""
+    page = ("<html><body>Errores encontrados. Existe un problema para obtener el listado de "
+            "ofertas. Por favor, vuelva a intentar la operación pasados unos instantes.</body></html>")
+    respx.get("https://sne.test/buscar").mock(return_value=httpx.Response(200, text=page))
+    assert fetcher.get("https://sne.test/buscar") is None
+    assert not any(fetcher.cache_dir.iterdir())  # nothing cached: the next run asks again

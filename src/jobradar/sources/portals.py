@@ -183,8 +183,8 @@ class PortalsSource(JobSource):
                 if not body:
                     self.fetcher._report_once(
                         f"portal:{url}",
-                        f"Could not read {url}: it did not answer, or its robots.txt "
-                        "does not allow automated readers.")
+                        f"Could not read {url}: it did not answer, refused the request, or "
+                        "its robots.txt does not allow automated readers.")
                     continue
                 read = True
                 found = self.read_page(body, url, wanted)
