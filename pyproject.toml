@@ -12,7 +12,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = "AGPL-3.0-only"
 license-files = ["LICENSE"]
-authors = [{ name = "JobRadar contributors" }]
+authors = [{ name = "Íñigo Fernández Barrill" }, { name = "JobRadar contributors" }]
 keywords = ["job-search", "cv", "resume", "ats", "job-board", "scraper", "llm"]
 classifiers = [
   "Development Status :: 4 - Beta",

@@ -256,4 +256,6 @@ src/jobradar/
 
 New sources, skills and job families for under-covered fields, salary bands, CV templates and linter rules are welcome — see **[CONTRIBUTING.md](https://github.com/inigo99/jobradar/blob/master/CONTRIBUTING.md)**. The test suite is fully offline: `pytest` needs no network and no keys. The full history is in **[CHANGELOG.md](https://github.com/inigo99/jobradar/blob/master/CHANGELOG.md)**.
 
+Copyright (C) 2026 Íñigo Fernández Barrill and JobRadar contributors.
+
 [AGPL-3.0](https://github.com/inigo99/jobradar/blob/master/LICENSE) since 1.5.0 (earlier releases stay MIT). Use it, change it and share it freely; if you distribute a modified version, or let other people use one over a network, you must offer them its source code under the same license. Found a security problem? See [SECURITY.md](https://github.com/inigo99/jobradar/blob/master/SECURITY.md).
