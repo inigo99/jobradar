@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+## 1.4.2 — 2026-09-27
+
+### Fixed
+
+- **InfoJobs returned no jobs.** Its listing now answers a plain headless
+  browser with a CAPTCHA (HTTP 405), as its ad pages already did; the listing
+  is fetched with the stealthy browser too.
+
 ## 1.4.1 — 2026-09-26
 
 ### Added
