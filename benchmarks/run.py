@@ -9,8 +9,10 @@ Each profile searches its own titles (``profiles.yaml``) with "only in my
 areas" on, on-site and hybrid, ads up to 30 days old. The sources are EURES
 and the portals listed for the region below, plus any ``--sources`` you add.
 
-This hits real job boards, politely and slowly (one request a second per
-host, an hour of cache shared between profiles): it is not part of the test
+This hits real job boards, politely and slowly (one request every two
+seconds per host, at most 30 offers per source, an hour of cache shared
+between profiles), and still makes hundreds of requests: do not run it twice
+in a row. It is not part of the test
 suite, and results change from day to day. The report goes to
 ``benchmarks/reports/<date>-<regions>.md``, with the raw numbers in a
 ``.json`` next to it.
@@ -74,6 +76,10 @@ def settings_for(spec: dict, region: dict, extra_sources: list[str]) -> Settings
     filters.max_age_days = 30
     settings.sources.enabled = ["eures", "portals", *extra_sources]
     settings.sources.portals = [Portal(name=name, url=url) for name, url in region["portals"]]
+    # Gentler than the defaults: two full runs back to back got the Sistema
+    # Nacional de Empleo to refuse this machine for a while.
+    settings.sources.request_delay = 2.0
+    settings.sources.max_results_per_source = 30
     settings.llm.provider = "none"
     return settings
 
@@ -143,6 +149,11 @@ def report(rows: list[dict], profiles: dict, regions: list[str]) -> str:
                          f"{r['unscored']} | {reason} |")
         empty = [profiles[r["profile"]]["label"] for r in region_rows if not r["kept"]]
         lines += ["", f"Nothing kept: {', '.join(empty) or 'none'}.", ""]
+        refused = sorted({p for r in region_rows for p in r["problems"] if "refused" in p})
+        if refused:
+            lines += ["**Sites that refused requests during the run** (their offers are "
+                      "missing, the numbers above are low):", "",
+                      *[f"- {p}" for p in refused], ""]
         for r in region_rows:
             if not r["jobs"]:
                 continue

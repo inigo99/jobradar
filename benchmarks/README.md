@@ -41,4 +41,7 @@ the rest were dropped.
 
 It reads real job boards, slowly and politely, so it is not part of the test
 suite and its numbers change from day to day. Run it after changing sources,
-filters or the vocabulary, and compare with the last report.
+filters or the vocabulary, and compare with the last report. It still makes
+hundreds of requests: **do not run it twice in a row** — two full runs back
+to back got the Sistema Nacional de Empleo to refuse requests for a while.
+The report lists any site that refused them.

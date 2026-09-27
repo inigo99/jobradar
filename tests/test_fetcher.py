@@ -305,3 +305,16 @@ def test_restricted_sources_do_not_consult_robots_txt(tmp_path, monkeypatch):
     assert Restricted(fetcher).get("https://board.test/jobs", use_cache=False) == "jobs"
     assert robots.call_count == 1
     fetcher.close()
+
+
+@respx.mock
+def test_an_access_denied_page_is_not_content(fetcher):
+    """A firewall's refusal, sent with HTTP 200, must not become an ad's text."""
+    refusal = ("<html><title>SEPE</title><body>Se le ha denegado el acceso a la URL. "
+               "Su identificador es el siguiente: 3-44971</body></html>")
+    respx.get("https://sne.test/detalle").mock(return_value=httpx.Response(200, text=refusal))
+    assert fetcher.get("https://sne.test/detalle") is None
+    assert fetcher.problems and "sne.test" in fetcher.problems[0]
+    respx.get("https://sne.test/oferta").mock(
+        return_value=httpx.Response(200, text="<p>Enfermero/a. Acceso al centro por la calle Mayor.</p>"))
+    assert "Enfermero" in fetcher.get("https://sne.test/oferta")

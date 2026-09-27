@@ -99,6 +99,19 @@ class SearchQuery:
 # ---------------------------------------------------------------------------
 
 
+#: What a site's firewall answers, with HTTP 200, instead of the page asked for.
+#: Read as the page, it becomes an ad's text: wrong family, no place, no skills.
+_BLOCK_PAGE = re.compile(
+    r"se le ha denegado el acceso|acceso denegado|access denied|the requested url was rejected|"
+    r"request (?:was )?(?:rejected|blocked)|you have been blocked|attention required|"
+    r"are you a robot|unusual traffic", re.I)
+
+
+def looks_blocked(body: str) -> bool:
+    """Whether ``body`` is a short refusal page rather than content."""
+    return len(body) < 20000 and bool(_BLOCK_PAGE.search(body[:6000]))
+
+
 _DECLARED_CHARSET = re.compile(rb"""(?:charset|encoding)\s*=\s*["']?([A-Za-z0-9_-]+)""", re.I)
 
 
@@ -385,6 +398,14 @@ class Fetcher:
                     continue
                 if response.status_code >= 400:
                     log.debug("%s returned HTTP %s", full, response.status_code)
+                    return None
+                if looks_blocked(response.text):
+                    host = urlparse(full).netloc
+                    self._report_once(
+                        f"blocked:{host}",
+                        f"{host} refused the request with an access-denied page: it limits "
+                        "automated readers. Its offers are left out of this run; try again "
+                        "later, or raise the delay between requests in Settings.")
                     return None
                 self._write_cache(cache_path, response.text)
                 return response.text
