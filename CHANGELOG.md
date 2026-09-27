@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+## 1.7.0 — 2026-09-27
+
 ### Fixed
 
 - **Ads JobRadar cannot read no longer score 0%.** An ad naming no skill the
