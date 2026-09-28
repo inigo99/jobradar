@@ -72,6 +72,51 @@ BOE Oposiciones https://www.boe.es/rss/canal_per.php?l=p&c=140
 BOE Concursos de personal https://www.boe.es/rss/canal_per.php?l=p&c=141
 ```
 
+### Law, compliance and data protection
+
+Legal offers are spread thin: public services publish few, and the big boards
+mix them with everything else. These were read on **27 September 2026** with
+titles such as "abogado", "jurídico", "protección de datos", "compliance":
+
+```text
+Sistema Nacional de Empleo (toda España) https://www.sistemanacionalempleo.es/OfertaDifusionWEB/busquedaOfertas.do?modo=continuar&palabraBusqueda={query}&botonNavegacion=Enviar
+Infoempleo — Legal (toda España) https://www.infoempleo.com/trabajo/area-de-empresa_legal/
+SpainJobs — Legal tech https://www.spainjobs.io/jobs/sector/legal-tech
+```
+
+The Sistema Nacional de Empleo gave 14 legal offers ("abogado/a procesal",
+"asesor jurídico", "asistente jurídico", "consultor/a de protección de
+datos"…), each with its province in the text — which is how "only in my
+areas" tells them apart. Infoempleo's legal area lists about twenty offers
+at a time, from junior lawyer to data-protection and compliance roles.
+SpainJobs lists legal-tech companies' openings, legal and not.
+
+### Navarra
+
+```text
+Colegio de Abogados de Pamplona — tablón https://micap.es/micap/bolsa-de-empleo/tablon-de-anuncios/
+Infoempleo — Navarra https://www.infoempleo.com/trabajo/en_navarra/
+Infoempleo — Navarra, legal https://www.infoempleo.com/trabajo/en_navarra/area-de-empresa_legal/
+Infoempleo — Navarra, hostelería y turismo https://www.infoempleo.com/trabajo/en_navarra/area-de-empresa_hosteleria-turismo/
+Infoempleo — Navarra, atención al cliente https://www.infoempleo.com/trabajo/en_navarra/area-de-empresa_atencion-al-cliente/
+```
+
+The Colegio de Abogados de Pamplona (MICAP) posts firms' offers on its
+notice board; the page also links to the Colegio's own news, so a title as
+broad as "abogado" brings a few of those too (its feed is closed to automated
+readers). Infoempleo's Navarra pages list the newest offers in the province,
+by area.
+
+Checked and **not** usable as addresses: the Clínica Universidad de Navarra's
+offers (built with JavaScript), and the Universidad de Navarra's and UPNA
+Foundation's job pages (no list of offers in the page).
+
+**Pick titles that appear in offers.** A page is read by the links whose text
+matches your titles, and a title like "Legal", "Relaciones" or "Reservas" also
+names menu entries. Short titles an ad would carry ("abogado", "jurídico",
+"protección de datos", "recepcionista") find more and cleaner offers than
+"Consultor Legal Tech" or "Director de Residencia Universitaria".
+
 ## Portugal
 
 Net-Empregos, the largest general board, publishes its newest offers as a

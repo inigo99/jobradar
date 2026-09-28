@@ -1,0 +1,411 @@
+# Sample graduate profiles for evaluating JobRadar across professions.
+#
+# Each CV in profiles/ is fictitious: a recent graduate with training, and at
+# most an internship. For each one:
+#   titles   what the person would search for, as ads write them — the same
+#            as docs/STARTER_CONFIGS.md suggests (a test keeps them in step)
+#   areas    Infoempleo areas for the profession; run.py reads their page in
+#            each region it searches
+#   work_modes  as the guide suggests
+#   real_titles  titles of real ads for the profession, seen on public boards
+#            in September 2026: the titles above must find every one
+#   not_titles   real titles, or site links, the titles must not find
+#   family   the job family a typical ad for them belongs to
+#   skills   skills the CV must be read as proving (the offline tests check it)
+#   ad       a typical junior ad, which the tests score against the CV
+#   min_score the score that ad should reach at least
+#
+# tests/test_graduate_profiles.py runs these offline; benchmarks/run.py
+# searches for real in the regions you pass it and writes a report.
+
+ingenieria:
+  label: Ingeniería industrial
+  titles: [ingeniero industrial, ingeniero de procesos, ingeniero de calidad, técnico de calidad, ingeniero de producción]
+  areas: [ingenieria-y-produccion, calidad-id-prl-y-medio-ambiente]
+  work_modes: [onsite, hybrid]
+  real_titles:
+    - "Técnico de Calidad (H/M/X)"
+    - "Técnico/a de calidad - sector automoción"
+    - "TÉCNICO DE CALIDAD (METAL)"
+  not_titles:
+    - "Operario/a Mecanizado CNC"
+  family: engineering
+  skills: [technical_drawing, quality_control, health_safety]
+  ad:
+    title: Ingeniero/a de procesos junior
+    description: >-
+      Empresa del sector automoción busca ingeniero/a industrial recién titulado/a para el
+      departamento de ingeniería de procesos. Funciones: mejora continua con Lean Manufacturing,
+      análisis de tiempos, control de calidad según ISO 9001 y diseño de utillajes con AutoCAD o
+      SolidWorks. Inglés B2. Se valorarán prácticas en planta.
+  min_score: 60
+
+higiene_dental:
+  label: Higiene bucodental
+  titles: [higienista dental, higienista bucodental, auxiliar de clínica dental]
+  areas: [sanidad-salud-y-servicios-sociales]
+  work_modes: [onsite]
+  real_titles:
+    - "HIGIENISTA DENTAL/AUXILIAR DE CLINICA DENTAL"
+    - "Higienista Bucodental en Münster, Alemania"
+  not_titles:
+    - "Auxiliar de Geriatría en residencia"
+  family: healthcare
+  skills: [dental_care, diagnostic_imaging, infection_control]
+  ad:
+    title: Higienista dental
+    description: >-
+      Clínica dental en expansión incorpora higienista bucodental titulado/a. Funciones:
+      tartrectomías, selladores, fluorizaciones, radiografías intraorales, esterilización del
+      instrumental y atención al paciente. Imprescindible título de Técnico Superior en Higiene
+      Bucodental.
+  min_score: 60
+
+arquitectura:
+  label: Arquitectura
+  titles: [arquitecto, arquitecta, delineante, proyectista, BIM]
+  areas: [construccion-e-inmobiliaria]
+  work_modes: [onsite, hybrid]
+  real_titles:
+    - "Arquitecto/a BIM"
+    - "Arquitecto/a o Arquitecto/a Técnico/a"
+    - "DELINEANTE / PROYECTISTA."
+    - "Delineador/a BIM (Revit MEP)"
+  not_titles:
+    - "Montador/a de Estructuras Metálica- Radial"
+  family: construction_property
+  skills: [bim, technical_drawing, building_architecture]
+  ad:
+    title: Arquitecto/a junior
+    description: >-
+      Estudio de arquitectura busca arquitecto/a junior con máster habilitante. Desarrollo de
+      proyectos básicos y de ejecución en Revit y AutoCAD, mediciones y presupuestos con Presto,
+      cumplimiento del Código Técnico de la Edificación. Se valorará experiencia en BIM.
+  min_score: 60
+
+abogacia:
+  label: Abogacía
+  titles: [abogado, jurídico, jurista, derecho, protección de datos, compliance, asistente jurídico]
+  areas: [legal]
+  work_modes: [onsite, hybrid, remote]
+  real_titles:
+    - "Técnico/a Jurídico Junior - Protección de Datos y Derecho Mercantil"
+    - "Técnico/a jurídico/a Junior"
+    - "Abogado/a Junior - Asesoría"
+    - "Especialista derecho Mercantil y Derecho Digital(H/M/X)"
+    - "Asistentes jurídico-legales"
+    - "Jurista departament legal(h/d)"
+  not_titles:
+    - "Política de Privacidad"
+    - "Legal (1)"
+  family: legal
+  skills: [contract_law, civil_law, data_protection, legal_research]
+  ad:
+    title: Abogado/a junior mercantil
+    description: >-
+      Despacho de abogados incorpora abogado/a junior para el área de derecho mercantil.
+      Redacción y revisión de contratos, apoyo en procedimientos de derecho civil, protección de
+      datos (RGPD) e investigación jurisprudencial. Máster de acceso a la abogacía. Inglés C1.
+  min_score: 60
+
+enfermeria:
+  label: Enfermería
+  titles: [enfermera, enfermero, enfermería]
+  areas: [sanidad-salud-y-servicios-sociales]
+  work_modes: [onsite]
+  real_titles:
+    - "ENFERMEROS CUIDADOS GENERALES"
+    - "ENFERMERO/A (COBEÑA)"
+    - "Enfermera/o en leganes"
+    - "Enfermero/a para Residencias y Centros de día"
+  not_titles:
+    - "Terapeuta Ocupacional"
+  family: healthcare
+  skills: [nursing, medication, triage, clinical_records]
+  ad:
+    title: Enfermero/a
+    description: >-
+      Hospital busca enfermeros/as para hospitalización y urgencias. Funciones: cuidados de
+      enfermería, administración de medicación, triaje y registro en la historia clínica
+      electrónica. Grado en Enfermería y colegiación.
+  min_score: 60
+
+fisioterapia:
+  label: Fisioterapia
+  titles: [fisioterapeuta, fisioterapia]
+  areas: [sanidad-salud-y-servicios-sociales]
+  work_modes: [onsite]
+  real_titles:
+    - "Fisioterapeuta con formación en pilates"
+    - "FISIOTERAPEUTA RESIDENCIA USERA (INDEFINIDO)"
+    - "Fisioterapeuta para residencia Geriátrica"
+  not_titles:
+    - "Logopeda para Centro Geriátrico,"
+  family: healthcare
+  skills: [physiotherapy]
+  ad:
+    title: Fisioterapeuta
+    description: >-
+      Centro de fisioterapia y rehabilitación busca fisioterapeuta. Tratamiento de lesiones
+      musculoesqueléticas con terapia manual, ejercicio terapéutico y punción seca. Grado en
+      Fisioterapia y colegiación.
+  min_score: 60
+
+magisterio:
+  label: Magisterio (primaria)
+  titles: [maestro, maestra, profesor de primaria, profesor de inglés]
+  areas: [educacion-formacion]
+  work_modes: [onsite]
+  real_titles:
+    - "PROFESOR/A DE INGLÉS"
+    - "Profesor/a de inglés para academia"
+    - "PROFESOR DE INGLÉS BACHILLERATO"
+  not_titles:
+    - "Monitor/a de personas con discapacidad intelectual"
+  family: education
+  skills: [lesson_planning, classroom_management, primary_teaching]
+  ad:
+    title: Maestro/a de Educación Primaria (inglés)
+    description: >-
+      Colegio bilingüe busca maestro/a de educación primaria con mención en lengua inglesa.
+      Programación didáctica, gestión del aula, atención a la diversidad y uso de Google
+      Classroom. Nivel C1 de inglés.
+  min_score: 60
+
+psicologia:
+  label: Psicología
+  titles: [psicólogo, psicóloga, psicólogo sanitario]
+  areas: [sanidad-salud-y-servicios-sociales, recursos-humanos]
+  work_modes: [onsite, hybrid]
+  real_titles:
+    - "Psicólogo/a  Clínico/a vía PIR  para CTA. Getafe"
+    - "PSICOLOGO/A CLINICO"
+    - "PSICÓLOGO/A RESIDENCIA DE MAYORES DE USERA (SUSTITUCIÓN VACACIONES)"
+  not_titles:
+    - "Terapeuta Ocupacional"
+  family: healthcare
+  skills: [psychology]
+  ad:
+    title: Psicólogo/a general sanitario
+    description: >-
+      Centro de psicología busca psicólogo/a con el Máster en Psicología General Sanitaria para
+      evaluación psicológica e intervención con niños, adolescentes y familias, desde un enfoque
+      de terapia cognitivo-conductual.
+  min_score: 60
+
+ade:
+  label: Administración y dirección de empresas
+  titles: [analista financiero, contable, controller, administración, auxiliar contable]
+  areas: [banca-finanzas-y-seguros, administracion-de-empresas]
+  work_modes: [onsite, hybrid]
+  real_titles:
+    - "AUXILIAR CONTABLE CON O SIN EXPERIENCIA"
+    - "RESPONSABLE DE ADMINISTRACION"
+    - "Responsable Administración y Finanzas"
+  not_titles:
+    - "¿Has olvidado tu contraseña?"
+  family: finance_accounting
+  skills: [finance, financial_reporting, budgeting, excel]
+  ad:
+    title: Analista financiero junior
+    description: >-
+      Empresa de distribución busca analista financiero junior para el departamento de control
+      de gestión. Reporting mensual, presupuestos, análisis financiero y apoyo al cierre
+      contable. Excel avanzado y Power BI. Se valorará SAP.
+  min_score: 60
+
+marketing:
+  label: Marketing
+  titles: [marketing, marketing digital, community manager, SEO, redes sociales]
+  areas: [marketing-publicidad-y-rrpp, digital]
+  work_modes: [onsite, hybrid, remote]
+  real_titles:
+    - "Community Manager PARCIAL (H/M)"
+    - "Marketing assistant EMEA temporal - inglés avanzado"
+    - "Hard Rock Hotel - Digital Marketing Manager"
+  not_titles:
+    - "Azafata de imagen y RRPP"
+  family: marketing_communication
+  skills: [social_media, seo, paid_media]
+  ad:
+    title: Técnico/a de marketing digital
+    description: >-
+      Agencia busca técnico/a de marketing digital: gestión de redes sociales, campañas de
+      Google Ads y Meta Ads, SEO y analítica con Google Analytics. Se valorará WordPress.
+  min_score: 60
+
+trabajo_social:
+  label: Trabajo social
+  titles: [trabajador social, trabajadora social, educador social, integrador social]
+  areas: [sanidad-salud-y-servicios-sociales]
+  work_modes: [onsite]
+  real_titles: []
+  not_titles:
+    - "Auxiliar de Geriatría en residencia"
+  family: care_social
+  skills: [social_work, mediation]
+  ad:
+    title: Trabajador/a social
+    description: >-
+      Entidad social busca trabajador/a social para su programa de inclusión. Entrevistas de
+      valoración, tramitación de ayudas y prestaciones, trabajo en red con los servicios sociales
+      y mediación familiar. Grado en Trabajo Social.
+  min_score: 60
+
+periodismo:
+  label: Periodismo
+  titles: [periodista, redactor, redactora, comunicación, community manager]
+  areas: [medios-editorial-y-artes-graficas, marketing-publicidad-y-rrpp]
+  work_modes: [onsite, hybrid, remote]
+  real_titles:
+    - "Community Manager PARCIAL (H/M)"
+  not_titles:
+    - "Listado de ofertas por Comunidad Autónoma"
+  family: marketing_communication
+  skills: [journalism, social_media, video_editing]
+  ad:
+    title: Redactor/a periodista
+    description: >-
+      Medio digital busca redactor/a periodista para la sección de actualidad. Redacción
+      periodística, edición de vídeo para redes sociales y gestión de contenidos en WordPress.
+  min_score: 60
+
+tecnico_laboratorio:
+  label: Técnico de laboratorio (FP)
+  titles: [técnico de laboratorio, analista de laboratorio, técnico de calidad, auxiliar de laboratorio]
+  areas: [calidad-id-prl-y-medio-ambiente]
+  work_modes: [onsite]
+  real_titles:
+    - "Técnico Senior Laboratorio: Control de Calidad"
+    - "Técnico/a de calidad"
+  not_titles:
+    - "tecnico laboral/AUXILIAR"
+  family: science_research
+  skills: [lab_techniques, quality_control, microbiology]
+  ad:
+    title: Técnico/a de laboratorio
+    description: >-
+      Laboratorio agroalimentario busca técnico/a de laboratorio para análisis fisicoquímicos y
+      microbiológicos de alimentos, según ISO 17025 y buenas prácticas de laboratorio. Ciclo
+      superior de Laboratorio de Análisis y Control de Calidad.
+  min_score: 60
+
+electricista:
+  label: Electricista (FP)
+  titles: [electricista, oficial electricista, electricidad, técnico electricista, mantenimiento eléctrico]
+  areas: [profesionales-artes-y-oficios]
+  work_modes: [onsite]
+  real_titles:
+    - "Oficial de 1ª electricidad"
+    - "Instalador electricista oficial 1ª o 2ª (dos puestos)"
+    - "ELECTRICISTA OFICIAL DE 1ª O 2ª"
+  not_titles:
+    - "Mecánico electrodomésticos gama blanca"
+  family: manufacturing_trades
+  skills: [electrical_work, industrial_automation]
+  ad:
+    title: Electricista
+    description: >-
+      Empresa de instalaciones busca electricista para montaje de cuadros eléctricos e
+      instalaciones de baja tensión según el REBT. Se valorarán conocimientos de automatismos.
+      Carnet de conducir B.
+  min_score: 60
+
+cocina:
+  label: Cocina (FP)
+  titles: [cocinero, cocinera, ayudante de cocina, jefe de partida]
+  areas: [hosteleria-turismo]
+  work_modes: [onsite]
+  real_titles:
+    - "AYUDANTE COCINA- HOTELES 4 ESTRELLAS CIUDAD LINEAL-CHAMARTÍN"
+    - "Cocinero/a de plancha"
+    - "COCINERO/A CON DISCAPACIDAD"
+  not_titles:
+    - "Camarero/a"
+  family: hospitality_tourism
+  skills: [cooking, food_handling]
+  ad:
+    title: Ayudante de cocina
+    description: >-
+      Restaurante busca ayudante de cocina para la partida de fríos. Mise en place, elaboración
+      de postres y cumplimiento del APPCC. Carnet de manipulador de alimentos.
+  min_score: 60
+
+administracion_finanzas:
+  label: Administración y finanzas (FP)
+  titles: [administrativo, auxiliar administrativo, administrativo contable, contable]
+  areas: [administrativos-y-secretariado]
+  work_modes: [onsite, hybrid]
+  real_titles:
+    - "ADMINISTRATIVO/A"
+    - "Auxiliar administrativo-a"
+    - "OFERTA 8032 ADMINISTRATIVO"
+  not_titles:
+    - "¿Has olvidado tu contraseña?"
+  family: finance_accounting
+  skills: [bookkeeping, accounting_software, tax]
+  ad:
+    title: Administrativo/a contable
+    description: >-
+      Asesoría busca administrativo/a contable. Contabilización de facturas en A3, preparación de
+      impuestos trimestrales (IVA) y atención al cliente. Ciclo superior en Administración y
+      Finanzas.
+  min_score: 60
+
+quimica:
+  label: Química
+  titles: [químico, química, técnico de laboratorio, analista de laboratorio, técnico de calidad]
+  areas: [calidad-id-prl-y-medio-ambiente, ingenieria-y-produccion]
+  work_modes: [onsite]
+  real_titles:
+    - "Analista Químico/a | Farmacéutica | Turno Fijo de Tarde"
+    - "Técnico Senior Laboratorio: Control de Calidad"
+  not_titles:
+    - "tecnico laboral/AUXILIAR"
+  family: science_research
+  skills: [lab_techniques, quality_control, gmp]
+  ad:
+    title: Químico/a analista
+    description: >-
+      Laboratorio farmacéutico busca químico/a analista para el departamento de control de
+      calidad. Análisis por HPLC y cromatografía de gases, validación de métodos analíticos y
+      trabajo según GMP. Grado en Química.
+  min_score: 60
+
+odontologia:
+  label: Odontología
+  titles: [odontólogo, dentista, odontología]
+  areas: [sanidad-salud-y-servicios-sociales]
+  work_modes: [onsite]
+  real_titles: []
+  not_titles:
+    - "Óptico/a Optometrista"
+  family: healthcare
+  skills: [dental_care, diagnostic_imaging]
+  ad:
+    title: Odontólogo/a general
+    description: >-
+      Clínica dental busca odontólogo/a general para operatoria dental, endodoncia y
+      periodoncia. Colegiado/a. Se valorará experiencia en implantología.
+  min_score: 60
+
+diseno:
+  label: Diseño gráfico
+  titles: [diseñador gráfico, diseñadora gráfica, diseño gráfico, maquetador, UX/UI]
+  areas: [medios-editorial-y-artes-graficas, digital]
+  work_modes: [onsite, hybrid, remote]
+  real_titles:
+    - "Diseñador/a Gráfico/a (h/m)"
+    - "Diseñador gráfico y Editor Video - Multinacional industrial"
+    - "Técnico/a de Producción Editorial y Maquetación"
+  not_titles:
+    - "Operario/a Offset"
+  family: design_creative
+  skills: [graphic_design, adobe_suite, ui_design]
+  ad:
+    title: Diseñador/a gráfico/a
+    description: >-
+      Agencia creativa busca diseñador/a gráfico/a para identidad visual, maquetación de
+      catálogos y piezas digitales. Dominio de Illustrator, Photoshop e InDesign; se valorará
+      Figma.
+  min_score: 60

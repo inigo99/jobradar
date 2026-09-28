@@ -11,7 +11,10 @@ JobRadar work for people whose job search does not look like the maintainers'.
 - **Taxonomy coverage** for under-served fields in
   `src/jobradar/resources/skills.yaml`. The shipped set leans technical.
   Healthcare, education, trades, law, logistics and the public sector would all
-  benefit.
+  benefit. `benchmarks/` holds nineteen graduate profiles whose tests say what
+  a profession needs; adding yours (a CV, an entry in `profiles.yaml`, its
+  starter configuration in `docs/STARTER_CONFIGS*.md`) is the best way to
+  keep it from being left behind.
 - **Salary bands and countries** in `resources/salary_bands.yaml` and
   `resources/countries.yaml`, from people who know that market.
 - **CV templates** — regional conventions differ a great deal.

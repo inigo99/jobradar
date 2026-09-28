@@ -305,3 +305,37 @@ def test_restricted_sources_do_not_consult_robots_txt(tmp_path, monkeypatch):
     assert Restricted(fetcher).get("https://board.test/jobs", use_cache=False) == "jobs"
     assert robots.call_count == 1
     fetcher.close()
+
+
+@respx.mock
+def test_an_access_denied_page_is_not_content(fetcher):
+    """A firewall's refusal, sent with HTTP 200, must not become an ad's text."""
+    refusal = ("<html><title>SEPE</title><body>Se le ha denegado el acceso a la URL. "
+               "Su identificador es el siguiente: 3-44971</body></html>")
+    respx.get("https://sne.test/detalle").mock(return_value=httpx.Response(200, text=refusal))
+    assert fetcher.get("https://sne.test/detalle") is None
+    assert fetcher.problems and "sne.test" in fetcher.problems[0]
+    respx.get("https://sne.test/oferta").mock(
+        return_value=httpx.Response(200, text="<p>Enfermero/a. Acceso al centro por la calle Mayor.</p>"))
+    assert "Enfermero" in fetcher.get("https://sne.test/oferta")
+
+
+@respx.mock
+def test_a_try_again_later_page_is_not_an_empty_search(fetcher):
+    """Sent with HTTP 200, it would read as "no offers" and be cached for an hour."""
+    page = ("<html><body>Errores encontrados. Existe un problema para obtener el listado de "
+            "ofertas. Por favor, vuelva a intentar la operación pasados unos instantes.</body></html>")
+    respx.get("https://sne.test/buscar").mock(return_value=httpx.Response(200, text=page))
+    assert fetcher.get("https://sne.test/buscar", retries=0) is None
+    assert not any(fetcher.cache_dir.iterdir())  # nothing cached: the next run asks again
+
+
+@respx.mock
+def test_a_try_again_later_page_is_retried(fetcher, monkeypatch):
+    """It passes in seconds: one search in several gets it, the next does not."""
+    monkeypatch.setattr("jobradar.sources.base.time.sleep", lambda _s: None)
+    page = "<p>Existe un problema para obtener el listado de ofertas.</p>"
+    route = respx.get("https://sne.test/buscar").mock(side_effect=[
+        httpx.Response(200, text=page), httpx.Response(200, text="<a>Enfermero/a</a>")])
+    assert fetcher.get("https://sne.test/buscar") == "<a>Enfermero/a</a>"
+    assert route.call_count == 2 and not fetcher.problems

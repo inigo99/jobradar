@@ -6,6 +6,68 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Added
+
+- **Select all the jobs shown**, and act on the selection: not interested,
+  mark as applied, back to active, or delete. Each job keeps its notes.
+- **Start over** (Settings): deletes every job, application, document and
+  search run, the profile and the settings, as a new installation. The keys
+  saved in `.env` are kept. It asks for a word to be typed.
+- **Graduate profiles** ([benchmarks/](benchmarks/README.md)): nineteen sample
+  CVs of recent graduates, from law and nursing to electrician and cook. The
+  test suite checks each is read whole and that a typical junior ad for it is
+  sorted, scored and kept, that the titles each one searches find real ads of
+  the profession and not their lookalikes, and that the starter guide
+  suggests the same; `benchmarks/run.py` searches for real with the starter
+  configuration of each, region by region, and writes a report.
+- **Starter configurations** for nineteen professions, in English and Spanish
+  ([docs/STARTER_CONFIGS.md](docs/STARTER_CONFIGS.md),
+  [docs/STARTER_CONFIGS.es.md](docs/STARTER_CONFIGS.es.md)): titles as ads
+  write them, the work modes, the Infoempleo area page, the job family and a
+  salary floor for each, with what makes the difference and a complete example.
+- **Legal and Navarra portals** in [docs/PORTALS.md](docs/PORTALS.md): the
+  Colegio de Abogados de Pamplona's notice board, Infoempleo's legal and
+  Navarra pages, legal tech.
+
+### Fixed
+
+- **Portals read as a page picked up menu links**: "Legal", "Reservas" or
+  "Política de privacidad" matched job titles. Menus, headers, footers,
+  site-policy links and category counters ("Legal (1)") are left out.
+- **"Only in my areas" kept every portal offer**, because a page gives no
+  location. The place an ad states ("Provincia: Navarra", "Localidad: …") is
+  now read from its text.
+- **Internships were read as education.** "Prácticas", "Internships" and
+  similar headings open the experience section, so a graduate's internship is
+  a position with its results. A CV with no position at all gets a warning
+  with what to add (final project, internship, volunteering), not an error.
+- **Distinct offers from one portal were merged.** Every ad read from a page
+  carries the site's name as its company, and two "Enfermero/a" ads in two
+  provinces were taken for one; the survivor could even point at the other's
+  page. The site's name no longer counts as an employer.
+- **"Rioja (La)", "Balears (Illes)"**: the place an ad states is read in the
+  official lists' word order too, and a region that is not one province.
+- **Spanish CVs read as Portuguese**: an e-mail address's ".com" counted as a
+  Portuguese word, and words with accents never counted at all.
+- **"Trabajador/a social", "Diseñador/a gráfico/a"** are sorted into their job
+  family: the "/a" no longer hides the keyword.
+- **A site's "access denied" or "try again later" page was read as content.**
+  Sent with HTTP 200 (the Sistema Nacional de Empleo does both), a refusal
+  became an ad's text — no place, a wrong family, and the offer passed "only
+  in my areas" — and an error became a search with no results, cached for an
+  hour. Both are now recognised, reported once, and never cached; a "try
+  again" page is first retried twice, since it usually passes in seconds.
+- **Titles matched their lookalikes.** A searched title was compared on its
+  first five letters, so "contable" found "¿Has olvidado tu contraseña?" and
+  "técnico de laboratorio" found "técnico laboral". The comparison now drops
+  only a word's last few letters: "recepcionista" still finds "recepción".
+- **"Oficial de 1ª electricidad" and "Técnico de calidad"** are sorted into
+  trades and engineering, not left general or taken for finance.
+- **Skill vocabulary** for graphic design, architecture, physiotherapy,
+  psychology, dentistry, chemistry and microbiology, WordPress, MATLAB.
+- **LinkedIn and Indeed spent the result limit on the whole country** when you
+  take no remote work and search only in your areas.
+
 ## 1.8.0 — 2026-09-27
 
 ### Fixed
@@ -15,6 +77,10 @@ All notable changes to this project are documented here. The format follows
   words now.
 - **"Experiencia mínima de 6 meses" read as six years**, which filtered the
   ad out and priced it in the senior band.
+- **Age limits read as years of experience.** "A partir de 25 años", "edad
+  mínima 25 años" and "25 horas" dropped nursing and social-work ads as
+  asking for 25 years. Age phrases are left out, hours are not years, and
+  nothing above 15 years is taken as experience.
 - **EURES ignored your areas.** It searched the whole country, so a
   best-match list from other provinces buried the local ads, and every job
   read "Spain". Your areas are searched first, by region, and each job names

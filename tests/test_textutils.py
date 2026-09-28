@@ -73,3 +73,25 @@ def test_months_of_experience_are_not_years():
     assert extract_min_years("Experiencia mínima de 6 meses en puestos similares.") is None
     assert extract_min_years("Experiencia mínima: 2 años") == 2
     assert extract_min_years("Experiencia mínima de 1 ó 2 años en recepción") == 1
+
+
+def test_titles_match_their_relatives_not_their_lookalikes():
+    from jobradar.textutils import title_matches
+
+    assert title_matches("Auxiliar de recepción", ["recepcionista"])
+    assert title_matches("Fisioterapia deportiva", ["fisioterapeuta"])
+    assert title_matches("Oficial de 1ª electricidad", ["electricista"])
+    assert not title_matches("¿Has olvidado tu contraseña?", ["contable"])
+    assert not title_matches("tecnico laboral/AUXILIAR", ["técnico de laboratorio"])
+    assert not title_matches("Listado de ofertas por Comunidad Autónoma", ["técnico de comunicación"])
+    assert not title_matches("Mecánico electrodomésticos", ["electricista"])
+
+
+def test_an_age_limit_is_not_experience():
+    """Public employment ads write age limits like experience: "a partir de 25 años"."""
+    for text in ["A partir de 25 años", "Edad mínima 25 años", "Edad: desde 18 años. "
+                 "Al menos 2 años de experiencia", "Experiencia mínima: 25 horas de formación"]:
+        assert extract_min_years(text) in (None, 2), text
+    assert extract_min_years("Edad: desde 18 años. Al menos 2 años de experiencia") == 2
+    assert extract_min_years("a partir de 2 años de experiencia") == 2
+    assert extract_min_years("More than 10 years of experience") == 10

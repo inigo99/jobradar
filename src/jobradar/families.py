@@ -19,7 +19,7 @@ from functools import lru_cache
 
 from .config import FamilyOverride, Settings, load_resource
 from .models import Job
-from .textutils import contains_phrase
+from .textutils import contains_phrase, ungendered
 
 #: The family every job falls back to; it cannot be switched off.
 GENERAL = "general"
@@ -153,8 +153,8 @@ def classify(job: Job, families: dict[str, Family]) -> str:
     Title keywords count three times as much as description keywords: an ad
     for a nurse that mentions the hospital's IT systems is still for a nurse.
     """
-    title = job.title or ""
-    opening = (job.description or "")[:DESCRIPTION_WINDOW]
+    title = ungendered(job.title or "")
+    opening = ungendered((job.description or "")[:DESCRIPTION_WINDOW])
     best, best_points = GENERAL, 0
     for key, family in families.items():
         points = 0

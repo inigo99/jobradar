@@ -152,6 +152,19 @@ class JobIdsPayload(BaseModel):
     ids: list[str] = Field(min_length=1, max_length=2000)
 
 
+class JobStatusPayload(BaseModel):
+    """One status for several jobs at once (the board's selection bar)."""
+
+    ids: list[str] = Field(min_length=1, max_length=2000)
+    status: ApplicationStatus
+
+
+class ResetPayload(BaseModel):
+    """Deleting everything needs the word typed, not just a click."""
+
+    confirm: str
+
+
 class JobView(BaseModel):
     """One row of the board, flattened for the browser."""
 

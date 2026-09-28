@@ -1,7 +1,9 @@
 """Deduplication across sources."""
 
+from typing import Any, cast
+
 from jobradar.models import Salary, SalaryOrigin
-from jobradar.pipeline.dedupe import deduplicate
+from jobradar.pipeline.dedupe import deduplicate, split_known
 from tests.conftest import make_job
 
 
@@ -54,3 +56,21 @@ def test_dedupe_survives_null_fields():
     b.title = None
     b.company = None
     assert len(deduplicate([a, b])) == 2
+
+
+def test_a_portals_name_is_not_an_employer():
+    """Every offer read from one portal carries the site's name as company;
+    two nurse ads in two provinces are still two jobs."""
+    from jobradar.sources.portals import PortalsSource
+
+    source = PortalsSource(cast(Any, None), {})
+    granollers = source._job("https://sne.example/detalle?id=1",
+                             title="Enfermero/a centro de dia -granollers-")
+    rioja = source._job("https://sne.example/detalle?id=2", title="Enfermero/a centro de dia")
+    assert granollers.company == rioja.company == "sne.example"
+    kept = deduplicate([granollers, rioja])
+    assert sorted(job.url for job in kept) == ["https://sne.example/detalle?id=1",
+                                               "https://sne.example/detalle?id=2"]
+    assert all(not job.apply_url for job in kept)  # neither points at the other's ad
+    fresh, twins = split_known([rioja], [granollers])
+    assert fresh == [rioja] and twins == []

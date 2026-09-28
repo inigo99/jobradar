@@ -147,6 +147,7 @@ class SearchPipeline:
             countries=filters.effective_countries(),
             local_areas=filters.local_areas,
             local_only=filters.local_only and bool(filters.local_areas),
+            remote_wanted=WorkMode.REMOTE in filters.work_modes,
             remote_only=filters.work_modes == [WorkMode.REMOTE],
             max_age_days=filters.max_age_days,
             limit=self.settings.sources.max_results_per_source,

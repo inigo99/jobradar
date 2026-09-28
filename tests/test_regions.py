@@ -60,3 +60,23 @@ def test_eures_searches_your_areas_first_and_names_the_province():
     source.search(SearchQuery(titles=["recepcionista"], countries=["ES"],
                               local_areas=["Pamplona"], local_only=True, max_age_days=30))
     assert [call[2]["locationCodes"] for call in fetcher.calls] == [["ES22"]]
+
+
+def test_the_place_an_ad_states_is_read_from_its_label():
+    from jobradar.pipeline.enrich import derive_fields
+    from jobradar.regions import place_in
+
+    text = ("Provincia: ARABA/ÁLAVA Descripción ABOGADO/A. Localidad de Ubicación del Puesto: "
+            "VITORIA-GASTEIZ(ARABA/ÁLAVA)")
+    assert place_in(text) == ("Araba/Álava, País Vasco, Spain", "ES")
+    assert place_in("Location: Pamplona, Spain") == ("Navarra, Spain", "ES")
+    assert place_in("Despacho de Pamplona busca abogado en Madrid") is None  # no label
+    # Official lists put the article last, and some regions are not one province.
+    assert place_in("Provincia: RIOJA (LA) Descripción")[0] == "La Rioja, Spain"
+    assert place_in("Provincia: BALEARS (ILLES) Descripción")[0] == "Illes Balears, Spain"
+
+    job = make_job(location="", country="", description="Provincia: NAVARRA. Recepcionista.")
+    derive_fields(job)
+    assert (job.location, job.country) == ("Navarra, Spain", "ES")
+    kept = make_job(location="Madrid, Spain", description="Provincia: NAVARRA")
+    assert derive_fields(kept).location == "Madrid, Spain"  # the board's own place wins

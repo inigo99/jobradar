@@ -18,7 +18,9 @@ everything else in the project less trustworthy.
 Almost always a filter. Run `jobradar search --explain` — it prints the tally of
 why jobs were dropped. The usual culprits are a salary floor combined with
 `require_published_salary`, a `max_age_days` of 1, or `work_modes: [remote]`
-with no `local_areas` in a market where most roles are hybrid.
+with no `local_areas` in a market where most roles are hybrid. If *Filtered
+out* is empty too, the titles are the problem: see the next questions and
+[STARTER_CONFIGS.md](STARTER_CONFIGS.md).
 
 ### Why did it keep a job whose remote scope is "unknown"?
 
@@ -110,7 +112,12 @@ Adzuna or Jooble (free keys) and the national boards you use.
 ### It is not finding jobs in my field.
 
 First the search terms: **Settings → What you're looking for** are sent as they
-are to every source. Then the vocabulary: a skill your field needs can be added
+are to every source, and a result is kept only when its title matches one of
+them. Write the words ads put in their titles ("abogado", "jurídico",
+"enfermera"), not the job you have in mind ("Consultor Legal Tech"), and add
+the page of your field on a regional board as a portal.
+[STARTER_CONFIGS.md](STARTER_CONFIGS.md) ([en español](STARTER_CONFIGS.es.md))
+has a first configuration for nineteen professions. Then the vocabulary: a skill your field needs can be added
 in **Settings → Your skills**, and a job family in **Settings → Job families**
 (title keywords, and a salary band in `resources/families.yaml`). For everyone,
 `resources/skills.yaml` and `resources/families.yaml` are plain YAML, and a
@@ -128,8 +135,16 @@ application's stage by itself.
 
 *Not interested* keeps it, marked discarded. **Delete** removes it and
 everything attached (letters, answers, notes), and a later search will not
-bring the same ad back. Tick several to delete them at once. Every deletion can
+bring the same ad back. Tick several, or all the jobs shown, to delete them at once. Every deletion can
 be undone from the message that appears, for a week.
+
+### How do I start again from scratch?
+
+**Settings → Start over**, at the bottom: type the word it asks for and every
+job, application, generated document and search run is deleted, with your
+profile and settings, and the setup wizard opens as on a new installation.
+The keys in `.env` (language model, Adzuna, mailbox) are kept. It cannot be
+undone; to keep a copy first, run `jobradar export`.
 
 ### What is the difference between "discarded" and "rejected"?
 

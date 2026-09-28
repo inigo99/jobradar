@@ -43,6 +43,13 @@ _MAIN = re.compile(r"<(main|article)\b[^>]*>(.*?)</\1>", re.S | re.I)
 _BODY = re.compile(r"<body\b[^>]*>(.*?)</body>", re.S | re.I)
 #: Page chrome around an ad: menus, headers, footers, language pickers.
 _CHROME = re.compile(r"<(nav|header|footer|select|noscript|button)\b[^>]*>.*?</\1>", re.S | re.I)
+#: Link texts that are the site's own pages, whatever job titles you search:
+#: "Política de privacidad" matches "privacidad", "Aviso legal" matches "legal".
+_SITE_PAGE = re.compile(r"^(?:pol[ií]tica|aviso legal|informaci[oó]n legal|legal notice|privacy|"
+                        r"privacidad$|cookies|t[eé]rminos|terms|accesibilidad|accessibility)",
+                        re.I)
+#: A category with its count ("Legal (1)"), not an offer.
+_COUNTED = re.compile(r"\(\s*\d+\s*\)$")
 
 
 #: Query parameters that change on every visit (sessions, tracking) and would
@@ -98,8 +105,8 @@ def feed_items(body: str) -> list[dict[str, str]] | None:
     return items
 
 
-def job_postings(body: str) -> list[dict[str, Any]]:
-    """Every schema.org JobPosting in the page's JSON-LD blocks."""
+def job_postings(body: str, types: tuple[str, ...] = ("JobPosting",)) -> list[dict[str, Any]]:
+    """Every schema.org JobPosting (or other ``types``) in the page's JSON-LD blocks."""
     found: list[dict[str, Any]] = []
 
     def walk(node: Any) -> None:
@@ -109,7 +116,7 @@ def job_postings(body: str) -> list[dict[str, Any]]:
         elif isinstance(node, dict):
             kind = node.get("@type")
             kinds = kind if isinstance(kind, list) else [kind]
-            if "JobPosting" in kinds:
+            if any(kind in kinds for kind in types):
                 found.append(node)
                 return
             for key in ("@graph", "itemListElement", "item", "mainEntity"):
@@ -132,16 +139,19 @@ def _text(value: Any) -> str:
     return str(value or "").strip()
 
 
-def _place(posting: dict[str, Any]) -> tuple[str, str]:
-    """``(location, country)`` from a JobPosting's jobLocation."""
-    locations = posting.get("jobLocation") or []
+def _place(posting: dict[str, Any], key: str = "jobLocation") -> tuple[str, str]:
+    """``(location, country)`` from a JobPosting's jobLocation (or an
+    Occupation's ``occupationLocation``)."""
+    locations = posting.get(key) or []
     first = locations[0] if isinstance(locations, list) and locations else locations
     address = first.get("address") if isinstance(first, dict) else None
     if not isinstance(address, dict):
         return _text(address), ""
     country = _text(address.get("addressCountry"))
     parts = [_text(address.get(key)) for key in ("addressLocality", "addressRegion")]
-    location = ", ".join(part for part in parts if part) or country
+    if country and len(country) != 2:
+        parts.append(country)  # a name ("Malta"), not a code: keep it in the place
+    location = ", ".join(dict.fromkeys(part for part in parts if part)) or country
     return location, country.upper() if len(country) == 2 else ""
 
 
@@ -173,8 +183,8 @@ class PortalsSource(JobSource):
                 if not body:
                     self.fetcher._report_once(
                         f"portal:{url}",
-                        f"Could not read {url}: it did not answer, or its robots.txt "
-                        "does not allow automated readers.")
+                        f"Could not read {url}: it did not answer, refused the request, or "
+                        "its robots.txt does not allow automated readers.")
                     continue
                 read = True
                 found = self.read_page(body, url, wanted)
@@ -207,7 +217,9 @@ class PortalsSource(JobSource):
     def _job(self, link: str, **fields: Any) -> Job:
         link = canonical(link)
         native = hashlib.sha1(link.encode()).hexdigest()[:16]
-        fields.setdefault("company", urlparse(link).netloc.removeprefix("www."))
+        if not fields.get("company"):
+            fields["company"] = urlparse(link).netloc.removeprefix("www.")
+            fields.setdefault("raw", {})["company_is_site"] = True
         return self.make_job(native, url=link, **fields)
 
     def _from_item(self, item: dict[str, str], page: str, terms: list[str]) -> Job | None:
@@ -244,12 +256,15 @@ class PortalsSource(JobSource):
         if not terms:
             return []  # without titles to match, every menu link would be a "job"
         jobs: dict[str, Job] = {}
-        for href, anchor in _LINK.findall(body):
+        # Menus and footers link to pages titled "Legal", "Reservas" or
+        # "Privacidad" on every site; the offers are in the page's body.
+        for href, anchor in _LINK.findall(_CHROME.sub(" ", body)):
             # A result card is often one link around a heading, the company and
             # a summary: the heading is the title.
             heading = _HEADING.search(anchor)
             text = strip_html(heading.group(1) if heading else anchor)
-            if not 4 <= len(text) <= 160 or not title_matches(text, terms):
+            if (not 4 <= len(text) <= 160 or _SITE_PAGE.match(text) or _COUNTED.search(text)
+                    or not title_matches(text, terms)):
                 continue
             link = urljoin(page, html.unescape(href))
             if not link.startswith(("http://", "https://")) or link.rstrip("/") == page.rstrip("/"):
@@ -260,6 +275,18 @@ class PortalsSource(JobSource):
                 break
         return list(jobs.values())
 
+    @staticmethod
+    def _read_place(job: Job, body: str) -> None:
+        """The ad page's own markup for where the job is, when the list gave none."""
+        if job.location:
+            return
+        for node in job_postings(body, ("JobPosting", "Occupation")):
+            for key in ("jobLocation", "occupationLocation"):
+                location, country = _place(node, key)
+                if location:
+                    job.location, job.country = location, job.country or country
+                    return
+
     def fetch_description(self, job: Job) -> str:
         """The ad page: its JobPosting description if it has one, else its main text."""
         if len(job.description or "") >= 400:
@@ -267,6 +294,7 @@ class PortalsSource(JobSource):
         body = self.get(job.link)
         if not body:
             return job.description or ""
+        self._read_place(job, body)
         for posting in job_postings(body):
             text = strip_html(_text(posting.get("description")))
             if text:

@@ -134,7 +134,11 @@ SECTION_HEADINGS: dict[str, tuple[str, ...]] = {
                 "resumen profesional", "resumen", "profil", "sobre mi"),
     "experience": ("professional experience", "work experience", "experience", "employment",
                    "experiencia profesional", "experiencia laboral", "experiencia",
-                   "expérience professionnelle", "berufserfahrung"),
+                   "expérience professionnelle", "berufserfahrung",
+                   # A graduate's first positions are internships.
+                   "internships", "internship", "work placements", "prácticas",
+                   "prácticas profesionales", "prácticas en empresa", "experiencia en prácticas",
+                   "pràctiques", "stages", "praktika"),
     "education": ("education", "academic background", "formación académica", "formacion academica",
                   "formación", "estudios", "formation", "ausbildung"),
     "certifications": ("certifications", "courses", "additional training", "certificaciones",

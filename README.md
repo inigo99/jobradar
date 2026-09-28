@@ -118,6 +118,8 @@ jobradar tailor --top 5
 jobradar serve
 ```
 
+Not sure which titles, filters and boards to start with? **[docs/STARTER_CONFIGS.md](https://github.com/inigo99/jobradar/blob/master/docs/STARTER_CONFIGS.md)** has a first configuration for nineteen professions, from nursing and law to electrician and cook ([en español](https://github.com/inigo99/jobradar/blob/master/docs/STARTER_CONFIGS.es.md)).
+
 ---
 
 ## The dashboard
@@ -126,11 +128,11 @@ jobradar serve
 
 **The board** has eight tabs — Today, Active, Applied, Rejected, Discarded, Closed ads, Filtered out and Insights. The **filter bar** narrows it by text, work mode, where (your areas, your country, abroad), job family, source, language, minimum salary and minimum match, and remembers your choice; sort by focus, match, date or salary. Each job shows both scores, its family, your strengths and gaps, the salary with its provenance, the latest reply from your inbox and anything to clarify before applying. *Filtered out* lists the ads just short on years in a table of their own.
 
-**Per job**: open the ad, tailor the CV, write a cover letter or the application email, answer the application form's questions, mark it, or delete it. Tick several jobs to delete them at once.
+**Per job**: open the ad, tailor the CV, write a cover letter or the application email, answer the application form's questions, mark it, or delete it. Tick several jobs, or **all the jobs shown** at once, to discard them, mark them as applied, bring them back or delete them.
 
 ![Answering an application form's questions](https://raw.githubusercontent.com/inigo99/jobradar/master/docs/images/form-answers.png)
 
-**Settings** covers your details, target titles, every filter, which sources run (and which only weekly), job families and their priority, the mailbox check, the interface language (English or Spanish), the language model, phrases you never use, **your skills** with their evidence and ceiling, and the **CV for each job family**.
+**Settings** covers your details, target titles, every filter, which sources run (and which only weekly), job families and their priority, the mailbox check, the interface language (English or Spanish), the language model, phrases you never use, **your skills** with their evidence and ceiling, and the **CV for each job family**. **Start over** at the bottom deletes every job, the profile and the settings, as if JobRadar had just been installed (the keys you saved are kept).
 
 ![Settings: your skills](https://raw.githubusercontent.com/inigo99/jobradar/master/docs/images/settings.png)
 
@@ -216,6 +218,7 @@ Configure an email or Telegram digest in `.env` and enable it in Settings. Nothi
 src/jobradar/
 ├── models.py · config.py · storage.py · taxonomy.py · textutils.py
 ├── families.py          Job families: classification, priority, salary band
+├── regions.py           Provinces and regions (NUTS): areas, and places named in ads
 ├── insights.py          The application funnel and the run history
 ├── sources/             One file per job board (optional/ = restricted tier)
 ├── pipeline/            search · dedupe · filters · salary · scoring · focus · sweep
@@ -227,7 +230,9 @@ src/jobradar/
 ├── llm/                 Provider-agnostic client and every prompt
 ├── web/                 FastAPI dashboard: one page, plain scripts in static/, no CDN
 ├── exporters/ · notify/ CSV/Excel export; email and Telegram digests
-└── resources/           skills · families · countries · salary bands · demo data
+└── resources/           skills · families · countries · regions · salary bands · demo data
+
+benchmarks/              Nineteen graduate profiles: offline tests and a live search report
 ```
 
 **[docs/ARCHITECTURE.md](https://github.com/inigo99/jobradar/blob/master/docs/ARCHITECTURE.md)** explains why the pipeline is ordered the way it is and where to hook in.

@@ -73,6 +73,8 @@ class SearchQuery:
     #: The user wants on-site work only in ``local_areas``, so a board that
     #: can search by area should search only there.
     local_only: bool = False
+    #: Remote jobs are among the work modes the user accepts.
+    remote_wanted: bool = True
     remote_only: bool = False
     max_age_days: int = 7
     limit: int = 100
@@ -95,6 +97,38 @@ class SearchQuery:
 # ---------------------------------------------------------------------------
 # HTTP
 # ---------------------------------------------------------------------------
+
+
+#: What a site answers, with HTTP 200, instead of the page asked for: a
+#: firewall's refusal, or "try again later". Read as the page, a refusal
+#: becomes an ad's text (wrong family, no place) and an error a search with
+#: no results — cached for an hour.
+_REFUSAL = re.compile(
+    r"se le ha denegado el acceso|acceso denegado|access denied|the requested url was rejected|"
+    r"request (?:was )?(?:rejected|blocked)|you have been blocked|attention required|"
+    r"are you a robot|unusual traffic", re.I)
+#: The ones that pass: the Sistema Nacional de Empleo answers one search in
+#: several this way and the next a few seconds later, so they are retried.
+_TRY_LATER = re.compile(
+    r"existe un problema para obtener|"
+    r"vuelva a intentar(?:lo)? (?:la operaci[oó]n )?(?:pasados unos|m[aá]s tarde)|"
+    r"please try again later|temporarily unavailable", re.I)
+
+
+def _short(body: str) -> bool:
+    """Such pages are short; a long page that merely mentions one of these
+    phrases (an ad for a security role, say) is content."""
+    return len(body) < 50000
+
+
+def looks_blocked(body: str) -> bool:
+    """Whether ``body`` is a refusal or error page rather than content."""
+    return _short(body) and bool(_REFUSAL.search(body[:30000]) or _TRY_LATER.search(body[:30000]))
+
+
+def asks_to_retry(body: str) -> bool:
+    """Whether ``body`` is a "try again in a moment" page."""
+    return _short(body) and bool(_TRY_LATER.search(body[:30000]))
 
 
 _DECLARED_CHARSET = re.compile(rb"""(?:charset|encoding)\s*=\s*["']?([A-Za-z0-9_-]+)""", re.I)
@@ -383,6 +417,17 @@ class Fetcher:
                     continue
                 if response.status_code >= 400:
                     log.debug("%s returned HTTP %s", full, response.status_code)
+                    return None
+                if asks_to_retry(response.text) and attempt < retries:
+                    time.sleep(3 * (attempt + 1))
+                    continue
+                if looks_blocked(response.text):
+                    host = urlparse(full).netloc
+                    self._report_once(
+                        f"blocked:{host}",
+                        f"{host} answered with an access-denied or \"try again later\" page "
+                        "instead of results. Its offers are left out of this run; try again "
+                        "later, or raise the delay between requests in Settings.")
                     return None
                 self._write_cache(cache_path, response.text)
                 return response.text

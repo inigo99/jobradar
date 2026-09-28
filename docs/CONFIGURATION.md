@@ -2,7 +2,8 @@
 
 Settings live in `data/jobradar.sqlite3` and are edited from the dashboard
 (**Settings**) or with `jobradar init`. For unattended installs, write them as
-YAML and load them once:
+YAML and load them once (for a first configuration by profession, see
+[STARTER_CONFIGS.md](STARTER_CONFIGS.md)):
 
 ```bash
 jobradar init --config settings.yaml --cv ~/Documents/cv.pdf
@@ -106,6 +107,17 @@ families:                        # only your changes to resources/families.yaml
 ```
 
 ## The filters in detail
+
+**How titles are matched.** `search.titles` are sent to each source as they
+are, and many boards return anything that mentions one word of them; a result
+is kept only when its title matches one of yours. Every significant word of a
+title must start a word of the ad's title, compared without its last few
+letters (at least six are kept), so gender, plural and close relatives match —
+"enfermera" finds "Enfermero/a", "recepcionista" finds "recepción" — while
+lookalikes do not: "contable" does not find "contraseña". Synonyms in Spanish,
+Catalan and English stand for each other ("recursos humanos", "RRHH", "HR").
+Use the words ads put in their titles; [STARTER_CONFIGS.md](STARTER_CONFIGS.md)
+suggests them for nineteen professions.
 
 **`work_modes` and `local_areas` together.** The most common real preference is
 "fully remote anywhere, but I would also take an office job in my own city".
@@ -315,6 +327,11 @@ board.
 
 **An ad that states no minimum is never filtered on years.** Most ads state
 none, and treating silence as a rejection would throw away most of the board.
+
+**Age is not experience.** Public employment ads write age limits in the same
+words ("a partir de 25 años", "edad mínima 25 años"), so age phrases are left
+out, months and hours are not years, and nothing above 15 years is read as
+experience asked for.
 
 ## What happens to rejected ads
 

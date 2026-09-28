@@ -9,7 +9,7 @@
    status, a deleted one leaves it, and a later search will not bring the same
    ad back. Every deletion can be undone for a week. */
 
-/* Ids ticked on the board, for deleting several at once. */
+/* Ids ticked on the board, for acting on several at once. */
 const SELECTED = new Set();
 
 /* A toast with an action button, e.g. "Undo". */
@@ -37,11 +37,36 @@ async function deleteJobs(ids) {
 /* The checkbox in each card's corner. */
 function selectBox(job) {
   const box = el("input", { type: "checkbox", className: "select-job", checked: SELECTED.has(job.id),
-                            title: t("Select for deleting several at once") });
+                            title: t("Select to act on several at once") });
   box.setAttribute("aria-label", t("Select {title} at {company}",
                                    { title: job.title, company: job.company || t("unnamed company") }));
   box.onchange = () => { box.checked ? SELECTED.add(job.id) : SELECTED.delete(job.id); selectionBar(); };
   return box;
+}
+
+/* "Select all": every job the board shows now — this tab, after the filters. */
+function selectAllRow(jobs) {
+  const ids = jobs.map(job => job.id);
+  const all = ids.length > 0 && ids.every(id => SELECTED.has(id));
+  const box = el("input", { type: "checkbox", id: "select-all", checked: all });
+  box.indeterminate = !all && ids.some(id => SELECTED.has(id));
+  box.onchange = () => {
+    ids.forEach(id => (box.checked ? SELECTED.add(id) : SELECTED.delete(id)));
+    document.querySelectorAll(".select-job").forEach(node => { node.checked = box.checked; });
+    selectionBar();
+  };
+  return el("label", { className: "select-all" }, box,
+            " " + tn(ids.length, "Select the {n} job shown", "Select all {n} jobs shown"));
+}
+
+/* One status for every ticked job, then the board again. */
+async function setStatuses(ids, status, done) {
+  if (!ids.length) return;
+  const result = await api("/api/jobs/status", { method: "POST",
+                                                  body: JSON.stringify({ ids, status }) });
+  SELECTED.clear();
+  await refresh();
+  toast(done(result.changed));
 }
 
 /* The bar above the board while jobs are ticked. */
@@ -54,9 +79,30 @@ function selectionBar() {
   const visible = STATE ? STATE.jobs.filter(j => SELECTED.has(j.id)).map(j => j.id) : [];
   [...SELECTED].forEach(id => { if (!visible.includes(id)) SELECTED.delete(id); });
   bar.hidden = !SELECTED.size;
+  const all = $("#select-all");
+  if (all) {
+    const shown = [...document.querySelectorAll(".select-job")];
+    all.checked = shown.length > 0 && shown.every(node => node.checked);
+    all.indeterminate = !all.checked && shown.some(node => node.checked);
+  }
+  const ids = () => [...SELECTED];
+  const actions = [];
+  if (TAB !== "discarded") {
+    actions.push(button(t("Not interested"), async () => setStatuses(ids(), "discarded",
+      n => tn(n, "{n} job moved to Discarded.", "{n} jobs moved to Discarded."))));
+  }
+  if (!["applied", "rejected"].includes(TAB)) {
+    actions.push(button(t("Mark as applied"), async () => setStatuses(ids(), "applied",
+      n => tn(n, "{n} job marked as applied.", "{n} jobs marked as applied."))));
+  }
+  if (TAB !== "active" && TAB !== "today") {
+    actions.push(button(t("Back to active"), async () => setStatuses(ids(), "active",
+      n => tn(n, "{n} job back to Active.", "{n} jobs back to Active."))));
+  }
   bar.replaceChildren(
     el("b", {}, t("{n} selected", { n: SELECTED.size })),
-    button(t("Delete them"), async () => deleteJobs([...SELECTED])),
+    ...actions,
+    button(t("Delete them"), async () => deleteJobs(ids())),
     button(t("Clear the selection"), async () => {
       SELECTED.clear();
       document.querySelectorAll(".select-job").forEach(b => { b.checked = false; });

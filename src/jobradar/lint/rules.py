@@ -213,6 +213,16 @@ def rule_gaps(profile: Profile, language: str) -> Iterator[LintFinding]:
 def rule_metrics(profile: Profile, language: str) -> Iterator[LintFinding]:
     """XYZ bullets need the Y. A CV of duties without results is invisible."""
     bullets = _bullets(profile, language)
+    if not profile.experience:
+        # A graduate with no job yet: the absence is not a defect to fix, but
+        # a TFG/TFM, an internship or volunteering written as an entry with a
+        # result is what gives a reader something to compare.
+        yield finding(
+            "no-experience", Severity.WARNING, "No work experience or internships yet.",
+            hint="Add the final project (TFG/TFM), internships, volunteering or a relevant "
+                 "job as an entry with one or two results: that is what ads are matched against.",
+        )
+        return
     if not bullets:
         yield finding(
             "no-achievements", Severity.ERROR, "No achievements are listed under any position.",

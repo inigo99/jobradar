@@ -85,9 +85,15 @@ can be:
 offers the page marks up for search engines (schema.org `JobPosting` in
 JSON-LD, which most job boards publish because Google for Jobs reads it); and,
 failing both, the links whose text matches one of the user's job titles
-(first five letters of each word, so "enfermera" finds "Enfermero/a"). An
-ad's text comes from its own page, again from its `JobPosting` markup when it
-has one. Search words are sent without accents (older sites decode them in
+("enfermera" finds "Enfermero/a"; see *How titles are matched* in
+[CONFIGURATION.md](CONFIGURATION.md)), leaving out menus, headers, footers,
+the site's own pages ("Política de privacidad", "Aviso legal") and category
+counters ("Legal (1)"). An ad's text comes from its own page, again from its
+`JobPosting` markup when it has one, and so does its place: the markup's
+`jobLocation`, or a label in the text ("Provincia: Navarra", "Localidad: …"),
+which is what lets *only in my areas* sort portal ads. A page names no
+employer, so its jobs carry the site's name as company; deduplication does not
+treat that name as an employer, or every similar ad on the site would be one. Search words are sent without accents (older sites decode them in
 their own charset), session parameters are dropped from ad addresses so an ad
 keeps one id, and a link that wraps a whole result card is titled by the
 heading inside it. Plain HTTP only, and `robots.txt` is honoured — wildcards
@@ -104,6 +110,9 @@ JavaScript yields nothing, and the run history says so.
   except for `restricted` sources, which skip it (see below);
 - responses cached on disk for an hour (`cache_ttl_minutes`);
 - exponential backoff on HTTP 429, and a bounded retry on transport errors;
+- a refusal or "try again later" page sent with HTTP 200 (the Sistema Nacional
+  de Empleo sends both) is not taken as content: "try again" is retried twice,
+  a refusal is reported once, and neither is cached;
 - an honest user agent naming the project.
 
 A board that blocks the default user agent because someone hammered it hurts

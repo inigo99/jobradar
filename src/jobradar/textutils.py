@@ -104,15 +104,23 @@ def _variants(term: str) -> list[str]:
 def _stems(variant: str) -> list[str]:
     words = [w for w in variant.split() if w not in _TITLE_NOISE]
     specific = [w for w in words if w not in _GENERIC_ROLE]
-    return [w[:5] for w in (specific or words)]
+    return [_stem(w) for w in (specific or words)]
+
+
+def _stem(word: str) -> str:
+    """Enough of ``word`` to allow its gender, number and close relatives
+    ("recepcionista" -> "recepción", "fisioterapeuta" -> "fisioterapia") and
+    no more: a fixed five letters also let "contable" find "contraseña" and
+    "laboratorio" find "laboral"."""
+    return word[:max(6, len(word) - 4)]
 
 
 def title_matches(title: str, terms: list[str]) -> bool:
     """Whether ``title`` looks like one of the searched ``terms``.
 
     For boards that return everything and leave the matching to us. Every
-    significant word of a term must start a word of the title, compared on
-    its first five letters, so gendered and plural forms still match:
+    significant word of a term must start a word of the title, compared
+    without its last few letters, so gendered and plural forms still match:
     "enfermera" finds "Enfermero/a", "camarero" finds "Camarero-a"; and the
     names in :data:`TITLE_SYNONYMS` stand for each other, so "recursos
     humanos" finds "RRHH" and "HR". No terms means no filter.
@@ -134,6 +142,17 @@ AGENCY_MARKERS = (
     "leading company in the sector", "importante empresa del sector",
     "empresa líder del sector", "confidential client",
 )
+
+
+#: The feminine or plural ending Spanish and Catalan ads add after a slash or in
+#: brackets: "Trabajador/a social", "Enfermeros/as", "Técnico(a)".
+_GENDER_ENDING = re.compile(r"(?<=\w\w\w)(?:/|\()(?:a|as|o|os|es|ra|ras)\)?(?!\w)", re.I)
+
+
+def ungendered(text: str) -> str:
+    """``text`` without the slash endings, so "Trabajador/a social" reads as
+    "Trabajador social" and a keyword written once matches both forms."""
+    return _GENDER_ENDING.sub("", text or "")
 
 
 def contains_phrase(text: str, phrase: str) -> bool:
@@ -171,13 +190,18 @@ def token_set(value: str) -> set[str]:
 # actually written in, without pulling in a detection library.
 _STOPWORDS: dict[str, set[str]] = {
     "en": {"the", "and", "for", "with", "you", "our", "are", "will", "your", "have", "team"},
-    "es": {"de", "que", "para", "con", "los", "las", "una", "del", "por", "experiencia", "empresa"},
+    "es": {"de", "que", "para", "con", "los", "las", "una", "del", "por", "experiencia", "empresa",
+           "el", "y", "al", "como"},
     "fr": {"le", "les", "des", "pour", "avec", "vous", "nous", "une", "dans", "notre", "sur"},
     "de": {"und", "der", "die", "das", "mit", "für", "sie", "wir", "ein", "eine", "bei"},
     "pt": {"de", "que", "para", "com", "uma", "dos", "das", "você", "nossa", "experiência"},
     "it": {"di", "che", "per", "con", "una", "del", "delle", "nostro", "esperienza", "sviluppo"},
     "nl": {"de", "het", "een", "van", "voor", "met", "wij", "je", "onze", "werken"},
 }
+
+
+#: The same words as the text is compared: without accents ("für" -> "fur").
+_FOLDED_STOPWORDS = {lang: {normalise(word) for word in words} for lang, words in _STOPWORDS.items()}
 
 
 def detect_language(text: str, default: str = "en") -> str:
@@ -187,10 +211,13 @@ def detect_language(text: str, default: str = "en") -> str:
     is a plain stop-word count: the winner is whichever language contributes
     most function words.
     """
-    tokens = normalise(str(text or "")).split()
+    # Addresses carry words of their own: "example.com" is not Portuguese "com".
+    plain = re.sub(r"\S+@\S+|https?://\S+|www\.\S+|\b[\w.-]+\.(?:com|es|org|net|eu)\b", " ",
+                   str(text or ""))
+    tokens = normalise(plain).split()
     if len(tokens) < 12:
         return default
-    counts = {lang: sum(1 for t in tokens if t in words) for lang, words in _STOPWORDS.items()}
+    counts = {lang: sum(1 for t in tokens if t in words) for lang, words in _FOLDED_STOPWORDS.items()}
     best = max(counts, key=lambda k: counts[k])
     return best if counts[best] >= 3 else default
 
@@ -412,8 +439,16 @@ _YEARS_PATTERNS = tuple(re.compile(p) for p in (
     r"(\d{1,2})\s*anos\s+de\s+experiencia",
     # The unit is optional here ("experiencia minima: 2"), so months are ruled
     # out explicitly: "experiencia minima de 6 meses" is half a year, not six.
-    r"experiencia\s+minima[^0-9]{0,20}(\d{1,2})(?!\d|\s*(?:mes|month|semana|week|dia|day))",
+    r"experiencia\s+minima[^0-9]{0,20}(\d{1,2})(?!\d|\s*(?:mes|month|semana|week|dia|day|hora|hour))",
 ))
+
+
+#: Above this, "a partir de 25 años" is an age, not experience: public
+#: employment ads state age limits ("desde 25 años", "edad mínima 25 años")
+#: in the same words.
+MAX_YEARS_ASKED = 15
+#: Age conditions, removed before experience is looked for.
+_AGE = re.compile(r"\bedad\b[^.;\n]{0,40}|\b(?:mayor|menor)(?:es)?\s+de\s+\d{1,2}\s*anos")
 
 
 def extract_min_years(text: str) -> int | None:
@@ -423,13 +458,13 @@ def extract_min_years(text: str) -> int | None:
     years of experience overall" asks for 5 — the overall figure is the one
     that ends an application. Ranges count by their lower bound.
     """
-    blob = fold(text)
+    blob = _AGE.sub(" ", fold(text))
     for pattern in _YEAR_RANGES:
         blob = pattern.sub(r"\1+", blob)
     found: list[int] = []
     for pattern in _YEARS_PATTERNS:
         found.extend(int(m) for m in pattern.findall(blob) if m.isdigit())
-    sane = [y for y in found if 0 < y <= 25]
+    sane = [y for y in found if 0 < y <= MAX_YEARS_ASKED]
     return max(sane) if sane else None
 
 

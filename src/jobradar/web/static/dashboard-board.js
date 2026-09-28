@@ -92,6 +92,7 @@ function render() {
       : el("div", { className: "empty" }, STATE.jobs.length ? t("Nothing in this tab.") :
            t("No jobs yet. Press \u201cSearch now\u201d to run the first search.")));
   } else {
+    board.append(selectAllRow(jobs));
     jobs.forEach(job => board.append(jobCard(job)));
   }
 }

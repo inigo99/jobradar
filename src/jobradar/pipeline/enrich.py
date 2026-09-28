@@ -21,6 +21,7 @@ from ..families import classify, families_for
 from ..llm import LLMClient
 from ..llm.prompts import read_job_ad
 from ..models import Job, RemoteScope, Requirement, Salary, SalaryOrigin, WorkMode
+from ..regions import names_a_place, place_in
 from ..taxonomy import find_skills, label_for
 from ..textutils import (
     AGENCY_MARKERS,
@@ -128,6 +129,12 @@ def derive_fields(job: Job) -> Job:
             job.raw["remote_scope_evidence"] = scope_sentence
         if job.min_years_experience is None:
             job.min_years_experience = extract_min_years(text)
+        # Pages read from a portal often carry no location but state it in
+        # the text; without it "only in my areas" could not tell them apart.
+        if not names_a_place(job.location or "", job.country or ""):
+            place = place_in(text)
+            if place:
+                job.location, job.country = place[0], job.country or place[1]
 
         salary_obj = getattr(job, "salary", None)
         if not salary_obj or salary_obj.origin != SalaryOrigin.PUBLISHED:

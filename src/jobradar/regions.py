@@ -9,6 +9,7 @@ can be matched against. The data is ``resources/regions.yaml``.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from functools import lru_cache
 
@@ -62,6 +63,17 @@ def location_for(code: str, country_name: str) -> str:
     return ", ".join(p for p in parts if p)
 
 
+def names_a_place(location: str, country: str) -> bool:
+    """Whether a location says more than its country ("Spain", "ES")."""
+    from .config import country_info  # local import: config imports this
+
+    plain = normalise(location or "")
+    if not plain:
+        return False
+    return not country or plain not in {
+        normalise(country), normalise(country_info(country).get("name", ""))}
+
+
 def provinces_for(area: str) -> list[Province]:
     """The provinces an area names: itself, its capital or a town in it, or a
     NUTS-2 region (every province in it)."""
@@ -100,3 +112,44 @@ def region_codes(areas: list[str], country: str) -> list[str]:
             if item.country == country.upper() and item.region not in codes:
                 codes.append(item.region)
     return codes
+
+
+#: Where an ad says its place: "Provincia: Navarra", "Localidad de ubicación
+#: del puesto: Pamplona", "Location: Bilbao".
+_PLACE_LABEL = re.compile(
+    r"(?:provincia|localidad(?: de ubicaci[oó]n del puesto)?|ubicaci[oó]n(?: del puesto)?|"
+    r"lugar de trabajo|centro de trabajo|location|place of work)\s*:\s*(.{2,80})",
+    re.I)
+
+
+#: "RIOJA (LA)", "PALMAS (LAS)", "BALEARS (ILLES)": how official lists sort a
+#: name by its first real word. Put back in reading order before matching.
+_TRAILING_ARTICLE = re.compile(r"([^\s()][^()]*?)\s*\((la|las|los|el|a|as|o|os|illes|les)\)", re.I)
+
+
+def place_in(text: str) -> tuple[str, str] | None:
+    """``(location, country)`` from the place an ad states, when it names a
+    province, a town or a region this module knows; ``None`` otherwise.
+
+    Only the words right after a label are read: a Pamplona firm's ad for a job
+    in Madrid mentions both, and the label says which one is the job.
+    """
+    from .config import country_info  # local import: config imports this
+
+    for label in _PLACE_LABEL.finditer(text or ""):
+        stated = _TRAILING_ARTICLE.sub(r"\2 \1", label.group(1))
+        window = f" {normalise(stated)} "
+        best: tuple[int, str, str] | None = None  # (position, location, country)
+        for item in _provinces().values():
+            country = country_info(item.country).get("name", "")
+            for name in (item.name, *item.name.split("/"), *item.places):
+                at = window.find(f" {normalise(name)} ")
+                if at >= 0 and (best is None or at < best[0]):
+                    best = (at, location_for(item.code, country), item.country)
+            # A region that is not one province ("Illes Balears", "Canarias").
+            at = window.find(f" {normalise(item.region_name)} ") if item.region_name else -1
+            if at >= 0 and (best is None or at < best[0]):
+                best = (at, f"{item.region_name}, {country}", item.country)
+        if best:
+            return best[1], best[2]
+    return None
