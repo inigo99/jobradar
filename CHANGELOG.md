@@ -21,6 +21,12 @@ All notable changes to this project are documented here. The format follows
   the top of the repository that the program does not use.
 - **Code nothing called was removed** (eleven functions and one attribute).
 
+### Fixed
+
+- Offers from the twenty EURES countries missing from the country registry (Sweden, Malta,
+  Cyprus, Luxembourg, Croatia…) showed a bare code as their location; they now have a name
+  and a currency. CZK, HUF, BGN and ISK are recognised in published salaries.
+
 ## 1.9.0 — 2026-09-28
 
 ### Added

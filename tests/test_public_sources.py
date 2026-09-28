@@ -6,10 +6,10 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, cast
 
-from jobradar.config import Portal, Settings
+from jobradar.config import Portal, Settings, countries
 from jobradar.sources import BY_ID, build_sources
 from jobradar.sources.base import SearchQuery
-from jobradar.sources.eures import SEARCH, EuresSource, publication_period
+from jobradar.sources.eures import COVERED, SEARCH, EuresSource, publication_period
 from jobradar.sources.portals import PortalsSource, feed_items, job_postings
 from jobradar.textutils import title_matches
 
@@ -339,3 +339,10 @@ def test_the_ad_page_says_where_a_listed_link_is():
         source.fetch_description(job)
     assert [(job.location, job.country) for job in jobs] == [
         ("St Julian's", "MT"), ("Tudela, Navarra, España", "")]
+
+
+def test_every_eures_country_has_a_name_and_currency() -> None:
+    registry = countries()
+    missing = sorted(code for code in COVERED if code not in registry)
+    assert not missing, f"add these to countries.yaml: {missing}"
+    assert all(registry[code].get("name") and registry[code].get("currency") for code in COVERED)
