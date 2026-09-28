@@ -2,8 +2,11 @@
 #
 # Each CV in profiles/ is fictitious: a recent graduate with training, and at
 # most an internship. For each one:
-#   titles   what the person would search for, as ads write them — the same
-#            as docs/STARTER_CONFIGS.md suggests (a test keeps them in step)
+#   titles   what the person would search for in Spain, as Spanish ads write
+#            them — the same as docs/STARTER_CONFIGS*.md suggest (a test keeps
+#            them in step)
+#   titles_en  the same for ads written in English, as the English guide
+#            suggests (not searched by run.py, which reads Spanish boards)
 #   areas    Infoempleo areas for the profession; run.py reads their page in
 #            each region it searches
 #   work_modes  as the guide suggests
@@ -21,6 +24,7 @@
 ingenieria:
   label: Ingeniería industrial
   titles: [ingeniero industrial, ingeniero de procesos, ingeniero de calidad, técnico de calidad, ingeniero de producción]
+  titles_en: [industrial engineer, process engineer, quality engineer, manufacturing engineer]
   areas: [ingenieria-y-produccion, calidad-id-prl-y-medio-ambiente]
   work_modes: [onsite, hybrid]
   real_titles:
@@ -43,6 +47,7 @@ ingenieria:
 higiene_dental:
   label: Higiene bucodental
   titles: [higienista dental, higienista bucodental, auxiliar de clínica dental]
+  titles_en: [dental hygienist, dental nurse]
   areas: [sanidad-salud-y-servicios-sociales]
   work_modes: [onsite]
   real_titles:
@@ -64,6 +69,7 @@ higiene_dental:
 arquitectura:
   label: Arquitectura
   titles: [arquitecto, arquitecta, delineante, proyectista, BIM]
+  titles_en: [architect, architectural designer, BIM, CAD technician]
   areas: [construccion-e-inmobiliaria]
   work_modes: [onsite, hybrid]
   real_titles:
@@ -86,6 +92,7 @@ arquitectura:
 abogacia:
   label: Abogacía
   titles: [abogado, jurídico, jurista, derecho, protección de datos, compliance, asistente jurídico]
+  titles_en: [lawyer, legal counsel, paralegal, legal assistant, compliance, data protection]
   areas: [legal]
   work_modes: [onsite, hybrid, remote]
   real_titles:
@@ -111,6 +118,7 @@ abogacia:
 enfermeria:
   label: Enfermería
   titles: [enfermera, enfermero, enfermería]
+  titles_en: [nurse, registered nurse, staff nurse]
   areas: [sanidad-salud-y-servicios-sociales]
   work_modes: [onsite]
   real_titles:
@@ -133,6 +141,7 @@ enfermeria:
 fisioterapia:
   label: Fisioterapia
   titles: [fisioterapeuta, fisioterapia]
+  titles_en: [physiotherapist, physical therapist]
   areas: [sanidad-salud-y-servicios-sociales]
   work_modes: [onsite]
   real_titles:
@@ -154,6 +163,7 @@ fisioterapia:
 magisterio:
   label: Magisterio (primaria)
   titles: [maestro, maestra, profesor de primaria, profesor de inglés]
+  titles_en: [primary teacher, teacher, English teacher]
   areas: [educacion-formacion]
   work_modes: [onsite]
   real_titles:
@@ -175,6 +185,7 @@ magisterio:
 psicologia:
   label: Psicología
   titles: [psicólogo, psicóloga, psicólogo sanitario]
+  titles_en: [psychologist, clinical psychologist]
   areas: [sanidad-salud-y-servicios-sociales, recursos-humanos]
   work_modes: [onsite, hybrid]
   real_titles:
@@ -196,6 +207,7 @@ psicologia:
 ade:
   label: Administración y dirección de empresas
   titles: [analista financiero, contable, controller, administración, auxiliar contable]
+  titles_en: [financial analyst, accountant, controller, finance assistant]
   areas: [banca-finanzas-y-seguros, administracion-de-empresas]
   work_modes: [onsite, hybrid]
   real_titles:
@@ -217,6 +229,7 @@ ade:
 marketing:
   label: Marketing
   titles: [marketing, marketing digital, community manager, SEO, redes sociales]
+  titles_en: [marketing, digital marketing, social media, community manager, SEO]
   areas: [marketing-publicidad-y-rrpp, digital]
   work_modes: [onsite, hybrid, remote]
   real_titles:
@@ -237,6 +250,7 @@ marketing:
 trabajo_social:
   label: Trabajo social
   titles: [trabajador social, trabajadora social, educador social, integrador social]
+  titles_en: [social worker, support worker, case worker]
   areas: [sanidad-salud-y-servicios-sociales]
   work_modes: [onsite]
   real_titles: []
@@ -255,6 +269,7 @@ trabajo_social:
 periodismo:
   label: Periodismo
   titles: [periodista, redactor, redactora, comunicación, community manager]
+  titles_en: [journalist, reporter, copywriter, content writer, communications]
   areas: [medios-editorial-y-artes-graficas, marketing-publicidad-y-rrpp]
   work_modes: [onsite, hybrid, remote]
   real_titles:
@@ -273,6 +288,7 @@ periodismo:
 tecnico_laboratorio:
   label: Técnico de laboratorio (FP)
   titles: [técnico de laboratorio, analista de laboratorio, técnico de calidad, auxiliar de laboratorio]
+  titles_en: [laboratory technician, lab technician, QC technician]
   areas: [calidad-id-prl-y-medio-ambiente]
   work_modes: [onsite]
   real_titles:
@@ -293,6 +309,7 @@ tecnico_laboratorio:
 electricista:
   label: Electricista (FP)
   titles: [electricista, oficial electricista, electricidad, técnico electricista, mantenimiento eléctrico]
+  titles_en: [electrician, electrical technician, maintenance electrician]
   areas: [profesionales-artes-y-oficios]
   work_modes: [onsite]
   real_titles:
@@ -314,6 +331,7 @@ electricista:
 cocina:
   label: Cocina (FP)
   titles: [cocinero, cocinera, ayudante de cocina, jefe de partida]
+  titles_en: [chef, cook, commis chef, kitchen assistant]
   areas: [hosteleria-turismo]
   work_modes: [onsite]
   real_titles:
@@ -334,6 +352,7 @@ cocina:
 administracion_finanzas:
   label: Administración y finanzas (FP)
   titles: [administrativo, auxiliar administrativo, administrativo contable, contable]
+  titles_en: [administrative assistant, office administrator, accounts assistant]
   areas: [administrativos-y-secretariado]
   work_modes: [onsite, hybrid]
   real_titles:
@@ -355,6 +374,7 @@ administracion_finanzas:
 quimica:
   label: Química
   titles: [químico, química, técnico de laboratorio, analista de laboratorio, técnico de calidad]
+  titles_en: [chemist, analytical chemist, laboratory technician, QC analyst]
   areas: [calidad-id-prl-y-medio-ambiente, ingenieria-y-produccion]
   work_modes: [onsite]
   real_titles:
@@ -375,6 +395,7 @@ quimica:
 odontologia:
   label: Odontología
   titles: [odontólogo, dentista, odontología]
+  titles_en: [dentist, associate dentist, dental surgeon]
   areas: [sanidad-salud-y-servicios-sociales]
   work_modes: [onsite]
   real_titles: []
@@ -392,6 +413,7 @@ odontologia:
 diseno:
   label: Diseño gráfico
   titles: [diseñador gráfico, diseñadora gráfica, diseño gráfico, maquetador, UX/UI]
+  titles_en: [graphic designer, designer, UX/UI designer]
   areas: [medios-editorial-y-artes-graficas, digital]
   work_modes: [onsite, hybrid, remote]
   real_titles:

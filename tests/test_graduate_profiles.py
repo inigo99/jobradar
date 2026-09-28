@@ -98,5 +98,7 @@ def test_the_starter_guide_suggests_what_the_profiles_test(guide):
     text = " ".join((ROOT / "docs" / guide).read_text(encoding="utf-8").split())
     for key, spec in PROFILES.items():
         assert f"`{', '.join(spec['titles'])}`" in text, f"{guide}: titles of {key}"
+        if guide == "STARTER_CONFIGS.md":  # the English guide gives English titles first
+            assert f"`{', '.join(spec['titles_en'])}`" in text, f"{guide}: English titles of {key}"
         for area in spec["areas"]:
             assert f"`{area}`" in text, f"{guide}: area {area} of {key}"
