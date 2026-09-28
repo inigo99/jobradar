@@ -6,6 +6,36 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+## 1.10.0 — 2026-09-28
+
+### Added
+
+- **Wider benchmark regions**: `tests/benchmark.py --regions europe usa`
+  searches each graduate profile with its English titles across every
+  country EURES covers, and across the United States through Adzuna (free
+  keys), besides Navarra and Madrid.
+
+### Changed
+
+- **The graduate profiles live with the tests**: their CVs and `profiles.yaml`
+  in `tests/fixtures/graduates/`, the live search in `tests/benchmark.py`
+  (reports in the git-ignored `tests/benchmark-reports/`). Nothing is left at
+  the top of the repository that the program does not use.
+- **Code nothing called was removed** (eleven functions and one attribute).
+- **Starter configurations, after searching all of Europe**: both guides have an
+  *Across Europe* section (where each profession finds junior ads, English titles
+  over German ads, remote boards off for on-site work). The English titles drop
+  what brought the wrong trade: "CAD technician" (mechanical CAD), "support
+  worker" (care jobs) and a bare "designer" (PCB and product design) give way to
+  "architectural technician", "youth worker" and "visual designer". Each profile
+  now lists real European ads its English titles must find, and a test checks them.
+
+### Fixed
+
+- Offers from the twenty EURES countries missing from the country registry (Sweden, Malta,
+  Cyprus, Luxembourg, Croatia…) showed a bare code as their location; they now have a name
+  and a currency. CZK, HUF, BGN and ISK are recognised in published salaries.
+
 ## 1.9.0 — 2026-09-28
 
 ### Added
@@ -15,12 +45,12 @@ All notable changes to this project are documented here. The format follows
 - **Start over** (Settings): deletes every job, application, document and
   search run, the profile and the settings, as a new installation. The keys
   saved in `.env` are kept. It asks for a word to be typed.
-- **Graduate profiles** ([benchmarks/](benchmarks/README.md)): nineteen sample
+- **Graduate profiles** ([tests/fixtures/graduates/](tests/fixtures/graduates/README.md)): nineteen sample
   CVs of recent graduates, from law and nursing to electrician and cook. The
   test suite checks each is read whole and that a typical junior ad for it is
   sorted, scored and kept, that the titles each one searches find real ads of
   the profession and not their lookalikes, and that the starter guide
-  suggests the same; `benchmarks/run.py` searches for real with the starter
+  suggests the same; `tests/benchmark.py` searches for real with the starter
   configuration of each, region by region, and writes a report.
 - **Starter configurations** for nineteen professions, in English and Spanish
   ([docs/STARTER_CONFIGS.md](docs/STARTER_CONFIGS.md),

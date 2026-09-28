@@ -300,13 +300,6 @@ def _heading_sections(line: str) -> list[str]:
     return []
 
 
-def _classify_heading(line: str) -> str | None:
-    """Is this line a section heading, and if so which section (the first, for
-    a heading that joins several)?"""
-    sections = _heading_sections(line)
-    return sections[0] if sections else None
-
-
 #: How a line that finished its sentence ends.
 _TERMINAL = (".", "!", "?", ";", ":", ")")
 _LABELLED = re.compile(r"^[^:\d]{3,40}:\s+\S")

@@ -24,7 +24,6 @@ class HimalayasSource(JobSource):
     name = "Himalayas"
     homepage = "https://himalayas.app"
     tos_tier = "open"
-    supports_remote_filter = True
 
     def search(self, query: SearchQuery) -> list[Job]:
         terms = [t.lower() for t in query.terms()]

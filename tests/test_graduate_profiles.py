@@ -1,7 +1,7 @@
 """Nineteen graduate profiles, from law to electrician: what JobRadar reads
 from each CV, and how a typical junior ad for that profession comes out.
 
-The CVs and ads are in ``benchmarks/``; ``benchmarks/run.py`` runs the same
+The CVs and ads are in ``fixtures/graduates/``; ``benchmark.py`` runs the same
 profiles against real boards. Here everything is offline: these tests catch a
 change that leaves one profession behind — a heading not recognised, a skill
 the vocabulary does not know, a family an ad is not sorted into.
@@ -26,7 +26,7 @@ from jobradar.profile import import_profile
 from jobradar.textutils import title_matches
 
 ROOT = Path(__file__).resolve().parent.parent
-BENCHMARKS = ROOT / "benchmarks"
+BENCHMARKS = ROOT / "tests" / "fixtures" / "graduates"
 PROFILES = yaml.safe_load((BENCHMARKS / "profiles.yaml").read_text(encoding="utf-8"))
 
 
@@ -90,6 +90,20 @@ def test_the_titles_find_real_ads_and_not_their_lookalikes(key):
     assert not missed, f"{key}: {spec['titles']} do not find {missed}"
     wrong = [title for title in spec["not_titles"] if title_matches(title, spec["titles"])]
     assert not wrong, f"{key}: {spec['titles']} also find {wrong}"
+
+
+@pytest.mark.parametrize("key", sorted(PROFILES))
+def test_the_english_titles_find_real_european_ads(key):
+    """The same for the English titles, with ads seen on EURES across Europe.
+
+    Europe's run showed "CAD technician" bringing mechanical CAD jobs to the
+    architect and "support worker" bringing care jobs to the social worker.
+    """
+    spec = PROFILES[key]
+    missed = [title for title in spec["real_titles_en"] if not title_matches(title, spec["titles_en"])]
+    assert not missed, f"{key}: {spec['titles_en']} do not find {missed}"
+    wrong = [title for title in spec["not_titles_en"] if title_matches(title, spec["titles_en"])]
+    assert not wrong, f"{key}: {spec['titles_en']} also find {wrong}"
 
 
 @pytest.mark.parametrize("guide", ["STARTER_CONFIGS.md", "STARTER_CONFIGS.es.md"])

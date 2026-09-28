@@ -458,17 +458,6 @@ class Settings(BaseModel):
                 hint="See docs/CONFIGURATION.md for the accepted values.",
             ) from exc
 
-    def to_yaml(self, path: str | Path) -> None:
-        try:
-            Path(path).write_text(
-                yaml.safe_dump(self.model_dump(mode="json"), sort_keys=False, allow_unicode=True),
-                encoding="utf-8",
-            )
-        except OSError as exc:
-            raise ConfigError(
-                f"Cannot write the settings file {path}: {describe_os_error(exc)}."
-            ) from exc
-
 
 def validation_summary(exc: ValidationError, limit: int = 3) -> str:
     """The first few Pydantic errors as ``field.path: message; ...``."""
@@ -529,10 +518,6 @@ def salary_bands() -> dict:
 def country_info(code: str) -> dict:
     """Registry entry for ``code``, or a neutral default for unknown countries."""
     return countries().get((code or "").upper(), {"name": code, "currency": "EUR", "languages": ["en"]})
-
-
-def currency_for(code: str) -> str:
-    return country_info(code).get("currency", "EUR")
 
 
 #: What a key saved from the dashboard may be called: an environment variable.

@@ -122,10 +122,6 @@ def translate(text: str | None, language: str) -> str:
     return text
 
 
-def translate_all(texts: list[str] | None, language: str) -> list[str]:
-    return [translate(text, language) for text in (texts or [])]
-
-
 def skill_label(key: str, default: str, language: str) -> str:
     """A skill's display name in ``language`` (the user's own labels are kept)."""
     if language == DEFAULT_LANGUAGE:

@@ -47,7 +47,6 @@ class InfoJobsSource(JobSource):
         "InfoJobs also publishes an official partner API — if you can get a key, "
         "prefer it. Enabling this adapter is your decision and your responsibility."
     )
-    supports_remote_filter = True
 
     def search(self, query: SearchQuery) -> list[Job]:
         jobs: dict[str, Job] = {}

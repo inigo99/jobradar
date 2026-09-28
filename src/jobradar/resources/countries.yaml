@@ -95,6 +95,146 @@ CH:
   adzuna: ch
   national_sources: []
 
+BG:
+  name: Bulgaria
+  currency: BGN
+  languages: [bg, en]
+  adzuna: null
+  national_sources: []
+
+HR:
+  name: Croatia
+  currency: EUR
+  languages: [hr, en]
+  adzuna: null
+  national_sources: []
+
+CY:
+  name: Cyprus
+  currency: EUR
+  languages: [el, en]
+  adzuna: null
+  national_sources: []
+
+CZ:
+  name: Czechia
+  currency: CZK
+  languages: [cs, en]
+  adzuna: null
+  national_sources: []
+
+DK:
+  name: Denmark
+  currency: DKK
+  languages: [da, en]
+  adzuna: null
+  national_sources: []
+
+EE:
+  name: Estonia
+  currency: EUR
+  languages: [et, en]
+  adzuna: null
+  national_sources: []
+
+FI:
+  name: Finland
+  currency: EUR
+  languages: [fi, sv, en]
+  adzuna: null
+  national_sources: []
+
+GR:
+  name: Greece
+  currency: EUR
+  languages: [el, en]
+  adzuna: null
+  national_sources: []
+
+HU:
+  name: Hungary
+  currency: HUF
+  languages: [hu, en]
+  adzuna: null
+  national_sources: []
+
+IS:
+  name: Iceland
+  currency: ISK
+  languages: [is, en]
+  adzuna: null
+  national_sources: []
+
+LV:
+  name: Latvia
+  currency: EUR
+  languages: [lv, en]
+  adzuna: null
+  national_sources: []
+
+LI:
+  name: Liechtenstein
+  currency: CHF
+  languages: [de, en]
+  adzuna: null
+  national_sources: []
+
+LT:
+  name: Lithuania
+  currency: EUR
+  languages: [lt, en]
+  adzuna: null
+  national_sources: []
+
+LU:
+  name: Luxembourg
+  currency: EUR
+  languages: [fr, de, en]
+  adzuna: null
+  national_sources: []
+
+MT:
+  name: Malta
+  currency: EUR
+  languages: [mt, en]
+  adzuna: null
+  national_sources: []
+
+"NO":                 # quoted: bare NO is read as false
+  name: Norway
+  currency: NOK
+  languages: [no, en]
+  adzuna: null
+  national_sources: []
+
+RO:
+  name: Romania
+  currency: RON
+  languages: [ro, en]
+  adzuna: null
+  national_sources: []
+
+SK:
+  name: Slovakia
+  currency: EUR
+  languages: [sk, en]
+  adzuna: null
+  national_sources: []
+
+SI:
+  name: Slovenia
+  currency: EUR
+  languages: [sl, en]
+  adzuna: null
+  national_sources: []
+
+SE:
+  name: Sweden
+  currency: SEK
+  languages: [sv, en]
+  adzuna: null
+  national_sources: []
+
 US:
   name: United States
   currency: USD

@@ -232,7 +232,7 @@ src/jobradar/
 ├── exporters/ · notify/ CSV/Excel export; email and Telegram digests
 └── resources/           skills · families · countries · regions · salary bands · demo data
 
-benchmarks/              Nineteen graduate profiles: offline tests and a live search report
+tests/fixtures/graduates/  Nineteen graduate profiles for the tests; tests/benchmark.py searches live with them
 ```
 
 **[docs/ARCHITECTURE.md](https://github.com/inigo99/jobradar/blob/master/docs/ARCHITECTURE.md)** explains why the pipeline is ordered the way it is and where to hook in.

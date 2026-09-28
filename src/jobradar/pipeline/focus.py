@@ -119,18 +119,3 @@ def focus_for(
             reasons.append(f"you {direction} {label_for(job.family, families)} (x{priority:g})")
 
     return round(base * factor, 1), "; ".join(reasons)
-
-
-def rank(
-    jobs: list[tuple[Job, MatchScore | None]],
-    today: date | None = None,
-    max_years: float | None = None,
-    families: dict[str, Family] | None = None,
-) -> list[tuple[Job, MatchScore | None, float, str]]:
-    """Every job with its focus, highest first."""
-    scored = [
-        (job, score) + focus_for(job, score, today, max_years, families)
-        for job, score in jobs
-    ]
-    scored.sort(key=lambda item: -item[2])
-    return scored

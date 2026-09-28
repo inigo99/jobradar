@@ -106,7 +106,6 @@ class ManfredSource(JobSource):
     homepage = "https://www.getmanfred.com"
     tos_tier = "open"
     countries = ("ES",)
-    supports_remote_filter = True
 
     def search(self, query: SearchQuery) -> list[Job]:
         payload = self.fetcher.get_json(LISTING, params={**PARAMS, "onlyActive": "true"})

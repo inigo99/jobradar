@@ -474,6 +474,7 @@ def extract_min_years(text: str) -> int | None:
 
 _CURRENCY_SYMBOLS = {"€": "EUR", "$": "USD", "£": "GBP", "chf": "CHF", "zł": "PLN", "kr": "SEK"}
 _CURRENCY_CODES = ("EUR", "USD", "GBP", "CHF", "CAD", "AUD", "PLN", "SEK", "NOK", "DKK",
+                   "CZK", "HUF", "BGN", "ISK",  # not RON: "ron" is Spanish for rum
                    "BRL", "MXN", "ARS", "COP", "CLP", "INR", "SGD", "NZD", "ZAR")
 
 _AMOUNT = r"(\d{1,3}(?:[.,\s]\d{3})+|\d{2,3}(?:[.,]\d)?\s?[kK]|\d{4,7})"

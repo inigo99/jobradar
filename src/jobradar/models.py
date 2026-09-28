@@ -143,10 +143,6 @@ class Bullet(BaseModel):
     text: LocalizedText
     skills: list[str] = Field(default_factory=list)
 
-    def has_metric(self, language: str = "en") -> bool:
-        """True when the bullet contains a number, which XYZ bullets must."""
-        return bool(re.search(r"\d", localized(self.text, language)))
-
 
 class Experience(BaseModel):
     """A job. Positions are never reordered — only the bullets inside them."""
@@ -273,9 +269,6 @@ class Profile(BaseModel):
     def all_bullets(self) -> list[Bullet]:
         return [b for exp in self.experience for b in exp.bullets]
 
-    def known_skills(self) -> set[str]:
-        """Skill keys the candidate actually has (evidence above zero)."""
-        return {k for k, v in self.evidence.items() if v > 0.0}
 
     def label_for(self, key: str) -> str:
         """The skill's display name, as set when the evidence was derived."""
