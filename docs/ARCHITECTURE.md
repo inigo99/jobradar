@@ -36,7 +36,10 @@ or does not, which is the right shape for something a person runs once a day.
 **Deduplicate before enriching.** Enrichment is the expensive stage — a page
 fetch and possibly a model call per job. On a multi-source run a substantial
 share of the collected jobs are the same opening seen twice, so collapsing them
-first cuts the bill by roughly the duplication rate.
+first cuts the bill by roughly the duplication rate. Duplicates are found by id,
+by the ad's URL at the same employer, by employer and title, and by a high
+title overlap at the same employer — never across employers, and never by the
+site name a portal page gives in place of one.
 
 **Prefilter before enriching too.** Age, previously-closed and deleted-by-you
 checks need no ad body. Running them early avoids fetching ads that are
