@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+## 1.10.0 — 2026-09-28
+
 ### Added
 
 - **Wider benchmark regions**: `tests/benchmark.py --regions europe usa`
