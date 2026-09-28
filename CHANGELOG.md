@@ -25,7 +25,7 @@ All notable changes to this project are documented here. The format follows
 - **Starter configurations** for nineteen professions, in English and Spanish
   ([docs/STARTER_CONFIGS.md](docs/STARTER_CONFIGS.md),
   [docs/STARTER_CONFIGS.es.md](docs/STARTER_CONFIGS.es.md)): titles as ads
-  write them, the work modes, the Infoempleo area page, the job family and a
+  write them (in English, and in Spanish for boards in Spain), the work modes, the Infoempleo area page, the job family and a
   salary floor for each, with what makes the difference and a complete example.
 - **Legal and Navarra portals** in [docs/PORTALS.md](docs/PORTALS.md): the
   Colegio de Abogados de Pamplona's notice board, Infoempleo's legal and
