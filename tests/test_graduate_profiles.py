@@ -92,6 +92,20 @@ def test_the_titles_find_real_ads_and_not_their_lookalikes(key):
     assert not wrong, f"{key}: {spec['titles']} also find {wrong}"
 
 
+@pytest.mark.parametrize("key", sorted(PROFILES))
+def test_the_english_titles_find_real_european_ads(key):
+    """The same for the English titles, with ads seen on EURES across Europe.
+
+    Europe's run showed "CAD technician" bringing mechanical CAD jobs to the
+    architect and "support worker" bringing care jobs to the social worker.
+    """
+    spec = PROFILES[key]
+    missed = [title for title in spec["real_titles_en"] if not title_matches(title, spec["titles_en"])]
+    assert not missed, f"{key}: {spec['titles_en']} do not find {missed}"
+    wrong = [title for title in spec["not_titles_en"] if title_matches(title, spec["titles_en"])]
+    assert not wrong, f"{key}: {spec['titles_en']} also find {wrong}"
+
+
 @pytest.mark.parametrize("guide", ["STARTER_CONFIGS.md", "STARTER_CONFIGS.es.md"])
 def test_the_starter_guide_suggests_what_the_profiles_test(guide):
     # Lines wrap inside the backticks; compare with single spaces.

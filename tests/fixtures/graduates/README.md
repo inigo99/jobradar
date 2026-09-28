@@ -9,7 +9,8 @@ vocational trades (laboratory technician, electrician, cook, administration).
 
 `profiles.yaml` says, for each one, what the person would search for (the
 starter configuration from [docs/STARTER_CONFIGS.md](../../../docs/STARTER_CONFIGS.md)),
-real ad titles those searches must find and lookalikes they must not, which
+real ad titles those searches must find and lookalikes they must not — in
+Spain for the Spanish titles, across Europe for the English ones — which
 skills the CV proves, which job family a typical ad belongs to, and such an ad.
 
 ## Offline: the test suite
@@ -18,7 +19,7 @@ skills the CV proves, which job family a typical ad belongs to, and such an ad.
 whole (internships as positions, education, languages), that the skills of the
 field are recognised, that a graduate is not red-flagged for being new, that
 a typical junior ad is sorted into the right family, scores well and passes
-the filters, that the titles find the real ads of the profession, and that
+the filters, that the titles (Spanish and English) find the real ads of the profession, and that
 the starter guide still suggests the same titles and areas. It runs with `pytest`, with no network.
 
 When one of these fails after a change, the change has left a profession

@@ -20,6 +20,13 @@ All notable changes to this project are documented here. The format follows
   (reports in the git-ignored `tests/benchmark-reports/`). Nothing is left at
   the top of the repository that the program does not use.
 - **Code nothing called was removed** (eleven functions and one attribute).
+- **Starter configurations, after searching all of Europe**: both guides have an
+  *Across Europe* section (where each profession finds junior ads, English titles
+  over German ads, remote boards off for on-site work). The English titles drop
+  what brought the wrong trade: "CAD technician" (mechanical CAD), "support
+  worker" (care jobs) and a bare "designer" (PCB and product design) give way to
+  "architectural technician", "youth worker" and "visual designer". Each profile
+  now lists real European ads its English titles must find, and a test checks them.
 
 ### Fixed
 

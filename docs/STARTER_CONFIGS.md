@@ -7,7 +7,7 @@ install JobRadar and adjust from there. They come from testing JobRadar with
 graduate profiles in Navarra and Madrid, and with the English titles across
 Europe (see [tests/fixtures/graduates/](../tests/fixtures/graduates/README.md)),
 so the boards and salary floors are for Spain; the reasoning carries over to
-other places.
+other places, and [Across Europe](#across-europe) says what changes abroad.
 
 **Titles come in two lists: English, and Spanish for Spain.** Each title is
 sent to the boards as it is written, and a board only finds ads written with
@@ -152,7 +152,7 @@ profesor de inglés` · on-site · area `educacion-formacion` · family `educati
 floor 18,000 €. Public posts go through *oposiciones*: add the BOE feeds from
 [PORTALS.md](PORTALS.md).
 
-**Social work** — titles: `social worker, support worker, case worker`; in Spain `trabajador social, trabajadora social, educador
+**Social work** — titles: `social worker, case worker, youth worker`; in Spain `trabajador social, trabajadora social, educador
 social, integrador social` · on-site · area `sanidad-salud-y-servicios-sociales` ·
 family `care_social` · floor 17,000 €.
 
@@ -187,7 +187,7 @@ community manager` · on-site, hybrid, remote · areas
 `medios-editorial-y-artes-graficas` (Madrid), `marketing-publicidad-y-rrpp` ·
 family `marketing_communication` · floor 18,000 €.
 
-**Graphic design** — titles: `graphic designer, designer, UX/UI designer`; in Spain `diseñador gráfico, diseñadora gráfica,
+**Graphic design** — titles: `graphic designer, UX/UI designer, visual designer`; in Spain `diseñador gráfico, diseñadora gráfica,
 diseño gráfico, maquetador, UX/UI` · on-site, hybrid, remote · areas
 `medios-editorial-y-artes-graficas`, `digital` · family `design_creative` ·
 floor 19,000 €. In our tests the public boards had none: this is a profession
@@ -201,7 +201,7 @@ on-site, hybrid · areas `ingenieria-y-produccion`, `calidad-id-prl-y-medio-ambi
 family `engineering` · floor 24,000 €. Add large employers' career pages under
 *Company career boards* (their domain is enough).
 
-**Architecture** — titles: `architect, architectural designer, BIM, CAD technician`; in Spain `arquitecto, arquitecta, delineante, proyectista,
+**Architecture** — titles: `architect, architectural designer, architectural technician, BIM`; in Spain `arquitecto, arquitecta, delineante, proyectista,
 BIM` · on-site, hybrid · area `construccion-e-inmobiliaria` ·
 family `construction_property` · floor 20,000 €.
 
@@ -224,6 +224,46 @@ floor 17,000 €. One of the best-served professions on public boards.
 **Cook** — titles: `chef, cook, commis chef, kitchen assistant`; in Spain `cocinero, cocinera, ayudante de cocina, jefe de partida` ·
 on-site · area `hosteleria-turismo` · family `hospitality_tourism` ·
 floor 16,000 €.
+
+## Across Europe
+
+Searched with the English titles above in every EURES country, in September
+2026, every one of the nineteen professions found offers — 412 in all, most in
+Germany, the Netherlands, Malta, Cyprus, Ireland and Belgium. What it taught:
+
+- **Where each profession is.** Social workers, cooks, office administrators
+  and teachers find the most junior ads (the Netherlands, Malta, Cyprus);
+  physiotherapists and psychologists find them in Germany and the
+  Netherlands; engineers in Germany, Austria and Sweden. Dentists are the
+  exception: the few ads were in French, in France and Switzerland.
+- **An English title is not an English ad.** Many German ads put an English
+  title over a German text ("Quality Engineer (m/w/d)"). Check the language
+  of the ad before counting it.
+- **Leave the remote boards off for on-site professions.** RemoteOK,
+  We Work Remotely and Himalayas answer "lawyer" or "architect" with
+  "Founder's Office" or "Solutions Architect" jobs; they are worth it only
+  for marketing, journalism and design, and only if you would work remotely.
+- **Most ads ask for 3–5 years.** Keep the years ceiling from your CV: those
+  ads go to *Filtered out*, the ones asking for one or two stay.
+- **Leave the salary empty.** The floors above are for Spain.
+- **Some titles bring the wrong trade.** "CAD technician" brings mechanical
+  CAD jobs, "support worker" care jobs and "designer" alone PCB and product
+  designers — which is why they are not suggested. "Compliance" and "data
+  protection" still bring trade compliance and IT jobs to a lawyer: skip them
+  on the board.
+
+```yaml
+search:
+  titles: [social worker, case worker, youth worker]
+  languages: [en]
+filters:
+  work_modes: [onsite, hybrid]
+  home_country: ES
+  eligible_countries: [NL, BE, IE, MT, CY, DE, AT]   # the countries you would move to
+  local_only: false
+sources:
+  enabled: [eures]
+```
 
 ## Then
 

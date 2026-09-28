@@ -4,9 +4,10 @@
 
 Una primera configuración para diecinueve profesiones, para empezar a buscar el
 mismo día que instalas JobRadar y ajustarla después. Salen de probar JobRadar
-con perfiles de recién titulados en Navarra y Madrid (ver
+con perfiles de recién titulados en Navarra y Madrid, y en toda Europa (ver
 [tests/fixtures/graduates/](../tests/fixtures/graduates/README.md)), así que piensan en alguien que empieza
-en España; el razonamiento sirve para otros sitios.
+en España; el razonamiento sirve para otros sitios, y [En toda Europa](#en-toda-europa)
+cuenta qué cambia al buscar fuera.
 
 Todo lo que sigue se configura en el panel —**Configuración → Qué buscas**,
 **Filtros** y **Dónde buscar**— o en un `settings.yaml` que se carga con
@@ -211,6 +212,46 @@ públicos.
 **Cocina (FP)** — puestos: `cocinero, cocinera, ayudante de cocina, jefe de
 partida` · presencial · área `hosteleria-turismo` · familia `hospitality_tourism` ·
 mínimo 16.000 €.
+
+## En toda Europa
+
+Buscando con los puestos en inglés de la [guía en inglés](STARTER_CONFIGS.md)
+en todos los países de EURES, en septiembre de 2026, las diecinueve
+profesiones encontraron ofertas —412 en total, sobre todo en Alemania, Países
+Bajos, Malta, Chipre, Irlanda y Bélgica—. Lo que enseñó:
+
+- **Dónde está cada profesión.** Trabajo social, cocina, administración y
+  magisterio encuentran más ofertas junior (Países Bajos, Malta, Chipre);
+  fisioterapia y psicología, en Alemania y Países Bajos; ingeniería, en
+  Alemania, Austria y Suecia. Odontología es la excepción: las pocas ofertas
+  estaban en francés, en Francia y Suiza.
+- **Un título en inglés no es un anuncio en inglés.** Muchas ofertas alemanas
+  ponen el título en inglés y el texto en alemán («Quality Engineer (m/w/d)»).
+  Mira el idioma del anuncio antes de contar con él.
+- **Deja apagados los tablones de remoto en profesiones presenciales.**
+  RemoteOK, We Work Remotely y Himalayas responden a «lawyer» o «architect» con
+  puestos como «Founder's Office» o «Solutions Architect»; solo merecen la pena
+  en marketing, periodismo y diseño, y si trabajarías en remoto.
+- **La mayoría pide de 3 a 5 años.** Deja que tu CV marque el máximo: esas
+  ofertas van a *Filtradas* y se quedan las que piden uno o dos.
+- **Deja el salario vacío.** Los mínimos de arriba son para España.
+- **Algunos puestos traen otro oficio.** «CAD technician» trae CAD mecánico,
+  «support worker» cuidado de personas y «designer» a secas diseño de placas y
+  de producto; por eso no se sugieren. «Compliance» y «data protection» siguen
+  trayendo comercio exterior e informática a un abogado: sáltalas en el tablero.
+
+```yaml
+search:
+  titles: [social worker, case worker, youth worker]
+  languages: [en]
+filters:
+  work_modes: [onsite, hybrid]
+  home_country: ES
+  eligible_countries: [NL, BE, IE, MT, CY, DE, AT]   # los países a los que te mudarías
+  local_only: false
+sources:
+  enabled: [eures]
+```
 
 ## Después
 
