@@ -1,7 +1,7 @@
 """Nineteen graduate profiles, from law to electrician: what JobRadar reads
 from each CV, and how a typical junior ad for that profession comes out.
 
-The CVs and ads are in ``benchmarks/``; ``benchmarks/run.py`` runs the same
+The CVs and ads are in ``fixtures/graduates/``; ``benchmark.py`` runs the same
 profiles against real boards. Here everything is offline: these tests catch a
 change that leaves one profession behind — a heading not recognised, a skill
 the vocabulary does not know, a family an ad is not sorted into.
@@ -26,7 +26,7 @@ from jobradar.profile import import_profile
 from jobradar.textutils import title_matches
 
 ROOT = Path(__file__).resolve().parent.parent
-BENCHMARKS = ROOT / "benchmarks"
+BENCHMARKS = ROOT / "tests" / "fixtures" / "graduates"
 PROFILES = yaml.safe_load((BENCHMARKS / "profiles.yaml").read_text(encoding="utf-8"))
 
 

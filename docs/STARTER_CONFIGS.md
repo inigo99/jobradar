@@ -4,7 +4,8 @@
 
 A first configuration for nineteen professions, to start searching the day you
 install JobRadar and adjust from there. They come from testing JobRadar with
-graduate profiles in Navarra and Madrid (see [benchmarks/](../benchmarks/README.md)),
+graduate profiles in Navarra and Madrid, and with the English titles across
+Europe (see [tests/fixtures/graduates/](../tests/fixtures/graduates/README.md)),
 so the boards and salary floors are for Spain; the reasoning carries over to
 other places.
 

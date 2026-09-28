@@ -5,7 +5,7 @@
 Una primera configuración para diecinueve profesiones, para empezar a buscar el
 mismo día que instalas JobRadar y ajustarla después. Salen de probar JobRadar
 con perfiles de recién titulados en Navarra y Madrid (ver
-[benchmarks/](../benchmarks/README.md)), así que piensan en alguien que empieza
+[tests/fixtures/graduates/](../tests/fixtures/graduates/README.md)), así que piensan en alguien que empieza
 en España; el razonamiento sirve para otros sitios.
 
 Todo lo que sigue se configura en el panel —**Configuración → Qué buscas**,

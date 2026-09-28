@@ -6,8 +6,8 @@
 #            them — the same as docs/STARTER_CONFIGS*.md suggest (a test keeps
 #            them in step)
 #   titles_en  the same for ads written in English, as the English guide
-#            suggests (not searched by run.py, which reads Spanish boards)
-#   areas    Infoempleo areas for the profession; run.py reads their page in
+#            suggests (searched by tests/benchmark.py in Europe and the United States)
+#   areas    Infoempleo areas for the profession; tests/benchmark.py reads their page in
 #            each region it searches
 #   work_modes  as the guide suggests
 #   real_titles  titles of real ads for the profession, seen on public boards
@@ -18,7 +18,7 @@
 #   ad       a typical junior ad, which the tests score against the CV
 #   min_score the score that ad should reach at least
 #
-# tests/test_graduate_profiles.py runs these offline; benchmarks/run.py
+# tests/test_graduate_profiles.py runs these offline; tests/benchmark.py
 # searches for real in the regions you pass it and writes a report.
 
 ingenieria:

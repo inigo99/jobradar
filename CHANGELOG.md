@@ -8,10 +8,18 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
-- **Wider benchmark regions**: `benchmarks/run.py --regions europe usa`
+- **Wider benchmark regions**: `tests/benchmark.py --regions europe usa`
   searches each graduate profile with its English titles across every
   country EURES covers, and across the United States through Adzuna (free
   keys), besides Navarra and Madrid.
+
+### Changed
+
+- **The graduate profiles live with the tests**: their CVs and `profiles.yaml`
+  in `tests/fixtures/graduates/`, the live search in `tests/benchmark.py`
+  (reports in the git-ignored `tests/benchmark-reports/`). Nothing is left at
+  the top of the repository that the program does not use.
+- **Code nothing called was removed** (eleven functions and one attribute).
 
 ## 1.9.0 — 2026-09-28
 
@@ -22,12 +30,12 @@ All notable changes to this project are documented here. The format follows
 - **Start over** (Settings): deletes every job, application, document and
   search run, the profile and the settings, as a new installation. The keys
   saved in `.env` are kept. It asks for a word to be typed.
-- **Graduate profiles** ([benchmarks/](benchmarks/README.md)): nineteen sample
+- **Graduate profiles** ([tests/fixtures/graduates/](tests/fixtures/graduates/README.md)): nineteen sample
   CVs of recent graduates, from law and nursing to electrician and cook. The
   test suite checks each is read whole and that a typical junior ad for it is
   sorted, scored and kept, that the titles each one searches find real ads of
   the profession and not their lookalikes, and that the starter guide
-  suggests the same; `benchmarks/run.py` searches for real with the starter
+  suggests the same; `tests/benchmark.py` searches for real with the starter
   configuration of each, region by region, and writes a report.
 - **Starter configurations** for nineteen professions, in English and Spanish
   ([docs/STARTER_CONFIGS.md](docs/STARTER_CONFIGS.md),

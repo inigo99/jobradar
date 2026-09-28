@@ -8,7 +8,7 @@ chemistry, industrial engineering, architecture, graphic design, and
 vocational trades (laboratory technician, electrician, cook, administration).
 
 `profiles.yaml` says, for each one, what the person would search for (the
-starter configuration from [docs/STARTER_CONFIGS.md](../docs/STARTER_CONFIGS.md)),
+starter configuration from [docs/STARTER_CONFIGS.md](../../../docs/STARTER_CONFIGS.md)),
 real ad titles those searches must find and lookalikes they must not, which
 skills the CV proves, which job family a typical ad belongs to, and such an ad.
 
@@ -25,16 +25,16 @@ When one of these fails after a change, the change has left a profession
 behind. When a profession is added, add its CV here and its entry in
 `profiles.yaml`.
 
-## Live: `run.py`
+## Live: `tests/benchmark.py`
 
 ```bash
-python benchmarks/run.py                                  # every profile, Navarra and Madrid
-python benchmarks/run.py --regions europe usa             # wider: all of Europe, the United States
-python benchmarks/run.py --regions madrid --profiles abogacia enfermeria
-python benchmarks/run.py --sources linkedin infojobs indeed   # on a machine where they run
+python tests/benchmark.py                                 # every profile, Navarra and Madrid
+python tests/benchmark.py --regions europe usa             # wider: all of Europe, the United States
+python tests/benchmark.py --regions madrid --profiles abogacia enfermeria
+python tests/benchmark.py --sources linkedin infojobs indeed   # on a machine where they run
 ```
 
-Each profile searches as [docs/STARTER_CONFIGS.md](../docs/STARTER_CONFIGS.md)
+Each profile searches as [docs/STARTER_CONFIGS.md](../../../docs/STARTER_CONFIGS.md)
 suggests, ads up to 30 days old:
 
 | Region | Titles | Where | Sources |
@@ -45,8 +45,8 @@ suggests, ads up to 30 days old:
 
 `usa` needs Adzuna's free keys in `ADZUNA_APP_ID` and `ADZUNA_APP_KEY`;
 without them it is skipped with a message. The report
-(`reports/<date>-<regions>.md`, raw numbers in a `.json` next to it; the
-folder is git-ignored, reports are not committed) gives,
+(`tests/benchmark-reports/<date>-<regions>.md`, raw numbers in a `.json` next
+to it; the folder is git-ignored, reports are not committed) gives,
 per profile, how many offers were fetched and kept, how many of those match
 the profession by title and by family, the median score and the main reason
 the rest were dropped.

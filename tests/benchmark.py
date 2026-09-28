@@ -1,10 +1,10 @@
 """Search for real with each sample graduate profile, region by region, and
 write a report of what came back.
 
-    python benchmarks/run.py                       # every profile, Navarra and Madrid
-    python benchmarks/run.py --regions europe usa  # wider: all of Europe, the United States
-    python benchmarks/run.py --regions madrid --profiles abogacia enfermeria
-    python benchmarks/run.py --sources linkedin infojobs indeed   # add restricted ones
+    python tests/benchmark.py                       # every profile, Navarra and Madrid
+    python tests/benchmark.py --regions europe usa  # wider: all of Europe, the United States
+    python tests/benchmark.py --regions madrid --profiles abogacia enfermeria
+    python tests/benchmark.py --sources linkedin infojobs indeed   # add restricted ones
 
 Each profile searches as docs/STARTER_CONFIGS.md suggests (``profiles.yaml``
 holds the same titles, areas and work modes), ads up to 30 days old.
@@ -25,7 +25,7 @@ seconds per host, at most 30 offers per source, an hour of cache shared
 between profiles), and still makes hundreds of requests: do not run it twice
 in a row. It is not part of the test
 suite, and results change from day to day. The report goes to
-``benchmarks/reports/<date>-<regions>.md``, with the raw numbers in a
+``tests/benchmark-reports/<date>-<regions>.md``, with the raw numbers in a
 ``.json`` next to it.
 """
 
@@ -53,6 +53,8 @@ from jobradar.storage import Database
 from jobradar.textutils import title_matches
 
 HERE = Path(__file__).resolve().parent
+#: The graduate profiles: their CVs and profiles.yaml, shared with the tests.
+GRADUATES = HERE / "fixtures" / "graduates"
 SNE = ("https://www.sistemanacionalempleo.es/OfertaDifusionWEB/busquedaOfertas.do"
        "?modo=continuar&palabraBusqueda={query}&botonNavegacion=Enviar")
 
@@ -128,7 +130,7 @@ def run_one(key: str, spec: dict, region_key: str, extra: list[str], cache: Path
         paths.cache_dir.symlink_to(cache, target_is_directory=True)  # shared politeness cache
         database = Database(paths)
         try:
-            profile, _ = import_profile(HERE / "profiles" / f"{key}.txt")
+            profile, _ = import_profile(GRADUATES / "profiles" / f"{key}.txt")
             database.save_profile(profile)
             settings = settings_for(spec, region, extra)
             database.save_settings(settings)
@@ -208,14 +210,14 @@ def report(rows: list[dict], profiles: dict, regions: list[str]) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    profiles = yaml.safe_load((HERE / "profiles.yaml").read_text(encoding="utf-8"))
+    profiles = yaml.safe_load((GRADUATES / "profiles.yaml").read_text(encoding="utf-8"))
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--regions", nargs="+", default=["navarra", "madrid"],
                         choices=list(REGIONS))
     parser.add_argument("--profiles", nargs="+", default=list(profiles), choices=list(profiles))
     parser.add_argument("--sources", nargs="*", default=[],
                         help="extra source ids, e.g. linkedin infojobs indeed")
-    parser.add_argument("--out", type=Path, default=HERE / "reports")
+    parser.add_argument("--out", type=Path, default=HERE / "benchmark-reports")
     args = parser.parse_args(argv)
 
     args.out.mkdir(parents=True, exist_ok=True)

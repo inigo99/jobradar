@@ -11,7 +11,7 @@ out/
 .jobradar/
 .cache/
 # Live benchmark reports: they change every run and stay on your machine.
-benchmarks/reports/
+tests/benchmark-reports/
 
 # --- Python ----------------------------------------------------------------
 __pycache__/
