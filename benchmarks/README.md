@@ -29,14 +29,22 @@ behind. When a profession is added, add its CV here and its entry in
 
 ```bash
 python benchmarks/run.py                                  # every profile, Navarra and Madrid
+python benchmarks/run.py --regions europe usa             # wider: all of Europe, the United States
 python benchmarks/run.py --regions madrid --profiles abogacia enfermeria
 python benchmarks/run.py --sources linkedin infojobs indeed   # on a machine where they run
 ```
 
 Each profile searches as [docs/STARTER_CONFIGS.md](../docs/STARTER_CONFIGS.md)
-suggests — its titles, work modes and field — only in the region's area, ads
-up to 30 days old, on EURES, the Sistema Nacional de Empleo and Infoempleo's
-pages for its field in that province. The report
+suggests, ads up to 30 days old:
+
+| Region | Titles | Where | Sources |
+|---|---|---|---|
+| `navarra`, `madrid` | Spanish | only the region's area, the profession's work modes | EURES, Sistema Nacional de Empleo, Infoempleo's pages for the field in the province |
+| `europe` | English | any of the countries EURES covers, any work mode | EURES, RemoteOK, We Work Remotely, Himalayas |
+| `usa` | English | anywhere in the United States, any work mode | Adzuna, RemoteOK, We Work Remotely, Himalayas |
+
+`usa` needs Adzuna's free keys in `ADZUNA_APP_ID` and `ADZUNA_APP_KEY`;
+without them it is skipped with a message. The report
 (`reports/<date>-<regions>.md`, raw numbers in a `.json` next to it; the
 folder is git-ignored, reports are not committed) gives,
 per profile, how many offers were fetched and kept, how many of those match

@@ -2,14 +2,23 @@
 write a report of what came back.
 
     python benchmarks/run.py                       # every profile, Navarra and Madrid
+    python benchmarks/run.py --regions europe usa  # wider: all of Europe, the United States
     python benchmarks/run.py --regions madrid --profiles abogacia enfermeria
     python benchmarks/run.py --sources linkedin infojobs indeed   # add restricted ones
 
 Each profile searches as docs/STARTER_CONFIGS.md suggests (``profiles.yaml``
-holds the same titles, areas and work modes), with "only in my areas" on and
-ads up to 30 days old. The sources are EURES, the Sistema Nacional de Empleo
-and Infoempleo's pages for the profile's areas in the region, plus any
-``--sources`` you add.
+holds the same titles, areas and work modes), ads up to 30 days old.
+
+* **Navarra, Madrid**: the Spanish titles, "only in my areas" on; EURES, the
+  Sistema Nacional de Empleo and Infoempleo's pages for the profile's areas
+  in the province.
+* **Europe**: the English titles, on-site, hybrid or remote anywhere in the
+  countries EURES covers, no area; EURES and the remote boards.
+* **United States**: the English titles, anywhere in the country; Adzuna and
+  the remote boards. Adzuna needs ``ADZUNA_APP_ID`` and ``ADZUNA_APP_KEY``
+  (free keys); without them the region is skipped.
+
+Plus any ``--sources`` you add.
 
 This hits real job boards, politely and slowly (one request every two
 seconds per host, at most 30 offers per source, an hour of cache shared
@@ -24,6 +33,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import statistics
 import sys
 import tempfile
@@ -38,6 +48,7 @@ from jobradar.config import Paths, Portal, Settings
 from jobradar.models import WorkMode
 from jobradar.pipeline.search import run_search
 from jobradar.profile import import_profile
+from jobradar.sources.eures import COVERED as EURES_COUNTRIES
 from jobradar.storage import Database
 from jobradar.textutils import title_matches
 
@@ -54,7 +65,24 @@ INFOEMPLEO = "https://www.infoempleo.com/trabajo/area-de-empresa_{area}/en_{prov
 REGIONS: dict[str, dict] = {
     "navarra": {"area": "Pamplona", "infoempleo": "navarra"},
     "madrid": {"area": "Madrid", "infoempleo": "madrid"},
+    # Wide regions: English titles, no area, the country list as the limit.
+    "europe": {"countries": sorted(EURES_COUNTRIES), "home": "ES",
+               "sources": ["eures", "remoteok", "weworkremotely", "himalayas"]},
+    "usa": {"countries": ["US"], "home": "US", "needs": ["ADZUNA_APP_ID", "ADZUNA_APP_KEY"],
+            "sources": ["adzuna", "remoteok", "weworkremotely", "himalayas"]},
 }
+
+
+LABELS = {"navarra": "Navarra", "madrid": "Madrid", "europe": "Europe", "usa": "United States"}
+
+
+def is_wide(region: dict) -> bool:
+    return "countries" in region
+
+
+def titles_for(spec: dict, region: dict) -> list[str]:
+    """English titles for the wide regions, Spanish ones for Spain's."""
+    return list(spec["titles_en"] if is_wide(region) else spec["titles"])
 
 
 def portals_for(spec: dict, region: dict) -> list[Portal]:
@@ -67,16 +95,23 @@ def portals_for(spec: dict, region: dict) -> list[Portal]:
 
 def settings_for(spec: dict, region: dict, extra_sources: list[str]) -> Settings:
     settings = Settings(onboarded=True, full_name="Benchmark", country="ES", default_language="es")
-    settings.search.titles = list(spec["titles"])
-    settings.search.languages = ["es"]
+    settings.search.titles = titles_for(spec, region)
     filters = settings.filters
-    filters.work_modes = [WorkMode(mode) for mode in spec.get("work_modes", ["onsite", "hybrid"])]
-    filters.local_areas = [region["area"]]
-    filters.local_only = True
-    filters.home_country = "ES"
     filters.max_age_days = 30
-    settings.sources.enabled = ["eures", "portals", *extra_sources]
-    settings.sources.portals = portals_for(spec, region)
+    if is_wide(region):
+        settings.search.languages = ["en"]
+        filters.work_modes = [WorkMode.ONSITE, WorkMode.HYBRID, WorkMode.REMOTE]
+        filters.home_country = region["home"]
+        filters.eligible_countries = [c for c in region["countries"] if c != region["home"]]
+        settings.sources.enabled = [*region["sources"], *extra_sources]
+    else:
+        settings.search.languages = ["es"]
+        filters.work_modes = [WorkMode(mode) for mode in spec.get("work_modes", ["onsite", "hybrid"])]
+        filters.local_areas = [region["area"]]
+        filters.local_only = True
+        filters.home_country = "ES"
+        settings.sources.enabled = ["eures", "portals", *extra_sources]
+        settings.sources.portals = portals_for(spec, region)
     # Gentler than the defaults: two full runs back to back got the Sistema
     # Nacional de Empleo to refuse this machine for a while.
     settings.sources.request_delay = 2.0
@@ -104,7 +139,7 @@ def run_one(key: str, spec: dict, region_key: str, extra: list[str], cache: Path
             database.close()
 
     kept = result.kept
-    by_title = [job for job in kept if title_matches(job.title, spec["titles"])]
+    by_title = [job for job in kept if title_matches(job.title, titles_for(spec, region))]
     by_family = [job for job in kept if job.family == spec["family"]]
     def score(job):  # None for an ad JobRadar could not score (no skill it knows)
         found = result.scores.get(job.id)
@@ -131,14 +166,17 @@ def run_one(key: str, spec: dict, region_key: str, extra: list[str], cache: Path
 
 def report(rows: list[dict], profiles: dict, regions: list[str]) -> str:
     lines = [f"# JobRadar with graduate profiles — {date.today():%d %B %Y}", "",
-             f"Regions: {', '.join(regions)}. Only in the region's area, on-site or hybrid, "
-             "ads up to 30 days old. Sources: EURES and the region's portals.", "",
+             f"Regions: {', '.join(regions)}. Ads up to 30 days old. Navarra and Madrid: Spanish "
+             "titles, only in the region's area; EURES, the Sistema Nacional de Empleo and "
+             "Infoempleo. Europe: English titles, any work mode, the EURES countries; EURES and "
+             "the remote boards. United States: English titles; Adzuna and the remote boards.",
+             "",
              "**Kept** passed every filter. **By title** is how many of those have a title "
              "matching one the profile searched; **by family**, how many are in the profession's "
              "family. The gap between them and *kept* is noise.", ""]
     for region in regions:
         region_rows = [r for r in rows if r["region"] == region]
-        lines += [f"## {region.title()}", "",
+        lines += [f"## {LABELS.get(region, region.title())}", "",
                   "| Profile | Fetched | Kept | By title | By family | Median score | Not scored "
                   "| Main reason dropped |",
                   "|---|---:|---:|---:|---:|---:|---:|---|"]
@@ -172,7 +210,8 @@ def report(rows: list[dict], profiles: dict, regions: list[str]) -> str:
 def main(argv: list[str] | None = None) -> int:
     profiles = yaml.safe_load((HERE / "profiles.yaml").read_text(encoding="utf-8"))
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("--regions", nargs="+", default=list(REGIONS), choices=list(REGIONS))
+    parser.add_argument("--regions", nargs="+", default=["navarra", "madrid"],
+                        choices=list(REGIONS))
     parser.add_argument("--profiles", nargs="+", default=list(profiles), choices=list(profiles))
     parser.add_argument("--sources", nargs="*", default=[],
                         help="extra source ids, e.g. linkedin infojobs indeed")
@@ -183,7 +222,13 @@ def main(argv: list[str] | None = None) -> int:
     cache = args.out / ".cache"
     cache.mkdir(exist_ok=True)
     rows = []
+    regions = []
     for region in args.regions:
+        missing = [name for name in REGIONS[region].get("needs", []) if not os.environ.get(name)]
+        if missing:
+            print(f"Skipping {region}: set {', '.join(missing)} to search it.", file=sys.stderr)
+            continue
+        regions.append(region)
         for key in args.profiles:
             print(f"{region} · {key}…", file=sys.stderr, flush=True)
             row = run_one(key, profiles[key], region, args.sources, cache)
@@ -191,10 +236,12 @@ def main(argv: list[str] | None = None) -> int:
                   file=sys.stderr, flush=True)
             rows.append(row)
 
-    stem = args.out / f"{date.today():%Y-%m-%d}-{'-'.join(args.regions)}"
+    if not regions:
+        return 1
+    stem = args.out / f"{date.today():%Y-%m-%d}-{'-'.join(regions)}"
     stem.with_suffix(".json").write_text(json.dumps(rows, ensure_ascii=False, indent=1),
                                          encoding="utf-8")
-    stem.with_suffix(".md").write_text(report(rows, profiles, args.regions), encoding="utf-8")
+    stem.with_suffix(".md").write_text(report(rows, profiles, regions), encoding="utf-8")
     print(f"Report: {stem.with_suffix('.md')}", file=sys.stderr)
     return 0
 

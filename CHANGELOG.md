@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Added
+
+- **Wider benchmark regions**: `benchmarks/run.py --regions europe usa`
+  searches each graduate profile with its English titles across every
+  country EURES covers, and across the United States through Adzuna (free
+  keys), besides Navarra and Madrid.
+
 ## 1.9.0 — 2026-09-28
 
 ### Added
