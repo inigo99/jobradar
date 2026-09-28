@@ -77,6 +77,10 @@ All notable changes to this project are documented here. The format follows
   words now.
 - **"Experiencia mínima de 6 meses" read as six years**, which filtered the
   ad out and priced it in the senior band.
+- **Age limits read as years of experience.** "A partir de 25 años", "edad
+  mínima 25 años" and "25 horas" dropped nursing and social-work ads as
+  asking for 25 years. Age phrases are left out, hours are not years, and
+  nothing above 15 years is taken as experience.
 - **EURES ignored your areas.** It searched the whole country, so a
   best-match list from other provinces buried the local ads, and every job
   read "Spain". Your areas are searched first, by region, and each job names

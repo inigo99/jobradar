@@ -85,3 +85,13 @@ def test_titles_match_their_relatives_not_their_lookalikes():
     assert not title_matches("tecnico laboral/AUXILIAR", ["técnico de laboratorio"])
     assert not title_matches("Listado de ofertas por Comunidad Autónoma", ["técnico de comunicación"])
     assert not title_matches("Mecánico electrodomésticos", ["electricista"])
+
+
+def test_an_age_limit_is_not_experience():
+    """Public employment ads write age limits like experience: "a partir de 25 años"."""
+    for text in ["A partir de 25 años", "Edad mínima 25 años", "Edad: desde 18 años. "
+                 "Al menos 2 años de experiencia", "Experiencia mínima: 25 horas de formación"]:
+        assert extract_min_years(text) in (None, 2), text
+    assert extract_min_years("Edad: desde 18 años. Al menos 2 años de experiencia") == 2
+    assert extract_min_years("a partir de 2 años de experiencia") == 2
+    assert extract_min_years("More than 10 years of experience") == 10

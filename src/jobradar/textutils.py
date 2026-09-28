@@ -439,8 +439,16 @@ _YEARS_PATTERNS = tuple(re.compile(p) for p in (
     r"(\d{1,2})\s*anos\s+de\s+experiencia",
     # The unit is optional here ("experiencia minima: 2"), so months are ruled
     # out explicitly: "experiencia minima de 6 meses" is half a year, not six.
-    r"experiencia\s+minima[^0-9]{0,20}(\d{1,2})(?!\d|\s*(?:mes|month|semana|week|dia|day))",
+    r"experiencia\s+minima[^0-9]{0,20}(\d{1,2})(?!\d|\s*(?:mes|month|semana|week|dia|day|hora|hour))",
 ))
+
+
+#: Above this, "a partir de 25 años" is an age, not experience: public
+#: employment ads state age limits ("desde 25 años", "edad mínima 25 años")
+#: in the same words.
+MAX_YEARS_ASKED = 15
+#: Age conditions, removed before experience is looked for.
+_AGE = re.compile(r"\bedad\b[^.;\n]{0,40}|\b(?:mayor|menor)(?:es)?\s+de\s+\d{1,2}\s*anos")
 
 
 def extract_min_years(text: str) -> int | None:
@@ -450,13 +458,13 @@ def extract_min_years(text: str) -> int | None:
     years of experience overall" asks for 5 — the overall figure is the one
     that ends an application. Ranges count by their lower bound.
     """
-    blob = fold(text)
+    blob = _AGE.sub(" ", fold(text))
     for pattern in _YEAR_RANGES:
         blob = pattern.sub(r"\1+", blob)
     found: list[int] = []
     for pattern in _YEARS_PATTERNS:
         found.extend(int(m) for m in pattern.findall(blob) if m.isdigit())
-    sane = [y for y in found if 0 < y <= 25]
+    sane = [y for y in found if 0 < y <= MAX_YEARS_ASKED]
     return max(sane) if sane else None
 
 
