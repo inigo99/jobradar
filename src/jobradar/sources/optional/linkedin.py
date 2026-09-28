@@ -64,7 +64,6 @@ class LinkedInGuestSource(JobSource):
         "public pages. Enabling this adapter is your decision and your responsibility; "
         "keep the request delay high and the volume comparable to browsing by hand."
     )
-    supports_remote_filter = True
     required_env = ()
 
     #: LinkedIn's own filter values.

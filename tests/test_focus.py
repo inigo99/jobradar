@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from jobradar.models import MatchScore, Salary, SalaryOrigin
-from jobradar.pipeline.focus import focus_for, is_senior_title, rank
+from jobradar.pipeline.focus import focus_for, is_senior_title
 from tests.conftest import make_job
 
 TODAY = date(2026, 9, 11)
@@ -63,13 +63,13 @@ def test_the_match_score_is_never_modified():
     assert SCORE.tailored == 80.0
 
 
-def test_rank_orders_by_focus_not_by_match():
-    strong_but_old = (_job(native_id="a", posted_at=TODAY - timedelta(days=30), salary=Salary()),
-                      MatchScore(tailored=95.0))
-    weaker_but_fresh = (_job(native_id="b", posted_at=TODAY, salary=Salary()),
-                        MatchScore(tailored=70.0))
-    ordered = rank([strong_but_old, weaker_but_fresh], TODAY)
-    assert ordered[0][0].native_id == "b"
+def test_focus_puts_a_fresh_ad_above_a_stronger_stale_one():
+    """The board sorts by focus, not by match: a stale ad goes nowhere."""
+    strong_but_old, _ = focus_for(_job(native_id="a", posted_at=TODAY - timedelta(days=30),
+                                       salary=Salary()), MatchScore(tailored=95.0), TODAY)
+    weaker_but_fresh, _ = focus_for(_job(native_id="b", posted_at=TODAY, salary=Salary()),
+                                    MatchScore(tailored=70.0), TODAY)
+    assert weaker_but_fresh > strong_but_old
 
 
 def test_is_senior_title_matches_other_languages():

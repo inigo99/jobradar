@@ -128,7 +128,6 @@ class IndeedSource(JobSource):
         "your decision and your responsibility; keep the request delay high and the "
         "volume comparable to browsing by hand."
     )
-    supports_remote_filter = False
 
     def search(self, query: SearchQuery) -> list[Job]:
         jobs: dict[str, Job] = {}

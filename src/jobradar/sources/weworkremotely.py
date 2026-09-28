@@ -39,7 +39,6 @@ class WeWorkRemotelySource(JobSource):
     name = "We Work Remotely"
     homepage = "https://weworkremotely.com"
     tos_tier = "open"
-    supports_remote_filter = True
 
     def search(self, query: SearchQuery) -> list[Job]:
         categories = self.options.get("categories") or DEFAULT_CATEGORIES

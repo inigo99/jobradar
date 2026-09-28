@@ -26,7 +26,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from ..models import LintFinding, Profile, Severity, localized
+from ..models import LintFinding, Profile, Severity
 from ..profile.vocabulary import allowed_terms, profile_text
 from ..taxonomy import find_skills, label_for
 from ..textutils import normalise
@@ -217,22 +217,3 @@ def validate_document(
     if strict_numbers:
         findings += check_invented_numbers(text, profile)
     return ValidationReport(findings)
-
-
-def validate_rendered_cv(sections: dict[str, str], profile: Profile, language: str) -> ValidationReport:
-    """Validate a whole rendered CV, section by section.
-
-    Only the generated sections are checked. The achievement bullets are copied
-    verbatim from the profile, so checking them would only ever report the
-    profile against itself.
-    """
-    report = ValidationReport()
-    for name in ("headline", "summary"):
-        text = sections.get(name, "")
-        if not text:
-            continue
-        for finding in validate_document(text, profile, language).findings:
-            finding.location = name
-            report.findings.append(finding)
-    _ = localized  # keep the import meaningful for future localized sections
-    return report

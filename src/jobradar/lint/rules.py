@@ -113,20 +113,12 @@ def finding(
     return LintFinding(rule=rule, severity=severity, message=message, hint=hint, location=location)
 
 
-
 def _bullets(profile: Profile, language: str) -> list[tuple[str, Bullet, str]]:
     return [
         (experience.organization or experience.id, bullet, localized(bullet.text, language))
         for experience in profile.experience
         for bullet in experience.bullets
     ]
-
-
-def _months_between(earlier: str, later: str) -> int | None:
-    start, end = _parse_month(earlier), _parse_month(later)
-    if not start or not end:
-        return None
-    return (end.year - start.year) * MONTHS_IN_YEAR + (end.month - start.month)
 
 
 # ---------------------------------------------------------------------------

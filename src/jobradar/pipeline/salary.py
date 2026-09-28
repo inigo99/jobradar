@@ -295,16 +295,3 @@ def normalise_salary(
     if salary_obj and salary_obj.origin == SalaryOrigin.PUBLISHED and salary_obj.midpoint:
         return salary_obj
     return estimate_salary(job, target_currency, rates, families, home_country)
-
-
-def annual_from_text(text: str) -> int | None:
-    """Best-effort annual figure from a phrase like '3.500 € / month'."""
-    match = re.search(r"(\d[\d.,]{2,})", text or "")
-    if not match:
-        return None
-    digits = match.group(1).replace(".", "").replace(",", "")
-    try:
-        value = int(digits)
-    except ValueError:
-        return None
-    return value * 12 if value < 12_000 else value

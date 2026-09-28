@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 
-from ..models import ApplicationStatus, Job
+from ..models import ApplicationStatus
 from ..sources import build_sources
 from ..sources.base import JobSource
 from ..storage import Database
@@ -74,10 +74,3 @@ def sweep_closed(database: Database, limit: int | None = None) -> SweepReport:
     finally:
         fetcher.close()
     return report
-
-
-def reopen(database: Database, job: Job) -> None:
-    """Undo a sweep decision, e.g. after fixing a moved apply URL."""
-    with database.transaction() as cursor:
-        cursor.execute("UPDATE jobs SET closed = 0, closed_reason = '' WHERE id = ?", (job.id,))
-        cursor.execute("DELETE FROM closed_jobs WHERE job_id = ?", (job.id,))

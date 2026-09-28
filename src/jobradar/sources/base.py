@@ -508,8 +508,6 @@ class JobSource(ABC):
     required_env: tuple[str, ...] = ()
     #: Where to get those credentials: shown next to the key fields in Settings.
     key_url: str = ""
-    #: True when the source itself can tell remote from on-site reliably.
-    supports_remote_filter: bool = False
     #: For a national board, the countries it covers (ISO codes). It is on by
     #: default only for users who search one of them; the rest can switch it
     #: on in Settings, as they add the portals in docs/PORTALS.md.

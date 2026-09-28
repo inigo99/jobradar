@@ -19,7 +19,6 @@ class RemoteOKSource(JobSource):
     name = "RemoteOK"
     homepage = "https://remoteok.com"
     tos_tier = "open"
-    supports_remote_filter = True
 
     def search(self, query: SearchQuery) -> list[Job]:
         payload = self.fetcher.get_json(API)
