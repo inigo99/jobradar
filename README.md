@@ -3,7 +3,7 @@
 [![CI](https://github.com/inigo99/jobradar/actions/workflows/ci.yml/badge.svg)](https://github.com/inigo99/jobradar/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/jobradar-cv)](https://pypi.org/project/jobradar-cv/)
 [![Python](https://img.shields.io/pypi/pyversions/jobradar-cv)](https://pypi.org/project/jobradar-cv/)
-[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](https://github.com/inigo99/jobradar/blob/master/LICENSE)
 
 **A self-hosted job radar for any kind of work: it searches job boards, scores every opening against your CV, and writes a tailored one-page CV for each one — without inventing a single thing about you.**
 
@@ -17,7 +17,7 @@ jobradar serve     # dashboard on http://127.0.0.1:8000
 
 ![JobRadar demo: the board, what a job asks for, a tailored CV, form answers and settings](https://raw.githubusercontent.com/inigo99/jobradar/master/docs/images/demo.gif)
 
-*The synthetic demo (`jobradar demo`), no network. Still screenshot: [docs/images/dashboard.png](docs/images/dashboard.png).*
+*The synthetic demo (`jobradar demo`), no network. Still screenshot: [docs/images/dashboard.png](https://raw.githubusercontent.com/inigo99/jobradar/master/docs/images/dashboard.png).*
 
 ---
 
