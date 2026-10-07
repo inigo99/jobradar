@@ -43,7 +43,7 @@ from pydantic import ValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.requests import Request
 
-from .. import __version__
+from .. import __version__, linkedin_import
 from ..config import Filters, Paths, countries, load_dotenv, save_env_values, validation_summary
 from ..documents import generate_cover_letter, generate_email, render_cv, tailor
 from ..documents.answers import add_turn, answer, to_bank
@@ -333,7 +333,7 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
 
     app.state.database = database
     app.state.paths = paths
-    app.state.running = {"search": False, "sweep": False}
+    app.state.running = {"search": False, "sweep": False, "linkedin": False}
     app.state.last_run = None
     #: The search running in the background: where it is, how to stop it,
     #: and how the last one ended — see /api/search.
@@ -1081,6 +1081,32 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
         return {"ok": True, "summary": localize.message(report.summary()),
                 "replies": len(report.news),
                 "orphans": len(report.orphans)}
+
+    # -- LinkedIn, through the MCP server -------------------------------------
+
+    async def linkedin_work(task):
+        """Run one LinkedIn import at a time: both drive the same browser session."""
+        if app.state.running["linkedin"]:
+            raise HTTPException(status_code=409,
+                                detail=localize.message("A LinkedIn import is already running"))
+        app.state.running["linkedin"] = True
+        try:
+            return await asyncio.to_thread(task, database)
+        finally:
+            app.state.running["linkedin"] = False
+
+    @app.post("/api/linkedin/saved")
+    async def linkedin_saved():
+        """Put the jobs saved on LinkedIn on the board."""
+        report = await linkedin_work(linkedin_import.import_saved_jobs)
+        return {"ok": True, **report.as_dict()}
+
+    @app.post("/api/linkedin/profile")
+    async def linkedin_profile():
+        """Replace the profile with the LinkedIn one, keeping hand edits."""
+        profile, notes = await linkedin_work(linkedin_import.import_linkedin_profile)
+        return {"ok": True, "notes": [localize.message(note) for note in notes],
+                "profile": localize.profile(_profile_summary(profile))}
 
     @app.get("/api/jobs/{job_id}/interview.ics")
     def interview_calendar(job_id: str):

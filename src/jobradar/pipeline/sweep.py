@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 
 from ..models import ApplicationStatus
 from ..sources import build_sources
-from ..sources.base import JobSource
+from ..sources.base import JobSource, close_sources
 from ..storage import Database
 
 log = logging.getLogger(__name__)
@@ -73,4 +73,5 @@ def sweep_closed(database: Database, limit: int | None = None) -> SweepReport:
                 report.closed.append((job.id, f"{job.company} — {job.title}", reason))
     finally:
         fetcher.close()
+        close_sources(sources)
     return report

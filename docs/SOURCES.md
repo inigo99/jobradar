@@ -24,8 +24,9 @@ jurisdiction and the site's terms — not a default this project should make on
 their behalf. If you enable one, keep `request_delay` generous and use it at
 the volume of a person doing their own job search.
 
-Shipped restricted adapters: LinkedIn (guest endpoint), InfoJobs, Tecnoempleo
-and Indeed. Manfred is `open`: it serves its offers as public JSON.
+Shipped restricted adapters: LinkedIn (guest endpoint), LinkedIn through the
+MCP server (your own session, below), InfoJobs, Tecnoempleo and Indeed.
+Manfred is `open`: it serves its offers as public JSON.
 
 ## National boards
 
@@ -130,6 +131,44 @@ adapter calling `self.fetcher.get` directly keeps the check.
 browser or a browser build Scrapling cannot launch is added to
 `Fetcher.problems` once per run and shown in the run summary and the run
 history — the alternative, an empty result, looks exactly like "no jobs today".
+
+## LinkedIn with your own session (MCP server)
+
+`linkedin` reads LinkedIn's public guest endpoint. `linkedin_mcp` reads
+LinkedIn **signed in as you**, through
+[linkedin-mcp-server](https://github.com/stickerdaniel/linkedin-mcp-server):
+it sees what you see when you search in your browser, and it makes two
+imports possible.
+
+- **Search** (`linkedin_mcp` in `sources.enabled`): your titles in your areas
+  (and, if you take remote work, in your countries with LinkedIn's remote
+  filter), over the age you set. LinkedIn returns ids and only sometimes a
+  title, so each ad is opened during the search. An ad whose title the search
+  did show and that matches none of yours is not opened. At most
+  `sources.linkedin_mcp_reads` ads (25 by default) are opened per run. A
+  reading is reused for three days, so the next runs do not open it again.
+- **Your saved jobs**: `jobradar linkedin saved`, or *Import my saved jobs* in
+  Settings → Where to search. The jobs in LinkedIn's *Saved* tab go on the
+  board, read and scored like a job you add by hand, with no filter. Jobs
+  already on the board, closed, or deleted by you in JobRadar are left alone.
+- **Your profile**: `jobradar linkedin profile`, or *Import my profile*. Your
+  profile is laid out as a CV ("Title — Company", the place and dates, the
+  description as bullets; languages with their level) and read by the CV
+  importer, which keeps the edits you made by hand to the previous profile.
+
+**Setup.** `pip install "jobradar-cv[linkedin-mcp]"` for the MCP client, and
+[uv](https://docs.astral.sh/uv/) for `uvx`, which runs the server. Sign in
+once in a terminal with `uvx mcp-server-linkedin --login`. On first use the
+server downloads its own browser; JobRadar waits for it (up to ten minutes)
+instead of failing. `sources.linkedin_mcp_command` is how JobRadar starts the
+server, `uvx mcp-server-linkedin` by default. That command keeps the version
+uv installed first. `uvx mcp-server-linkedin@latest` updates the server every
+time it starts, which keeps up with LinkedIn's page changes; choosing that is
+up to you.
+
+**Your account.** This acts as you. LinkedIn's User Agreement restricts
+automated access, and LinkedIn can limit or close an account that uses it.
+Keep the number of ads read per run low, and search once a day at most.
 
 ## Sources that run once a week
 

@@ -379,6 +379,34 @@ def cmd_sweep(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_linkedin(args: argparse.Namespace) -> int:
+    """Bring your saved jobs or your profile over from LinkedIn, through the MCP server."""
+    from .linkedin_import import import_linkedin_profile, import_saved_jobs
+
+    database = _database(args)
+    try:
+        if args.what == "saved":
+            report = import_saved_jobs(database)
+            out(f"{len(report.added)} saved jobs added to the board.")
+            for label in report.added:
+                out(f"  [green]+[/green] {label}")
+            for count, why in ((report.already_there, "already on the board"),
+                               (report.deleted_by_you, "deleted by you"),
+                               (report.closed, "closed"),
+                               (report.unreadable, "could not be read")):
+                if count:
+                    out(f"  {count} {why}")
+        else:
+            profile, notes = import_linkedin_profile(database)
+            out(f"Profile imported from LinkedIn: [bold]{profile.contact.full_name or 'unnamed'}"
+                f"[/bold], {len(profile.experience or [])} positions.")
+            for note in notes:
+                out(f"  [yellow]•[/yellow] {note}")
+    finally:
+        database.close()
+    return 0
+
+
 def cmd_tailor(args: argparse.Namespace) -> int:
     """Generate the tailored CV for one job or for the best N."""
     database = _database(args)
@@ -664,6 +692,8 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         ("pypdf", "PDF CV import", "pip install 'jobradar[parse]'"),
         ("docx", "Word CV import", "pip install 'jobradar[parse]'"),
         ("openpyxl", "Excel export", "pip install 'jobradar[excel]'"),
+        ("mcp", "LinkedIn through the MCP server",
+         "optional — pip install 'jobradar-cv[linkedin-mcp]' and install uv"),
     ):
         try:
             __import__(module)
@@ -749,6 +779,12 @@ def build_parser() -> argparse.ArgumentParser:
     tailor_cmd.add_argument("--top", type=_positive_int, default=5, help="Generate for the best N jobs")
     tailor_cmd.add_argument("--no-llm", action="store_true")
     tailor_cmd.set_defaults(func=cmd_tailor)
+
+    linkedin = sub.add_parser(
+        "linkedin", help="Import your saved jobs or your profile from LinkedIn (MCP server)")
+    linkedin.add_argument("what", choices=["saved", "profile"],
+                          help="saved: the jobs in your Saved tab; profile: your own profile")
+    linkedin.set_defaults(func=cmd_linkedin)
 
     lint_cmd = sub.add_parser("lint", help="Run the recruiter red-flag check")
     lint_cmd.add_argument("--language", default=None)

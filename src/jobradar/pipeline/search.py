@@ -43,7 +43,7 @@ from ..errors import JobRadarError
 from ..llm import LLMClient, build_client
 from ..models import Job, MatchScore, Profile, SearchRun
 from ..sources import SearchQuery, build_sources
-from ..sources.base import Fetcher, JobSource
+from ..sources.base import Fetcher, JobSource, close_sources
 from ..storage import Database
 from .dedupe import _merge, deduplicate, split_known
 from .enrich import enrich_job
@@ -308,6 +308,7 @@ class SearchPipeline:
             self.database.log_run(result.run)
             if self._fetcher is not None:
                 self._fetcher.close()
+            close_sources(self._sources or [])
             report(stage="done")
         return result
 

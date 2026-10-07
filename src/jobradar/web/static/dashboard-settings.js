@@ -106,7 +106,8 @@ function settingsBody() {
               el("span", { className: "tier " + source.tos_tier }, tierLabel(source.tos_tier))),
             nationalNote(source),
             source.required_env.length ? keysForm(source) : null,
-            source.tos_note ? el("div", { className: "hint" }, source.tos_note) : null),
+            source.tos_note ? el("div", { className: "hint" }, source.tos_note) : null,
+            source.id === "linkedin_mcp" ? linkedinForm(settings) : null),
           el("label", { className: "row", style: "margin:0;font-weight:400;white-space:nowrap" },
             el("input", { type: "checkbox", className: "s_weekly", value: source.id,
                           checked: settings.sources.weekly.includes(source.id) }), " ", t("weekly")));
@@ -482,6 +483,10 @@ async function saveSettings() {
   settings.mail.days_back = Number(value("s_maildays") || 30);
   settings.sources.request_delay = Number(value("s_delay") || 1);
   settings.sources.max_results_per_source = Number(value("s_limit") || 100);
+  if ($("#s_lmcp_cmd")) {
+    settings.sources.linkedin_mcp_command = value("s_lmcp_cmd") || "uvx mcp-server-linkedin";
+    settings.sources.linkedin_mcp_reads = Number(value("s_lmcp_reads") || 25);
+  }
 
   settings.llm.provider = value("s_provider");
   settings.llm.model = value("s_model");
@@ -544,6 +549,37 @@ function keysForm(source) {
       el("a", { href: source.key_url, target: "_blank", rel: "noopener" }, t("Get a free key")),
       " ", t("(sign up, create an app, copy the values here)")) : null,
     el("div", { className: "row", style: "gap:6px;flex-wrap:wrap" }, ...fields, save));
+}
+
+/* LinkedIn through the MCP server (github.com/stickerdaniel/linkedin-mcp-server):
+   how JobRadar starts it, how many ads a run may open, and the two imports it
+   makes possible. Both imports act as the user's account, like the source. */
+function linkedinForm(settings) {
+  // button() disables itself while the import runs and shows any error.
+  const run = (label, path, done) => button(label, async () => {
+    toast(t("Asking LinkedIn… the first time, the server installs a browser and may ask you to sign in."), 6000);
+    await done(await api(path, { method: "POST" }));
+  });
+  const saved = run(t("Import my saved jobs"), "/api/linkedin/saved", async result => {
+    await refresh();
+    toast(tn(result.added.length, "{n} saved job added to the board.",
+             "{n} saved jobs added to the board."), 6000);
+  });
+  const profile = run(t("Import my profile"), "/api/linkedin/profile", async result => {
+    await refresh();
+    toast(t("Profile imported from LinkedIn."));
+    if (result.notes.length) alert(t("Profile imported from LinkedIn. Worth checking:") + "\n\n\u2022 " + result.notes.join("\n\u2022 "));
+  });
+  return el("div", { className: "keys" },
+    el("div", { className: "two" },
+      el("div", {}, el("label", {}, t("Command that starts the server")),
+        input("s_lmcp_cmd", settings.sources.linkedin_mcp_command)),
+      el("div", {}, el("label", {}, t("Ads read per search at most")),
+        el("input", { id: "s_lmcp_reads", type: "number", min: 1, max: 200,
+                      value: settings.sources.linkedin_mcp_reads }))),
+    el("p", { className: "hint" },
+      t("Needs uv and the linkedin-mcp extra. Sign in once in a terminal with \u201cuvx mcp-server-linkedin --login\u201d. Add @latest to the command to update the server on every start.")),
+    el("div", { className: "row", style: "gap:6px;flex-wrap:wrap" }, saved, profile));
 }
 
 /* The job portals the user reads: each can be switched off, renamed, edited

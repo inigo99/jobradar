@@ -71,6 +71,9 @@ sources:
                                   # own installed Chrome instead of Scrapling's
                                   # bundled browser — faster, but only sensible
                                   # on a machine you use interactively
+  linkedin_mcp_command: uvx mcp-server-linkedin   # starts the LinkedIn MCP server;
+                                  # add @latest to update it on every start
+  linkedin_mcp_reads: 25          # ads the linkedin_mcp source opens per run at most
 
 llm:
   provider: none                 # none | anthropic | openai | gemini | openai-compatible | ollama
