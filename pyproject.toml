@@ -6,14 +6,14 @@ build-backend = "setuptools.build_meta"
 # "jobradar" is taken on PyPI (too close to "job-radar"); the import package
 # and the command are still `jobradar`.
 name = "jobradar-cv"
-version = "1.11.0"
+version = "1.11.1"
 description = "Self-hosted job radar: searches job boards, scores openings against your CV, and tailors an honest one-page CV for each one."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "AGPL-3.0-only"
 license-files = ["LICENSE"]
 authors = [{ name = "Íñigo Fernández Barrill" }, { name = "JobRadar contributors" }]
-keywords = ["job-search", "cv", "resume", "ats", "job-board", "scraper", "llm"]
+keywords = ["job-search", "cv", "resume", "ats", "job-board", "scraper", "llm", "linkedin", "mcp", "eures"]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Environment :: Console",
