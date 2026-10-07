@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Changed
+
+- Package keywords: `linkedin`, `mcp` and `eures`, so PyPI search finds them.
+
 ## 1.11.0 — 2026-10-07
 
 ### Added
