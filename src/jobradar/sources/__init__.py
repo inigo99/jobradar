@@ -27,6 +27,7 @@ from .manfred import ManfredSource
 from .optional.indeed import IndeedSource
 from .optional.infojobs import InfoJobsSource
 from .optional.linkedin import LinkedInGuestSource
+from .optional.linkedin_mcp import LinkedInMCPSource
 from .optional.tecnoempleo import TecnoempleoSource
 from .portals import PortalsSource
 from .remoteok import RemoteOKSource
@@ -51,6 +52,7 @@ REGISTRY: tuple[type[JobSource], ...] = (
     JoobleSource,
     # tos_tier == "restricted": never on unless the user enables them by name.
     LinkedInGuestSource,
+    LinkedInMCPSource,
     InfoJobsSource,
     TecnoempleoSource,
     IndeedSource,
@@ -147,6 +149,9 @@ def build_sources(settings: Settings, cache_dir: Path | None = None,
             options["portals"] = settings.sources.active_portals()
             if not options["portals"]:
                 continue
+        if cls is LinkedInMCPSource:
+            options["command"] = settings.sources.linkedin_mcp_command
+            options["reads"] = settings.sources.linkedin_mcp_reads
         instance = cls(fetcher, options)
         if cls.required_env and not instance.credentials_present():
             # Asked for by name, it deserves a warning; on by default, a note.

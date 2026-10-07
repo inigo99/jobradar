@@ -1,0 +1,28 @@
+{
+  "url": "https://www.linkedin.com/my-items/saved-jobs/",
+  "sections": {
+    "saved_jobs": "Saved jobs\n3 results"
+  },
+  "job_ids": [
+    "4103",
+    "4104",
+    "4105"
+  ],
+  "references": {
+    "saved_jobs": [
+      {
+        "kind": "job",
+        "url": "/jobs/view/4103/",
+        "text": "Privacy & Data Protection Lawyer"
+      },
+      {
+        "kind": "job",
+        "url": "/jobs/view/4104/"
+      },
+      {
+        "kind": "job",
+        "url": "/jobs/view/4105/"
+      }
+    ]
+  }
+}

@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 # "jobradar" is taken on PyPI (too close to "job-radar"); the import package
 # and the command are still `jobradar`.
 name = "jobradar-cv"
-version = "1.10.0"
+version = "1.11.0"
 description = "Self-hosted job radar: searches job boards, scores openings against your CV, and tailors an honest one-page CV for each one."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -49,6 +49,9 @@ pdf = ["playwright>=1.44"]
 parse = ["pypdf>=4.2", "python-docx>=1.1"]
 # Spreadsheet export.
 excel = ["openpyxl>=3.1"]
+# LinkedIn signed in as you, through github.com/stickerdaniel/linkedin-mcp-server
+# (started with uvx, which comes with uv): the MCP client.
+linkedin-mcp = ["mcp>=1.9"]
 # No extra is needed for a language model: every provider is called over plain
 # HTTP with httpx, which is already a core dependency.
 # Everything an end user is likely to want.

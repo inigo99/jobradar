@@ -247,3 +247,21 @@ def test_a_job_deleted_while_the_run_reads_it_stays_deleted(database, profile, c
         enrich=False, progress=delete_it)
     assert [kept.id for kept in result.kept] == [other.id]
     assert database.get_job(job.id) is None
+
+
+def test_a_run_closes_its_sources_even_when_one_fails(database, profile, configured):
+    """A source holding a process (the LinkedIn MCP server) is let go after the run."""
+
+    closed: list[str] = []
+
+    class Closing(FakeSource):
+        def close(self):
+            closed.append(type(self).__name__)
+
+    class Broken(Closing):
+        def search(self, query):
+            raise RuntimeError("down")
+
+    SearchPipeline(configured, profile, database, sources=[Broken([]), Closing([])],
+                   today=TODAY).run()
+    assert closed == ["Broken", "Closing"]

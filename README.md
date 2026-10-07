@@ -87,6 +87,7 @@ pip install jobradar-cv             # everything, including PDF CVs from the bui
 pip install "jobradar-cv[pdf]"      # + PDFs printed from the HTML templates (headless Chromium)
 pip install "jobradar-cv[parse]"    # + importing a PDF or DOCX CV
 pip install "jobradar-cv[excel]"    # + .xlsx export
+pip install "jobradar-cv[linkedin-mcp]"  # + LinkedIn signed in as you (needs uv), see docs/SOURCES.md
 ```
 
 **With Docker** instead — nothing else to install, browsers included:
@@ -162,6 +163,7 @@ Not sure which titles, filters and boards to start with? **[docs/STARTER_CONFIGS
 | `jobradar export [--format csv\|excel] [--output FILE]` | Export everything, including your notes |
 | `jobradar notify [--dry-run] [--limit N]` | Send the digest of new jobs |
 | `jobradar sources` | Show every source and whether it is on |
+| `jobradar linkedin saved\|profile` | Import the jobs you saved on LinkedIn, or your LinkedIn profile (MCP server) |
 | `jobradar serve [--host HOST] [--port N]` | Start the dashboard |
 | `jobradar doctor` | Check the installation |
 
@@ -190,6 +192,7 @@ The full reference — every filter, job families, how salaries are estimated, t
 | Company career boards | open | Greenhouse, Lever, Ashby, Workable, Recruitee, SmartRecruiters, Personio — detected from a domain |
 | Adzuna, Jooble | credentials | Every sector, many countries (Spain included). Free keys: paste them in Settings → Where to search, which links to the sign-up page |
 | LinkedIn, InfoJobs, Tecnoempleo, Indeed | restricted | Off by default; fetched through a real browser ([Scrapling](https://github.com/D4Vinci/Scrapling)) |
+| LinkedIn with your session | restricted | Off by default; searches signed in as you through [linkedin-mcp-server](https://github.com/stickerdaniel/linkedin-mcp-server), and imports your saved jobs and your profile |
 
 **Open** sources run by default, **credentials** ones once their key is set, and **restricted** ones — pages built for people, whose terms may not allow automated access — only if you switch them on by name. That decision is yours, under the site's terms and your jurisdiction. Every source is fetched politely: one request per second per host, an hour of caching, backoff on 429 and an honest user agent; open and credentials sources also honour `robots.txt`. Any source can be set to run once a week. Details, and how to add a source in one file: **[docs/SOURCES.md](https://github.com/inigo99/jobradar/blob/master/docs/SOURCES.md)**.
 

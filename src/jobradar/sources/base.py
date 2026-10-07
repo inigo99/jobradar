@@ -555,6 +555,10 @@ class JobSource(ABC):
             return False, f"HTTP {status}"
         return True, ""
 
+    def close(self) -> None:
+        """Release what the source holds beyond the shared fetcher; called after a run."""
+        return None
+
     # -- helpers for subclasses -------------------------------------------
 
     def get(self, url: str, **kwargs: Any) -> str | None:
@@ -574,6 +578,15 @@ class JobSource(ABC):
 
     def credentials_present(self) -> bool:
         return all(os.environ.get(name) for name in self.required_env)
+
+
+def close_sources(sources: Iterable[JobSource]) -> None:
+    """Close every source; one that fails to close does not stop the others."""
+    for source in sources:
+        try:
+            source.close()
+        except Exception as exc:
+            log.debug("Could not close %s: %s", source.id, exc)
 
 
 def _browser_missing(exc: Exception) -> bool:

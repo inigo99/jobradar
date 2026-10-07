@@ -260,6 +260,12 @@ class SourceSettings(BaseModel):
     #: it launches that Chrome instead, which is faster but is not there on a
     #: server or in CI.
     scrapling_real_chrome: bool = False
+    #: How JobRadar starts the LinkedIn MCP server (the ``linkedin_mcp`` source
+    #: and the LinkedIn imports). ``uvx mcp-server-linkedin@latest`` updates it
+    #: on every start; without ``@latest`` it stays at the version first installed.
+    linkedin_mcp_command: str = "uvx mcp-server-linkedin"
+    #: Ads ``linkedin_mcp`` reads per run at most: each is a page opened as you.
+    linkedin_mcp_reads: int = Field(default=25, ge=1, le=200)
 
 
 class LLMSettings(BaseModel):

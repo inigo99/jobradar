@@ -217,6 +217,7 @@ exact:
   Finish the setup first: Termina primero la configuración
   A search is already running: Ya hay una búsqueda en marcha
   A sweep is already running: Ya hay una revisión de ofertas cerradas en marcha
+  A LinkedIn import is already running: Ya hay una importación de LinkedIn en marcha
   No interview time was found for this job: No se ha encontrado hora de entrevista para esta oferta
   That ad is no longer in the filtered list; reload the page.: Esa oferta ya no está en la lista de filtradas;
     recarga la página.
@@ -323,6 +324,9 @@ exact:
   Indeed's terms of service prohibit scraping its site. Enabling this adapter is your decision and your responsibility; keep the request delay high and the volume comparable to browsing by hand.: Las condiciones de Indeed prohíben extraer datos de su web. Activar esta fuente es decisión y responsabilidad tuya; mantén una pausa alta entre peticiones y un volumen parecido al de buscar a mano.
   InfoJobs' terms of use restrict automated collection of its listings. InfoJobs also publishes an official partner API — if you can get a key, prefer it. Enabling this adapter is your decision and your responsibility.: 'Las condiciones de InfoJobs restringen la recogida automática de sus ofertas. InfoJobs también tiene una API oficial para socios: si consigues una clave, úsala. Activar esta fuente es decisión y responsabilidad tuya.'
   LinkedIn's User Agreement restricts automated access, including scraping of public pages. Enabling this adapter is your decision and your responsibility; keep the request delay high and the volume comparable to browsing by hand.: El acuerdo de usuario de LinkedIn restringe el acceso automático, incluida la extracción de páginas públicas. Activar esta fuente es decisión y responsabilidad tuya; mantén una pausa alta entre peticiones y un volumen parecido al de buscar a mano.
+  "Reads LinkedIn signed in as you, through the LinkedIn MCP server: LinkedIn's User Agreement restricts automated access, and it can limit or close the account that does it. Enabling this source is your decision and your responsibility; keep the number of ads read per run low.": 'Lee LinkedIn con tu sesión, a través del servidor MCP de LinkedIn: el acuerdo de usuario de LinkedIn restringe el acceso automático, y puede limitar o cerrar la cuenta que lo hace. Activar esta fuente es decisión y responsabilidad tuya; mantén bajo el número de ofertas que se leen por búsqueda.'
+  Reading LinkedIn through the MCP server needs the 'mcp' package.: Leer LinkedIn a través del servidor MCP necesita el paquete «mcp».
+  LinkedIn returned almost nothing of your profile.: LinkedIn apenas ha devuelto nada de tu perfil.
   Tecnoempleo's terms restrict automated collection. Enabling this adapter is your decision and your responsibility; keep the volume low.: Las condiciones de Tecnoempleo restringen la recogida automática. Activar esta fuente es decisión y responsabilidad tuya; mantén un volumen bajo.
   Public JSON API behind the agency's own job search, with a public client id; documented by the community at jobsuche.api.bund.dev, not by the agency.: API JSON pública que usa el buscador de la propia agencia, con un identificador de cliente público; documentada por la comunidad en jobsuche.api.bund.dev, no por la agencia.
   # Keys saved from Settings.

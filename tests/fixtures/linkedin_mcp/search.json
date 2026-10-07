@@ -1,0 +1,42 @@
+{
+  "url": "https://www.linkedin.com/jobs/search/?keywords=abogado&location=Pamplona",
+  "sections": {
+    "search_results": "abogado en Pamplona\n37 resultados"
+  },
+  "job_ids": [
+    "4101",
+    "4102",
+    "4103",
+    "4104"
+  ],
+  "references": {
+    "search_results": [
+      {
+        "kind": "job",
+        "url": "/jobs/view/4101/",
+        "text": "Abogado/a junior - Derecho digital",
+        "context": "job result"
+      },
+      {
+        "kind": "job",
+        "url": "/jobs/view/4102/",
+        "text": "Mozo de almacén",
+        "context": "job result"
+      },
+      {
+        "kind": "job",
+        "url": "/jobs/view/4103/"
+      },
+      {
+        "kind": "job",
+        "url": "/jobs/view/4104/",
+        "text": "Técnico/a jurídico/a",
+        "context": "job result"
+      }
+    ]
+  },
+  "total": {
+    "count": 37,
+    "exact": true
+  }
+}

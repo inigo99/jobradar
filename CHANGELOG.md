@@ -6,6 +6,24 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+## 1.11.0 — 2026-10-07
+
+### Added
+
+- **LinkedIn signed in as you**, through
+  [linkedin-mcp-server](https://github.com/stickerdaniel/linkedin-mcp-server),
+  which JobRadar starts and talks to as an MCP client (`jobradar-cv[linkedin-mcp]`
+  and uv). Restricted and off by default, like the guest LinkedIn source:
+  - a `linkedin_mcp` source searches with your titles where and how you work and
+    reads each ad, at most `sources.linkedin_mcp_reads` (25) per run, reusing a
+    reading for three days;
+  - `jobradar linkedin saved` (or *Import my saved jobs* in Settings) puts the jobs
+    you saved on LinkedIn on the board;
+  - `jobradar linkedin profile` (or *Import my profile*) imports your profile,
+    laid out as a CV for the importer, keeping your hand edits.
+- Sources can hold something beyond the shared HTTP client: `JobSource.close()`
+  is called after every search and sweep.
+
 ## 1.10.0 — 2026-09-28
 
 ### Added
