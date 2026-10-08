@@ -146,5 +146,14 @@ def insights(funnel: dict, history: dict, language: str | None = None) -> tuple[
     return funnel, history
 
 
+def gaps(rows: list[dict], language: str | None = None) -> list[dict]:
+    """The skills you lack most: their names and the learning note."""
+    language = language or current()
+    if language == DEFAULT_LANGUAGE:
+        return rows
+    return [{**row, "label": skill_label(row["key"], row["label"], language),
+             "note": _tr(row["note"], language)} for row in rows]
+
+
 def message(text: str, language: str | None = None) -> str:
     return _tr(text, language)

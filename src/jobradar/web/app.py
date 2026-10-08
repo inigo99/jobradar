@@ -61,6 +61,7 @@ from ..errors import (
 from ..families import Family, catalogue_view, families_for
 from ..families import classify as classify_family
 from ..families import label_for as family_label
+from ..gaps import skill_gaps
 from ..insights import funnel, history
 from ..lint import lint_profile, lint_tailored
 from ..llm import build_client
@@ -1071,7 +1072,10 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
                         database.all_scores(), database.mail_news(), families_for(settings))
         funnel_view, history_view = localize.insights(report.as_dict(),
                                                       history(database.recent_runs(runs)))
-        return {"funnel": funnel_view, "history": history_view}
+        gaps = skill_gaps(database.list_jobs(include_closed=False), database.all_applications(),
+                          database.all_scores())
+        return {"funnel": funnel_view, "history": history_view,
+                "gaps": localize.gaps([gap.as_dict() for gap in gaps])}
 
     @app.post("/api/mail/check")
     async def mail_check():

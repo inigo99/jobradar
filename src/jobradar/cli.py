@@ -308,6 +308,27 @@ def cmd_mail(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_gaps(args: argparse.Namespace) -> int:
+    """The skills the jobs on your board ask for most and your profile lacks."""
+    from .gaps import skill_gaps
+
+    database = _database(args)
+    try:
+        rows = skill_gaps(database.list_jobs(include_closed=False), database.all_applications(),
+                          database.all_scores(), limit=args.limit)
+    finally:
+        database.close()
+    if not rows:
+        out("No gaps to add up yet: run a search with your profile imported.")
+        return 0
+    table("What your jobs ask for and your profile lacks",
+          ["Skill", "Jobs", "Weight", "To learn", "Closest jobs"],
+          [[gap.label, str(gap.jobs), f"{gap.weight:g}", gap.difficulty, "; ".join(gap.examples)]
+           for gap in rows])
+    out("\nfast: days to a week · medium: several weeks · slow: answer it honestly instead.")
+    return 0
+
+
 def cmd_insights(args: argparse.Namespace) -> int:
     """Is the search working? The application funnel and the run history."""
     from .insights import MIN_SAMPLE, funnel, history
@@ -769,6 +790,10 @@ def build_parser() -> argparse.ArgumentParser:
     insights.add_argument("--runs", type=_positive_int, default=30,
                           help="How many recent search runs to summarise")
     insights.set_defaults(func=cmd_insights)
+
+    gaps_cmd = sub.add_parser("gaps", help="The skills your jobs ask for most and you lack")
+    gaps_cmd.add_argument("--limit", type=_positive_int, default=15)
+    gaps_cmd.set_defaults(func=cmd_gaps)
 
     sweep = sub.add_parser("sweep", help="Retire ads that have closed")
     sweep.add_argument("--limit", type=_positive_int, default=None, help="Check at most N jobs")
