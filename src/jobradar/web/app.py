@@ -45,7 +45,14 @@ from starlette.requests import Request
 
 from .. import __version__, linkedin_import
 from ..config import Filters, Paths, countries, load_dotenv, save_env_values, validation_summary
-from ..documents import generate_cover_letter, generate_email, render_cv, tailor
+from ..documents import (
+    generate_cover_letter,
+    generate_email,
+    generate_follow_up,
+    generate_interview_prep,
+    render_cv,
+    tailor,
+)
 from ..documents.answers import add_turn, answer, to_bank
 from ..documents.letters import contact_line
 from ..documents.pdfwriter import letter_pdf
@@ -122,7 +129,7 @@ STATIC = Path(__file__).parent / "static"
 #: is not a CV, and reading it would only fill the disk.
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 #: Documents written as plain text (the CV is rendered to a file instead).
-LETTER_KINDS = ("cover_letter", "email")
+LETTER_KINDS = ("cover_letter", "email", "follow_up", "interview_prep")
 
 
 async def save_upload(upload: UploadFile, directory: Path) -> Path:
@@ -804,15 +811,24 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
         """Write the cover letter or the application email for one job."""
         if kind not in LETTER_KINDS:
             raise HTTPException(status_code=400,
-                                detail=f"Unknown document type '{kind}'; use cover_letter or email.")
+                                detail=f"Unknown document type '{kind}'; use one of "
+                                       f"{', '.join(LETTER_KINDS)}.")
         job = job_or_404(job_id)
         profile = require_profile()
         settings = database.load_settings()
         llm = build_client(settings.llm)
         try:
             score = score_for(job, profile)
-            builder = generate_cover_letter if kind == "cover_letter" else generate_email
-            document = builder(profile, job, score, settings, llm)
+            application = database.all_applications().get(job_id)
+            if kind == "follow_up":
+                sent = [saved.text for name in ("cover_letter", "email")
+                        if (saved := database.get_document(job_id, name)) and saved.text]
+                document = generate_follow_up(profile, job, application, sent, settings, llm)
+            elif kind == "interview_prep":
+                document = generate_interview_prep(profile, job, score, application, settings, llm)
+            else:
+                builder = generate_cover_letter if kind == "cover_letter" else generate_email
+                document = builder(profile, job, score, settings, llm)
         finally:
             if llm:
                 llm.close()
@@ -822,7 +838,8 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
     def letter_or_404(job_id: str, kind: str) -> GeneratedDocument:
         if kind not in LETTER_KINDS:
             raise HTTPException(status_code=400,
-                                detail=f"Unknown document type '{kind}'; use cover_letter or email.")
+                                detail=f"Unknown document type '{kind}'; use one of "
+                                       f"{', '.join(LETTER_KINDS)}.")
         document = database.get_document(job_id, kind)
         if not document:
             raise HTTPException(
@@ -870,7 +887,8 @@ def create_app(paths: Paths | None = None, allowed_hosts: Iterable[str] | None =
     def document_view(document: GeneratedDocument, job: Job | None) -> dict:
         view = document.model_dump(mode="json")
         profile = database.load_profile()
-        if document.kind in LETTER_KINDS and profile is not None:
+        if document.kind in LETTER_KINDS and document.kind != "interview_prep" \
+                and profile is not None:
             view["warnings"] = localize.findings([f.model_dump(mode="json") for f in review_text(
                 document.text, profile, job, document.kind,
                 extra_phrases=database.load_settings().banned_phrases)])

@@ -407,3 +407,69 @@ Rules for this format:
         "last answer — in that case return the whole revised answer.)" if history else
         f"Question from the form: {question}")
     return system, "\n\n".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# 7. After applying: the follow-up and the interview
+# ---------------------------------------------------------------------------
+
+
+def follow_up_email(profile: Profile, job: Job, applied_on: str, sent: list[str],
+                    language: str) -> tuple[str, str]:
+    """A short follow-up for an application that has had no answer.
+
+    ``sent`` is what the candidate actually sent (the letter, the email): the
+    follow-up may only repeat claims from it or from the profile, so it can
+    never contradict the application.
+    """
+    system = f"""You write a short follow-up email for a job application that has had no answer.
+
+{NO_FABRICATION}
+
+{UNTRUSTED_TEXT}
+
+Constraints:
+- Subject line prefixed "Subject: ", then 3 to 5 sentences, then the sign-off with the
+  candidate's name and contact details from the profile.
+- Say when the candidate applied, that they are still interested, and ask where the process
+  stands. Polite and direct; no apology, no pressure, no "just checking in".
+- At most one achievement, and only one that the application already mentioned.
+- A greeting with the placeholder [name].
+- Write in {language}. Return plain text only."""
+    user = f"""Candidate profile:
+{_profile_digest(profile, language)}
+
+Job advertisement:
+{_job_digest(job, 600)}
+
+Applied on: {applied_on}
+
+What the candidate sent (repeat nothing that is not here or in the profile):
+{chr(10).join(sent) or "(only the CV)"}"""
+    return system, user
+
+
+def interview_questions(profile: Profile, job: Job, gaps: list[str],
+                        language: str) -> tuple[str, str]:
+    """The questions this interview is likely to ask, each with the candidate's best answer."""
+    system = f"""You prepare a candidate for one job interview.
+
+{NO_FABRICATION}
+
+{UNTRUSTED_TEXT}
+
+List 6 to 8 questions this interviewer is likely to ask, given the advertisement. For each:
+- the question, on its own line, prefixed "Q: ";
+- "Answer with: " and the candidate's achievement or experience that answers it best,
+  named from the profile (its real number, if it has one);
+- for a question about one of the candidate's gaps, an honest answer instead: say it is
+  a gap, then the closest real thing the candidate has done.
+No preamble, no closing remarks. Write in {language}. Plain text."""
+    user = f"""Candidate profile:
+{_profile_digest(profile, language)}
+
+Job advertisement:
+{_job_digest(job, 1200)}
+
+The candidate's gaps against this job: {", ".join(gaps or []) or "(none identified)"}"""
+    return system, user

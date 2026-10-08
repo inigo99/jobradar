@@ -55,6 +55,8 @@ function renderInsights() {
     }
     if (funnel.waiting.length) {
       panel.append(el("h3", {}, t("Waiting longest for a reply — worth a follow-up?")),
+        el("p", { className: "hint" },
+          t("From {n} days without an answer a short follow-up is worth sending: open the job and press Follow-up.", { n: 10 })),
         simpleTable([t("Company"), t("Job"), t("Applied on"), t("Days")],
           funnel.waiting.map(w => [w.company, w.title, w.applied_on, w.days])));
     }

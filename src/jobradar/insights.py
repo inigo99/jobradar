@@ -101,7 +101,7 @@ def score_band(score: float) -> str:
     return SCORE_BANDS[-1][2]
 
 
-def _replied(application: Application, news: MailNews | None) -> bool:
+def replied(application: Application, news: MailNews | None) -> bool:
     moved = application.stage not in (None, ApplicationStage.APPLIED)
     return moved or (news is not None and news.kind in (MailKind.ADVANCE, MailKind.REJECTION))
 
@@ -113,7 +113,7 @@ def _rejected(application: Application, news: MailNews | None) -> bool:
 
 def _add(group: Group, application: Application, news: MailNews | None) -> None:
     group.applications += 1
-    if _replied(application, news):
+    if replied(application, news):
         group.replies += 1
     if _rejected(application, news):
         group.rejections += 1
@@ -156,7 +156,7 @@ def funnel(
         applied_on = application.applied_on
         if applied_on and news and news.kind in (MailKind.ADVANCE, MailKind.REJECTION):
             days_to_reply.append(max(0, (news.received_at.date() - applied_on).days))
-        elif applied_on and not _replied(application, news):
+        elif applied_on and not replied(application, news):
             result.waiting.append({
                 "id": job_id,
                 "company": job.company if job else "",
@@ -187,7 +187,7 @@ def _saturated(jobs: list[Job], applications: dict[str, Application],
         application = applications.get(job.id)
         if application and application.status == ApplicationStatus.APPLIED:
             entry["applied"] += 1
-            if _replied(application, mail.get(job.id)):
+            if replied(application, mail.get(job.id)):
                 entry["replies"] += 1
     busy = [e for e in companies.values()
             if (e["on_board"] >= SATURATED_ADS or e["applied"] >= SATURATED_APPLICATIONS)

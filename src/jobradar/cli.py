@@ -428,6 +428,86 @@ def cmd_linkedin(args: argparse.Namespace) -> int:
     return 0
 
 
+def _profile_or_stop(database: Database):
+    profile = database.load_profile()
+    if profile is None:
+        raise SetupRequiredError("No profile yet.",
+                                 hint="Import a CV first: jobradar init --cv path/to/cv.pdf")
+    return profile
+
+
+def cmd_followup(args: argparse.Namespace) -> int:
+    """Draft a follow-up for every application with no answer after N days."""
+    from .documents.followup import days_waiting, generate_follow_up
+    from .insights import replied
+    from .models import ApplicationStatus
+
+    database = _database(args)
+    try:
+        settings = database.load_settings()
+        profile = _profile_or_stop(database)
+        news = database.mail_news()
+        quiet = []
+        for job_id, application in database.all_applications().items():
+            waited = days_waiting(application)
+            job = database.get_job(job_id)
+            # An automatic acknowledgement is not an answer; a person moving is.
+            if (job is None or application.status != ApplicationStatus.APPLIED
+                    or waited is None or waited < args.days
+                    or replied(application, news.get(job_id))):
+                continue
+            quiet.append((waited, job, application))
+        if not quiet:
+            out(f"No application has waited {args.days} days or more without an answer.")
+            return 0
+        llm = build_client(settings.llm)
+        try:
+            for waited, job, application in sorted(quiet, key=lambda item: -item[0]):
+                if database.get_document(job.id, "follow_up") and not args.again:
+                    out(f"  {job.company} — {job.title}: {waited} days; draft already written.")
+                    continue
+                sent = [saved.text for kind in ("cover_letter", "email")
+                        if (saved := database.get_document(job.id, kind)) and saved.text]
+                document = generate_follow_up(profile, job, application, sent, settings, llm)
+                database.save_document(document)
+                out(f"\n[bold]{job.company} — {job.title}[/bold] · {waited} days\n{document.text}")
+        finally:
+            if llm:
+                llm.close()
+        out("\nDrafts only: nothing is sent. Edit them on each job's card.")
+    finally:
+        database.close()
+    return 0
+
+
+def cmd_prep(args: argparse.Namespace) -> int:
+    """Print the interview prep pack for one job."""
+    from .documents.followup import generate_interview_prep
+
+    database = _database(args)
+    try:
+        settings = database.load_settings()
+        profile = _profile_or_stop(database)
+        job = database.get_job(args.job_id)
+        if job is None:
+            raise NotFoundError(f"No job with id {args.job_id}.",
+                                hint="'jobradar jobs' lists them with their ids.")
+        score = database.get_score(job.id) or score_job(job, profile)
+        llm = build_client(settings.llm)
+        try:
+            document = generate_interview_prep(profile, job, score,
+                                               database.all_applications().get(job.id),
+                                               settings, llm)
+        finally:
+            if llm:
+                llm.close()
+        database.save_document(document)
+        out(document.text)
+    finally:
+        database.close()
+    return 0
+
+
 def cmd_tailor(args: argparse.Namespace) -> int:
     """Generate the tailored CV for one job or for the best N."""
     database = _database(args)
@@ -810,6 +890,17 @@ def build_parser() -> argparse.ArgumentParser:
     linkedin.add_argument("what", choices=["saved", "profile"],
                           help="saved: the jobs in your Saved tab; profile: your own profile")
     linkedin.set_defaults(func=cmd_linkedin)
+
+    followup = sub.add_parser("followup",
+                              help="Draft follow-ups for applications with no answer")
+    followup.add_argument("--days", type=_positive_int, default=10,
+                          help="Days without an answer (default 10)")
+    followup.add_argument("--again", action="store_true", help="Rewrite drafts already written")
+    followup.set_defaults(func=cmd_followup)
+
+    prep = sub.add_parser("prep", help="Interview prep pack for one job")
+    prep.add_argument("job_id")
+    prep.set_defaults(func=cmd_prep)
 
     lint_cmd = sub.add_parser("lint", help="Run the recruiter red-flag check")
     lint_cmd.add_argument("--language", default=None)

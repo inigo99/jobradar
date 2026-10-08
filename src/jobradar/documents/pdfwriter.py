@@ -311,6 +311,11 @@ LETTER_HEADINGS = {
                      "de": "Anschreiben", "pt": "Carta de apresentação", "it": "Lettera di presentazione"},
     "email": {"en": "Application email", "es": "Correo de candidatura", "fr": "E-mail de candidature",
               "de": "Bewerbungs-E-Mail", "pt": "E-mail de candidatura", "it": "E-mail di candidatura"},
+    "follow_up": {"en": "Follow-up", "es": "Seguimiento", "fr": "Relance", "de": "Nachfrage",
+                  "pt": "Acompanhamento", "it": "Sollecito"},
+    "interview_prep": {"en": "Interview prep", "es": "Preparación de entrevista",
+                       "fr": "Préparation d'entretien", "de": "Interview-Vorbereitung",
+                       "pt": "Preparação da entrevista", "it": "Preparazione al colloquio"},
 }
 
 

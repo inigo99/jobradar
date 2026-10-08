@@ -163,12 +163,12 @@ def _names_company(text: str, company: str) -> bool:
 def check_format(text: str, kind: str, job: Job | None, limit: int | None = None,
                  unit: LimitUnit | str = LimitUnit.CHARACTERS) -> list[LintFinding]:
     findings: list[LintFinding] = []
-    if kind in ("cover_letter", "email") and job is not None and job.company \
+    if kind in ("cover_letter", "email", "follow_up") and job is not None and job.company \
             and not _names_company(text, job.company):
         findings.append(_finding("company-not-named", Severity.WARNING,
                                  "It never names the company.",
                                  "A letter that fits any company reads as exactly that."))
-    if kind == "email":
+    if kind in ("email", "follow_up"):
         first = next((line for line in text.splitlines() if line.strip()), "")
         if not SUBJECT_LINE.match(first):
             findings.append(_finding("no-subject", Severity.WARNING,
