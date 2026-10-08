@@ -103,6 +103,12 @@ builtin` — a built-in writer lays the same content out in Helvetica, with the
 same shrink-to-fit, and needs nothing installed. It is plainer, and just as
 readable by an applicant tracking system: one column of real text.
 
+Either way, the PDF is then **read back the way an applicant-tracking system
+reads it** — its text extracted with `pypdf` (the `parse` extra), not looked at
+— and compared with what was meant to be in it: your name and email, each
+position, and the start of every achievement. A warning names what an ATS would
+not find; all three templates and the built-in writer read back whole.
+
 ## The XYZ formula
 
 Achievements should read *accomplished **X**, as measured by **Y**, by doing
@@ -247,3 +253,37 @@ questions share, ignoring the ones every question has ("why", "your",
 adapt, never to copy, and the thread says which one it started from. Without a
 model, the saved answer itself is offered as the starting point. Saved answers
 can be edited or deleted from the bank.
+
+## After applying: follow-ups and interview prep
+
+Once a job is marked as applied, its card offers two more documents. Neither is
+ever sent for you.
+
+**Follow-up** — for an application gone quiet (Insights lists the ones waiting
+longest; from ten days a short note is worth sending). It names the date you
+applied and one achievement the CV already carried, and asks where the process
+stands. With a language model it is written from what you actually sent — the
+letter and the email — and may repeat nothing else, so it cannot contradict
+your application. `jobradar followup` drafts one for every application with no
+human answer after `--days` (10).
+
+**Interview prep** — what the interview will be about, read from the ad's
+requirements, most insisted on first:
+
+- for each requirement you meet, the achievement of yours that proves it, with
+  a Situation/Task, Action, Result outline to fill in — or, when the skill is
+  only listed, a prompt to think of a time you used it;
+- for each gap, how long it really takes to learn and an honest way to answer
+  ("I have not worked with X directly; the closest is…") — never a claim;
+- the questions worth asking them: what the ad leaves unclear, then a few that
+  always help;
+- the practical facts: work mode, place, salary and whether it is published.
+
+A language model adds the questions this interviewer is likely to ask, each
+with the achievement of yours that answers it. `jobradar prep JOB_ID` prints it.
+
+**What your jobs ask for and you lack** — Insights (and `jobradar gaps`) adds up
+the gaps of every open job you have not discarded and ranks them by how hard
+the ads insist and how close you are to those jobs. The *fast* ones are worth
+reading up on; for the *slow* ones, prepare the honest answer. Nothing there
+goes on your CV until you have it.

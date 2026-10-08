@@ -28,7 +28,7 @@ function groupTable(title, groups, minSample) {
 function renderInsights() {
   const panel = el("div", { className: "panel" }, el("h2", {}, t("Insights")),
     el("p", { className: "hint" }, t("Loading…")));
-  api("/api/insights").then(({ funnel, history }) => {
+  api("/api/insights").then(({ funnel, history, gaps }) => {
     panel.innerHTML = "";
     const total = funnel.total;
     appendAll(panel,
@@ -55,8 +55,25 @@ function renderInsights() {
     }
     if (funnel.waiting.length) {
       panel.append(el("h3", {}, t("Waiting longest for a reply — worth a follow-up?")),
+        el("p", { className: "hint" },
+          t("From {n} days without an answer a short follow-up is worth sending: open the job and press Follow-up.", { n: 10 })),
         simpleTable([t("Company"), t("Job"), t("Applied on"), t("Days")],
           funnel.waiting.map(w => [w.company, w.title, w.applied_on, w.days])));
+    }
+
+    if (gaps && gaps.length) {
+      panel.append(el("h2", { style: "margin-top:26px" }, t("What your jobs ask for and you lack")),
+        el("p", { className: "hint" },
+          t("The gaps of every open job you have not discarded, added up: first what the ads insist on most and the jobs you nearly match ask for. Learn the fast ones; for the slow ones, prepare an honest answer. Nothing here goes on your CV until you have it.")),
+        el("table", { className: "grid" },
+          el("thead", {}, el("tr", {}, ...[t("Skill"), t("Jobs"), t("Weight"), t("To learn"),
+                                            t("Closest jobs")].map(h => el("th", {}, h)))),
+          el("tbody", {}, ...gaps.map(gap => el("tr", {},
+            el("td", {}, el("b", {}, gap.label)),
+            el("td", {}, String(gap.jobs)),
+            el("td", {}, String(gap.weight)),
+            el("td", { title: gap.note }, difficultyLabel(gap.difficulty)),
+            el("td", {}, gap.examples.join("; ")))))));
     }
 
     const parts = history.runs ? [

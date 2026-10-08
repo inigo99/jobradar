@@ -111,6 +111,18 @@ function money(job) {
   return job.salary_origin === "estimated" ? t("{range} (estimated)", { range }) : range;
 }
 
+/* The ad's own closing date, when it states one: a reminder a week ahead,
+   a warning once it has passed (the ad may still be up, but check). */
+function deadlineChip(job) {
+  if (!job.deadline || job.closed) return null;
+  const days = Math.round((new Date(job.deadline + "T00:00:00") - new Date(localDateString() + "T00:00:00")) / 86400000);
+  const text = days < 0 ? t("Deadline passed on {date} — check it is still open", { date: job.deadline })
+    : days === 0 ? t("Applications close today")
+    : tn(days, "Apply by {date} · {n} day left", "Apply by {date} · {n} days left", { date: job.deadline });
+  return el("div", { className: "chips", style: "margin-top:4px" },
+    el("span", { className: "chip " + (days < 0 ? "slow" : days <= 7 ? "gap" : "") }, text));
+}
+
 function jobCard(job) {
   const card = el("article", { className: "job" + (job.closed ? " closed" : "") });
 
@@ -122,6 +134,7 @@ function jobCard(job) {
         [job.company || t("unnamed company"), job.location, workModeLabel(job.work_mode),
          job.posted_at || t("no date"), money(job), job.family_label, job.source]
           .filter(Boolean).join(" · ")),
+      deadlineChip(job),
     ),
     el("div", { className: "score" },
       el("div", { className: "big" }, job.scored ? job.score_tailored.toFixed(0) + "%" : "—"),
@@ -168,6 +181,10 @@ function jobCard(job) {
   actions.append(button(t("Cover letter"), () => buildDoc(job, "cover_letter", card)));
   actions.append(button(t("Application email"), () => buildDoc(job, "email", card)));
   actions.append(button(t("Form answers"), () => openAnswers(job, card)));
+  if (job.status === "applied") {
+    actions.append(button(t("Follow-up"), () => buildDoc(job, "follow_up", card)));
+    actions.append(button(t("Interview prep"), () => buildDoc(job, "interview_prep", card)));
+  }
   if (job.has_cv) {
     actions.append(el("a", { href: `/api/jobs/${encodeURIComponent(job.id)}/cv/download` },
       el("button", {}, t("Download CV"))));
@@ -275,6 +292,9 @@ async function writeDoc(job, kind, card) {
   await refresh();
 }
 
+const docTitle = kind => ({ email: t("Application email"), follow_up: t("Follow-up"),
+                            interview_prep: t("Interview prep") }[kind] || t("Cover letter"));
+
 /* The letter or email as an editable text box, with the review warnings.
    Edits are saved before the PDF is downloaded, so the PDF always matches
    what is on screen. */
@@ -291,10 +311,12 @@ function showDoc(job, kind, card, documentData) {
   };
   output.innerHTML = "";
   appendAll(output,
-    el("h4", { style: "margin:14px 0 4px" }, kind === "email" ? t("Application email") : t("Cover letter")),
+    el("h4", { style: "margin:14px 0 4px" }, docTitle(kind)),
     el("p", { className: "hint" },
-      documentData.llm_generated ? t("Written by the language model. Edit it freely.") :
-      t("Skeleton from your profile — the bracketed parts are yours to write.")),
+      kind === "interview_prep"
+        ? t("From the ad's requirements and your own achievements. The brackets are notes for you to fill in; the likely questions come from the language model, when there is one.")
+        : documentData.llm_generated ? t("Written by the language model. Edit it freely.") :
+          t("Skeleton from your profile — the bracketed parts are yours to write.")),
     warnings,
     box,
     el("div", { className: "actions" },

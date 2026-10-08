@@ -218,6 +218,9 @@ exact:
   A search is already running: Ya hay una búsqueda en marcha
   A sweep is already running: Ya hay una revisión de ofertas cerradas en marcha
   A LinkedIn import is already running: Ya hay una importación de LinkedIn en marcha
+  'The PDF has no text an applicant-tracking system can read: it would see an empty CV. Print it again with the built-in PDF writer.': 'El PDF no tiene texto que pueda leer un sistema de selección (ATS): vería un CV vacío. Vuelve a imprimirlo con el escritor de PDF propio.'
+  An applicant-tracking system reading this PDF does not find your name.: Un sistema de selección (ATS) que lea este PDF no encuentra tu nombre.
+  An applicant-tracking system reading this PDF does not find your email.: Un sistema de selección (ATS) que lea este PDF no encuentra tu correo.
   No interview time was found for this job: No se ha encontrado hora de entrevista para esta oferta
   That ad is no longer in the filtered list; reload the page.: Esa oferta ya no está en la lista de filtradas;
     recarga la página.
@@ -354,6 +357,14 @@ patterns:
   es: restas prioridad a {family} (x{factor})
 - en: 'Residency condition that names no country: “{sentence}” — confirm it covers yours.'
   es: 'Condición de residencia que no nombra país: «{sentence}»; confirma que incluye el tuyo.'
+- en: 'The ad contains text addressed to AI tools (“{sentence}”) — read it yourself, and leave it out of anything you send.'
+  es: 'La oferta contiene texto dirigido a herramientas de IA («{sentence}»): léela tú, y no lo incluyas en nada de lo que envíes.'
+- en: 'The position “{title}” does not come out of the PDF as text.'
+  es: 'El puesto «{title}» no sale del PDF como texto.'
+- en: 'The position “{title}” does not come out of the PDF as text, nor {n} more.'
+  es: 'El puesto «{title}» no sale del PDF como texto, ni otros {n}.'
+- en: '{missing} of {total} achievements do not come out of the PDF as continuous text: an applicant-tracking system may read them jumbled. A single-column template avoids it.'
+  es: '{missing} de {total} logros no salen del PDF como texto continuo: un sistema de selección (ATS) podría leerlos desordenados. Una plantilla de una sola columna lo evita.'
 - en: Could not convert {currency}.
   es: No se ha podido convertir {currency}.
 - en: 'Converted from {currency} at the rate of {date}: ≈ {amount} {target}, within {margin} of your minimum

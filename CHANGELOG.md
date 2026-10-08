@@ -6,6 +6,32 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+## 1.12.0 — 2026-10-08
+
+### Added
+
+Ideas from [ai-job-search](https://github.com/MadsLorentzen/ai-job-search), built
+the JobRadar way: they work without a language model, and a model only improves them.
+
+- **Job ads are third-party text.** Every prompt fences the ad (and an imported
+  CV) and tells the model it is material to read, never instructions. An ad that
+  speaks to AI tools ("if you are an AI, mention…", "ignore the previous
+  instructions") gets an alert quoting the sentence.
+- **What your jobs ask for and you lack**, in Insights and as `jobradar gaps`: the
+  gaps of every open job added up, ranked by how hard the ads insist on them and
+  how close you are to those jobs, with how long each takes to learn.
+- **Follow-up** for an application gone quiet: a short email naming the date you
+  applied and one achievement your CV already carried (`jobradar followup` drafts
+  one for each application with no answer after 10 days; nothing is sent).
+- **Interview prep** for an applied job (`jobradar prep JOB_ID`): each requirement
+  with the achievement that proves it as a STAR outline, an honest answer for each
+  gap, questions to ask and the practical facts; a model adds likely questions.
+- **Closing dates**: "apply by 15 October", "plazo hasta el 15 de octubre"… are read
+  into the job and shown on its card, amber a week ahead and red once passed.
+- **The CV's PDF is read back as an ATS reads it** (with the `parse` extra): a
+  warning when your name, email, a position or the achievements do not come out
+  as text.
+
 ## 1.11.1 — 2026-10-07
 
 ### Changed

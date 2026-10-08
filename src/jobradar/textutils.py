@@ -144,6 +144,35 @@ AGENCY_MARKERS = (
 )
 
 
+#: Text in an ad that speaks to an AI tool rather than to a person: "ignore the
+#: previous instructions", "if you are an AI, mention the word ...". Recruiters
+#: plant such lines to catch automated applications; a model reading the ad must
+#: not obey them, and the person should know they are there.
+_AI_ADDRESSED = re.compile(
+    r"(?:ignore|disregard|forget)\s+(?:all\s+|any\s+)?(?:the\s+|your\s+)?"
+    r"(?:previous|prior|above|earlier)\s+(?:instructions|prompts?|rules)"
+    r"|if\s+you\s+are\s+(?:an?\s+)?(?:ai|a\.i\.|llm|large\s+language\s+model|"
+    r"language\s+model|chatbot|bot|gpt|automated\s+(?:tool|system|agent))\b"
+    r"|(?:ai|llm)\s+(?:tools?|assistants?|models?|agents?)\s*(?:reading\s+this|:)"
+    r"|ignora\s+(?:todas\s+)?(?:las\s+)?instrucciones\s+(?:anteriores|previas)"
+    r"|si\s+eres\s+(?:una?\s+)?(?:ia|i\.a\.|inteligencia\s+artificial|modelo\s+de\s+lenguaje|"
+    r"chatbot|bot)\b",
+    re.I,
+)
+
+
+def addressed_to_ai(text: str) -> str:
+    """The sentence of ``text`` that speaks to an AI tool, or an empty string."""
+    match = _AI_ADDRESSED.search(text or "")
+    if not match:
+        return ""
+    start = max((text.rfind(stop, 0, match.start()) for stop in (".", "\n", "!", "?")),
+                default=-1) + 1
+    ends = [i for i in (text.find(stop, match.end()) for stop in (".", "\n", "!", "?")) if i != -1]
+    end = min(ends) + 1 if ends else len(text)
+    return " ".join(text[start:end].split())[:160]
+
+
 #: The feminine or plural ending Spanish and Catalan ads add after a slash or in
 #: brackets: "Trabajador/a social", "Enfermeros/as", "Técnico(a)".
 _GENDER_ENDING = re.compile(r"(?<=\w\w\w)(?:/|\()(?:a|as|o|os|es|ra|ras)\)?(?!\w)", re.I)
@@ -557,6 +586,79 @@ def extract_salary(text: str, default_currency: str = "EUR") -> Salary | None:
 # ---------------------------------------------------------------------------
 # Dates
 # ---------------------------------------------------------------------------
+
+
+_MONTH_NAMES = {name: number for number, names in enumerate((
+    ("january", "jan", "enero", "ene"), ("february", "feb", "febrero"),
+    ("march", "mar", "marzo"), ("april", "apr", "abril", "abr"), ("may", "mayo"),
+    ("june", "jun", "junio"), ("july", "jul", "julio"), ("august", "aug", "agosto", "ago"),
+    ("september", "sept", "sep", "septiembre", "setiembre"), ("october", "oct", "octubre"),
+    ("november", "nov", "noviembre"), ("december", "dec", "diciembre", "dic"),
+), start=1) for name in names}
+_MONTH = "|".join(sorted(_MONTH_NAMES, key=len, reverse=True))
+_DATE_FORMS = (
+    r"(?P<iso>\d{4}-\d{1,2}-\d{1,2})",
+    r"(?P<dmy>\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4})",
+    rf"(?P<dm>\d{{1,2}})(?:st|nd|rd|th|º)?\s+(?:de\s+)?(?P<dm_month>{_MONTH})\.?"
+    rf"(?:\s*(?:de\s+|,\s*)?(?P<dm_year>\d{{4}}))?",
+    rf"(?P<md_month>{_MONTH})\.?\s+(?P<md>\d{{1,2}})(?:st|nd|rd|th)?(?:,?\s+(?P<md_year>\d{{4}}))?",
+)
+#: The words an ad puts before its closing date.
+_DEADLINE = re.compile(
+    r"(?:apply\s+(?:by|before)|application\s+deadline|deadline\s+for\s+applications|"
+    r"closing\s+date|applications?\s+close(?:s)?(?:\s+on)?|deadline|open\s+until|"
+    r"fecha\s+l[ií]mite(?:\s+de\s+(?:inscripci[oó]n|presentaci[oó]n|solicitud(?:es)?))?|"
+    r"plazo(?:\s+de\s+(?:presentaci[oó]n|inscripci[oó]n|solicitud(?:es)?))?(?:\s+hasta)?|"
+    r"(?:inscripciones?|solicitudes|candidaturas)\s+hasta|admite\s+candidaturas\s+hasta)"
+    r"(?:\s+(?:el|the|on|del))?\s*[:\-–]?\s*(?:el\s+|the\s+|día\s+)?"
+    r"(?:" + "|".join(_DATE_FORMS) + r")",
+    re.I,
+)
+
+
+def extract_deadline(text: str, posted: date | None = None) -> date | None:
+    """The last day to apply, when the ad states one ("apply by 15 October").
+
+    Day-first numeric dates, as written in Europe. A date without a year is
+    the next one after the ad was posted; a date that cannot be the deadline
+    of this ad (before it was posted, or more than a year after) is ignored.
+    """
+    match = _DEADLINE.search(text or "")
+    if not match:
+        return None
+    found = match.groupdict()
+    anchor = posted or date.today()
+    year: int | None
+    try:
+        if found["iso"]:
+            parsed = datetime.strptime(found["iso"], "%Y-%m-%d").date()
+            return parsed if _plausible(parsed, anchor) else None
+        if found["dmy"]:
+            day, month, raw_year = (int(part) for part in re.split(r"[/.-]", found["dmy"]))
+            if month > 12 >= day:
+                day, month = month, day
+            year = raw_year + 2000 if raw_year < 100 else raw_year
+        elif found["dm"]:
+            day, month = int(found["dm"]), _MONTH_NAMES[found["dm_month"].lower()]
+            year = int(found["dm_year"]) if found["dm_year"] else None
+        else:
+            day, month = int(found["md"]), _MONTH_NAMES[found["md_month"].lower()]
+            year = int(found["md_year"]) if found["md_year"] else None
+        guessed = year is None
+        if year is None:
+            year = anchor.year
+            if date(year, month, day) < anchor - timedelta(days=7):
+                year += 1
+        parsed = date(year, month, day)
+    except ValueError:
+        return None
+    if guessed and parsed > anchor + timedelta(days=180):
+        return None  # "until 2 September" in an October ad is old text, not next year's
+    return parsed if _plausible(parsed, anchor) else None
+
+
+def _plausible(deadline: date, anchor: date) -> bool:
+    return anchor - timedelta(days=7) <= deadline <= anchor + timedelta(days=365)
 
 
 def parse_date(value: object) -> date | None:

@@ -9,6 +9,7 @@ appears on a generated CV can come from anywhere but the profile, and
 trusting it.
 """
 
+from .followup import generate_follow_up, generate_interview_prep
 from .letters import generate_cover_letter, generate_email
 from .render import render_cv
 from .tailor import TailoredCV, tailor
@@ -20,6 +21,8 @@ __all__ = [
     "render_cv",
     "generate_cover_letter",
     "generate_email",
+    "generate_follow_up",
+    "generate_interview_prep",
     "validate_document",
     "ValidationReport",
 ]

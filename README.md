@@ -44,15 +44,15 @@ jobradar serve     # dashboard on http://127.0.0.1:8000
 
 1. **Searches** every enabled source for your target job titles — public APIs and feeds by default, national boards opt-in, and the job boards of companies you name (`stripe.com` is enough).
 2. **Deduplicates** the same opening seen on several boards, by id, by a company-and-title fingerprint and by title overlap — never by substring.
-3. **Reads the fine print** of each ad: the real work mode, which countries a remote role accepts, years of experience asked for, any published salary.
+3. **Reads the fine print** of each ad: the real work mode, which countries a remote role accepts, years of experience asked for, any published salary, and the closing date (shown on the card a week ahead). An ad is third-party text: a language model reading it never takes orders from it, and an ad that speaks to AI tools ("if you are an AI, mention…") is flagged.
 4. **Filters** on work mode, geography, salary floor (with live currency conversion), years, freshness, keywords and companies. Missing information never rejects a job, and **nothing rejected is thrown away**: *Filtered out* shows every dropped ad with its reason, and which filter is doing the damage.
 5. **Sorts and prices.** Every job gets a **job family** (healthcare, logistics, hospitality, software and twenty more — editable, with a priority each). Ads without a salary get an estimate from the family's band, adjusted for the kind of employer, the hiring country and signals in the ad; always labelled as an estimate.
 6. **Scores and triages.** Two scores — what your CV proves today, and what it proves once tailored — plus your gaps, each marked with how long it would take to close. The board is ordered by **focus**: the match less what is known to go nowhere (stale ads, titles above your years). **Today** shows the six jobs to start with.
 7. **Tailors and writes.** A one-page CV per job (headline, summary, achievement and skill order), with an optional **CV per job family**; cover letters and emails, editable and downloadable as PDF; and **answers to application-form questions** within the form's limit, with a bank of your best answers to reuse.
-8. **Checks** every generated CV against your profile and lints it for what a recruiter spots in ten seconds. Letters, emails and answers get warnings (figures you cannot back, template phrases, a company never named…) that never block you.
-9. **Tracks** active, applied, rejected and discarded jobs with stages, dates and notes. Add a job you found elsewhere with **+ Job**; delete one for good (with a week to undo). Applications are never sent for you.
+8. **Checks** every generated CV against your profile, lints it for what a recruiter spots in ten seconds, and reads its PDF back the way an applicant-tracking system does, warning when your name, a position or the achievements do not come out as text. Letters, emails and answers get warnings (figures you cannot back, template phrases, a company never named…) that never block you.
+9. **Tracks** active, applied, rejected and discarded jobs with stages, dates and notes. Add a job you found elsewhere with **+ Job**; delete one for good (with a week to undo). For an application you sent: a **follow-up** draft once it has gone quiet, and an **interview prep** pack — each requirement with the achievement of yours that proves it, as a STAR outline, and an honest answer for each gap. Applications and emails are never sent for you.
 10. **Reads your replies** (optional, read-only IMAP): each reply is matched to its application as a rejection, a next step or an automatic acknowledgement, and a proposed interview becomes a calendar file.
-11. **Says whether it is working.** *Insights* shows replies by source, family and match score, and each source's record over past runs.
+11. **Says whether it is working.** *Insights* shows replies by source, family and match score, each source's record over past runs, and **what your jobs ask for and you lack**: the gaps of every open job added up, the ones worth learning first.
 
 ---
 
@@ -136,7 +136,7 @@ Not sure which titles, filters and boards to start with? **[docs/STARTER_CONFIGS
 
 **The board** has eight tabs — Today, Active, Applied, Rejected, Discarded, Closed ads, Filtered out and Insights. The **filter bar** narrows it by text, work mode, where (your areas, your country, abroad), job family, source, language, minimum salary and minimum match, and remembers your choice; sort by focus, match, date or salary. Each job shows both scores, its family, your strengths and gaps, the salary with its provenance, the latest reply from your inbox and anything to clarify before applying. *Filtered out* lists the ads just short on years in a table of their own.
 
-**Per job**: open the ad, tailor the CV, write a cover letter or the application email, answer the application form's questions, mark it, or delete it. Tick several jobs, or **all the jobs shown** at once, to discard them, mark them as applied, bring them back or delete them.
+**Per job**: open the ad, tailor the CV, write a cover letter or the application email, answer the application form's questions, mark it, or delete it; once applied, write the follow-up or the interview prep. Tick several jobs, or **all the jobs shown** at once, to discard them, mark them as applied, bring them back or delete them.
 
 ![Answering an application form's questions](https://raw.githubusercontent.com/inigo99/jobradar/master/docs/images/form-answers.png)
 
@@ -160,6 +160,9 @@ Not sure which titles, filters and boards to start with? **[docs/STARTER_CONFIGS
 | `jobradar filtered [--restore ID] [--clear] [--limit N]` | What the filters rejected, and why |
 | `jobradar mail [--days N]` | Read replies to your applications (read-only IMAP) |
 | `jobradar insights [--runs N]` | The application funnel and each source's record |
+| `jobradar gaps [--limit N]` | The skills your jobs ask for most and your profile lacks |
+| `jobradar followup [--days N] [--again]` | Draft a follow-up for each application with no answer after N days (10) |
+| `jobradar prep JOB_ID` | The interview prep pack for one job |
 | `jobradar export [--format csv\|excel] [--output FILE]` | Export everything, including your notes |
 | `jobradar notify [--dry-run] [--limit N]` | Send the digest of new jobs |
 | `jobradar sources` | Show every source and whether it is on |

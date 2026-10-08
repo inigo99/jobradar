@@ -71,11 +71,14 @@ whole thing runs offline.
 
 ### Is LinkedIn supported?
 
-There is an adapter, and it is off by default. LinkedIn's User Agreement
-restricts automated access, so enabling it is a decision only you can make for
-yourself, under your own jurisdiction. The same applies to InfoJobs,
-Tecnoempleo and Indeed. Everything in the default set is a public API or feed
-meant to be read programmatically.
+There are two adapters, both off by default: one reads LinkedIn's public guest
+endpoint, the other reads it signed in as you through the LinkedIn MCP server,
+and can import your saved jobs and your profile (see
+[SOURCES.md](SOURCES.md#linkedin-with-your-own-session-mcp-server)). LinkedIn's
+User Agreement restricts automated access, so enabling either is a decision
+only you can make for yourself, under your own jurisdiction. The same applies
+to InfoJobs, Tecnoempleo and Indeed. Everything in the default set is a public
+API or feed meant to be read programmatically.
 
 ### I enabled LinkedIn (or Indeed) and it finds nothing.
 

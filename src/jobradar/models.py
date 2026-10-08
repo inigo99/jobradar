@@ -380,6 +380,8 @@ class Job(BaseModel):
     url: str = ""
     apply_url: str = ""  # overrides ``url`` when the ad lives elsewhere
     posted_at: date | None = None
+    #: The last day to apply, when the ad states it.
+    deadline: date | None = None
     description: str = ""
     language: str = "en"
     salary: Salary = Field(default_factory=Salary)
