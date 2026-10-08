@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+## 1.12.0 — 2026-10-08
+
 ### Added
 
 Ideas from [ai-job-search](https://github.com/MadsLorentzen/ai-job-search), built
