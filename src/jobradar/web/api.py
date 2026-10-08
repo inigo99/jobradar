@@ -182,6 +182,7 @@ class JobView(BaseModel):
     url: str
     language: str
     posted_at: date | None
+    deadline: date | None = None
     salary_min: int | None
     salary_max: int | None
     salary_currency: str

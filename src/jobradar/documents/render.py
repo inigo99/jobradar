@@ -30,6 +30,7 @@ from ..config import Paths, Settings
 from ..errors import RenderError, describe_os_error
 from ..models import Job, Profile, localized
 from ..textutils import slugify
+from .atscheck import ats_warnings
 from .browser import CHROMIUM_PATH_VARIABLE, launch_chromium
 from .pdfwriter import cv_pdf
 from .tailor import TailoredCV
@@ -312,8 +313,15 @@ def render_cv(
     paths: Paths,
     settings: Settings,
 ) -> RenderResult:
-    """Render, shrink to fit, and write the CV next to the other generated files."""
+    """Render, shrink to fit, write the CV, and read it back as an ATS would."""
     context = build_context(profile, tailored, job)
+    result = _render(context, job, paths, settings)
+    result.warnings.extend(ats_warnings(result.pdf_path, context))
+    return result
+
+
+def _render(context: dict, job: Job, paths: Paths, settings: Settings) -> RenderResult:
+    """Print ``context`` to HTML and PDF, with Playwright or the built-in writer."""
     stem = f"CV_{slugify(job.company or 'company', 28)}__{slugify(job.title or 'job', 34)}"
     html_path = paths.cv_dir / f"{stem}.html"
     pdf_path = paths.cv_dir / f"{stem}.pdf"

@@ -156,6 +156,7 @@ Return JSON with exactly these fields:
   "remote_scope": "worldwide" | "region" | "country" | "unknown",
   "remote_regions": ["<region or country the ad restricts remote work to>"],
   "min_years_experience": <integer or null>,
+  "deadline": "<YYYY-MM-DD, the last day to apply if the ad states one, else null>",
   "salary": {{"minimum": <int or null>, "maximum": <int or null>,
               "currency": "<ISO code>", "published": <true|false>}},
   "language": "<ISO-639-1 code of the ad>",

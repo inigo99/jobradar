@@ -111,6 +111,18 @@ function money(job) {
   return job.salary_origin === "estimated" ? t("{range} (estimated)", { range }) : range;
 }
 
+/* The ad's own closing date, when it states one: a reminder a week ahead,
+   a warning once it has passed (the ad may still be up, but check). */
+function deadlineChip(job) {
+  if (!job.deadline || job.closed) return null;
+  const days = Math.round((new Date(job.deadline + "T00:00:00") - new Date(localDateString() + "T00:00:00")) / 86400000);
+  const text = days < 0 ? t("Deadline passed on {date} — check it is still open", { date: job.deadline })
+    : days === 0 ? t("Applications close today")
+    : tn(days, "Apply by {date} · {n} day left", "Apply by {date} · {n} days left", { date: job.deadline });
+  return el("div", { className: "chips", style: "margin-top:4px" },
+    el("span", { className: "chip " + (days < 0 ? "slow" : days <= 7 ? "gap" : "") }, text));
+}
+
 function jobCard(job) {
   const card = el("article", { className: "job" + (job.closed ? " closed" : "") });
 
@@ -122,6 +134,7 @@ function jobCard(job) {
         [job.company || t("unnamed company"), job.location, workModeLabel(job.work_mode),
          job.posted_at || t("no date"), money(job), job.family_label, job.source]
           .filter(Boolean).join(" · ")),
+      deadlineChip(job),
     ),
     el("div", { className: "score" },
       el("div", { className: "big" }, job.scored ? job.score_tailored.toFixed(0) + "%" : "—"),

@@ -29,8 +29,10 @@ from ..textutils import (
     detect_language,
     detect_remote_scope,
     detect_work_mode,
+    extract_deadline,
     extract_min_years,
     extract_salary,
+    parse_date,
     remote_scope_evidence,
     work_mode_evidence,
 )
@@ -110,6 +112,8 @@ def derive_fields(job: Job) -> Job:
     text = job.description or ""
     if text:
         job.language = detect_language(text, job.language)
+        if job.deadline is None:
+            job.deadline = extract_deadline(text, job.posted_at)
         detected_mode = detect_work_mode(text, job.location or "")
         # The ad's own words beat the board's tag; boards mislabel hybrid roles
         # as remote constantly. But silence is not a contradiction: when the
@@ -223,6 +227,9 @@ def _apply_model_reading(job: Job, data: dict) -> None:
     if isinstance(regions, list) and regions:
         job.remote_regions = [str(region) for region in regions]
 
+    deadline = parse_date(data.get("deadline")) if data.get("deadline") else None
+    if deadline is not None and job.deadline is None:
+        job.deadline = deadline
     years = data.get("min_years_experience")
     if isinstance(years, int) and 0 < years <= 25:
         job.min_years_experience = years
