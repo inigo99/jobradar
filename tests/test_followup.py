@@ -74,7 +74,8 @@ def test_the_prep_pack_in_spanish_and_with_the_model(profile, settings):
     job = make_job(language="es")
     settings.llm.write_letters = True
     model = ScriptedModel("Q: ¿Cómo has trabajado con Python?\nAnswer with: el conjunto de tests "
-                          "que redujo un 47% los errores en producción.")
+                          "que redujo un 47% los errores en producción.\nQ: ¿Y con Kubernetes?\n"
+                          "Answer with: es una carencia; lo más cercano es Docker.")
     document = generate_interview_prep(profile, job, score_job(job, profile), applied(),
                                        settings, model)  # type: ignore[arg-type]
     assert document.kind == "interview_prep" and document.llm_generated

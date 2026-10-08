@@ -23,6 +23,7 @@ from datetime import date, datetime, timezone
 from typing import Any
 
 from ..config import Settings
+from ..i18n import skill_label
 from ..llm import LLMClient
 from ..llm.prompts import follow_up_email, interview_questions
 from ..models import Application, GeneratedDocument, Job, MatchScore, Profile, localized
@@ -39,11 +40,9 @@ SKELETON_FOLLOW_UP: dict[str, str] = {
 
 Hello [name],
 
-On {applied_on} I applied for the {title} role at {company}, and I remain very
-interested. {achievement}
+On {applied_on} I applied for the {title} role at {company}, and I remain very interested. {achievement}
 
-Could you tell me where the process stands, or whether you need anything else
-from me?
+Could you tell me where the process stands, or whether you need anything else from me?
 
 Best regards,
 {name}
@@ -52,8 +51,7 @@ Best regards,
 
 Hola [nombre]:
 
-El {applied_on} envié mi candidatura al puesto de {title} en {company}, y sigo
-muy interesado/a. {achievement}
+El {applied_on} envié mi candidatura al puesto de {title} en {company}, y sigo muy interesado/a. {achievement}
 
 ¿Podrías decirme en qué punto está el proceso, o si necesitáis algo más de mí?
 
@@ -189,7 +187,8 @@ def interview_prep_text(profile: Profile, job: Job, score: MatchScore,
     owned = [r for r in requirements if evidence.get(r.key, 0.0) > 0.0]
     for requirement in owned[:8]:
         example = _example_for(requirement.key, profile, language)
-        lines.append(f"- {requirement.label} ({requirement.weight})")
+        name = skill_label(requirement.key, requirement.label, language)
+        lines.append(f"- {name} ({requirement.weight})")
         lines.append("  " + (words["example"].format(text=example) if example
                              else words["no_example"]))
         if example:
@@ -200,9 +199,10 @@ def interview_prep_text(profile: Profile, job: Job, score: MatchScore,
         lines += ["", f"## {words['gaps']}"]
         for gap in gaps[:6]:
             level = str(gap.get("difficulty") or difficulty_for(str(gap.get("key"))))
-            lines.append("- " + words["gap"].format(label=gap["label"], weight=gap["weight"],
+            name = skill_label(str(gap.get("key")), str(gap["label"]), language)
+            lines.append("- " + words["gap"].format(label=name, weight=gap["weight"],
                                                     note=difficulty.get(level, "")))
-            lines.append(words["gap_answer"].format(label=gap["label"]))
+            lines.append(words["gap_answer"].format(label=name))
 
     lines += ["", f"## {words['questions']}"]
     lines += [f"- {alert}" for alert in (job.alerts or [])[:4]]
@@ -234,10 +234,10 @@ def generate_interview_prep(profile: Profile, job: Job, score: MatchScore,
     if llm and settings.llm.write_letters:
         system, user = interview_questions(profile, job, score.gaps, language)
         draft = llm.complete(system, user) or ""
+        # Not run through the validator: these are notes for you, and naming
+        # your gaps is the point of them. Nothing here is sent.
         if len(draft.strip()) > 80:
-            report = validate_document(draft, profile, language, strict_numbers=False)
-            if report.ok:
-                likely, used_model = draft.strip(), True
+            likely, used_model = draft.strip(), True
     text = interview_prep_text(profile, job, score, application, language, likely)
     return GeneratedDocument(job_id=job.id, kind="interview_prep", language=language, text=text,
                              generated_at=datetime.now(timezone.utc), llm_generated=used_model)
