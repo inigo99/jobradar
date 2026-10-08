@@ -25,6 +25,7 @@ from ..regions import names_a_place, place_in
 from ..taxonomy import find_skills, label_for
 from ..textutils import (
     AGENCY_MARKERS,
+    addressed_to_ai,
     detect_language,
     detect_remote_scope,
     detect_work_mode,
@@ -167,6 +168,10 @@ def derive_alerts(job: Job) -> list[str]:
         alerts.append("Remote, but the ad does not say from which countries — confirm before applying.")
     if any(marker in lowered for marker in AGENCY_MARKERS):
         alerts.append("The end client is not named — ask who the employer actually is.")
+    planted = addressed_to_ai(job.description or "")
+    if planted:
+        alerts.append(f"The ad contains text addressed to AI tools (\u201c{planted}\u201d) — "
+                      "read it yourself, and leave it out of anything you send.")
 
     salary_obj = getattr(job, "salary", None)
     if salary_obj and salary_obj.origin == SalaryOrigin.ESTIMATED:

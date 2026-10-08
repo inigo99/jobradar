@@ -144,6 +144,35 @@ AGENCY_MARKERS = (
 )
 
 
+#: Text in an ad that speaks to an AI tool rather than to a person: "ignore the
+#: previous instructions", "if you are an AI, mention the word ...". Recruiters
+#: plant such lines to catch automated applications; a model reading the ad must
+#: not obey them, and the person should know they are there.
+_AI_ADDRESSED = re.compile(
+    r"(?:ignore|disregard|forget)\s+(?:all\s+|any\s+)?(?:the\s+|your\s+)?"
+    r"(?:previous|prior|above|earlier)\s+(?:instructions|prompts?|rules)"
+    r"|if\s+you\s+are\s+(?:an?\s+)?(?:ai|a\.i\.|llm|large\s+language\s+model|"
+    r"language\s+model|chatbot|bot|gpt|automated\s+(?:tool|system|agent))\b"
+    r"|(?:ai|llm)\s+(?:tools?|assistants?|models?|agents?)\s*(?:reading\s+this|:)"
+    r"|ignora\s+(?:todas\s+)?(?:las\s+)?instrucciones\s+(?:anteriores|previas)"
+    r"|si\s+eres\s+(?:una?\s+)?(?:ia|i\.a\.|inteligencia\s+artificial|modelo\s+de\s+lenguaje|"
+    r"chatbot|bot)\b",
+    re.I,
+)
+
+
+def addressed_to_ai(text: str) -> str:
+    """The sentence of ``text`` that speaks to an AI tool, or an empty string."""
+    match = _AI_ADDRESSED.search(text or "")
+    if not match:
+        return ""
+    start = max((text.rfind(stop, 0, match.start()) for stop in (".", "\n", "!", "?")),
+                default=-1) + 1
+    ends = [i for i in (text.find(stop, match.end()) for stop in (".", "\n", "!", "?")) if i != -1]
+    end = min(ends) + 1 if ends else len(text)
+    return " ".join(text[start:end].split())[:160]
+
+
 #: The feminine or plural ending Spanish and Catalan ads add after a slash or in
 #: brackets: "Trabajador/a social", "Enfermeros/as", "Técnico(a)".
 _GENDER_ENDING = re.compile(r"(?<=\w\w\w)(?:/|\()(?:a|as|o|os|es|ra|ras)\)?(?!\w)", re.I)

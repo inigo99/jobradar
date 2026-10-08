@@ -354,6 +354,8 @@ patterns:
   es: restas prioridad a {family} (x{factor})
 - en: 'Residency condition that names no country: “{sentence}” — confirm it covers yours.'
   es: 'Condición de residencia que no nombra país: «{sentence}»; confirma que incluye el tuyo.'
+- en: 'The ad contains text addressed to AI tools (“{sentence}”) — read it yourself, and leave it out of anything you send.'
+  es: 'La oferta contiene texto dirigido a herramientas de IA («{sentence}»): léela tú, y no lo incluyas en nada de lo que envíes.'
 - en: Could not convert {currency}.
   es: No se ha podido convertir {currency}.
 - en: 'Converted from {currency} at the rate of {date}: ≈ {amount} {target}, within {margin} of your minimum
